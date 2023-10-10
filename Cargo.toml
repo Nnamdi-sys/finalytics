@@ -7,15 +7,14 @@ homepage = "https://finalytics.fly.dev/"
 repository = "https://github.com/Nnamdi-sys/finalytics"
 license = "MIT"
 description = "A rust library for financial data analysis"
+keywords = ["finance", "analytics"]
 build = "build.rs"
 
-[build-dependencies]
-pkg-config = "0.3"
 
 [dependencies]
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.105"
-reqwest = { version = "0.11.18", features = ["json"] }
+reqwest = { version = "0.11.18", features = ["json", "blocking"] }
 tokio = { version = "1.32.0", features = ["full"] }
 scraper = "0.17.1"
 select = "0.6.0"
@@ -30,10 +29,9 @@ rand = "0.8.5"
 ndarray = "0.15.6"
 rand_distr = "0.4.2"
 optimization = "0.2.0"
-ejdb = "0.4.1"
-rust-bert = { version = "0.21.0", features = ["download-libtorch"] }
-plotly = { git = "https://github.com/Nnamdi-sys/plotly.git" }
-
+rusqlite = "0.29.0"
+sentiment = "0.1.1"
+plotly = { version = "0.8.4", package = "plotly-fork" }
 
 
 

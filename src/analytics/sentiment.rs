@@ -2,16 +2,16 @@ use std::error::Error;
 use reqwest::blocking::Client;
 use select::document::Document;
 use select::predicate::Name;
-use rust_bert::pipelines::keywords_extraction::{Keyword, KeywordExtractionModel};
-use rust_bert::pipelines::sentiment::{Sentiment, SentimentModel, SentimentPolarity};
-use rust_bert::pipelines::summarization::SummarizationModel;
+use sentiment::analyze;
 
 #[derive(Debug)]
 pub struct Article {
     text: String,
-    keywords: Vec<Vec<Keyword>>,
-    sentiment: Vec<Sentiment>,
-    summary: Vec<String>,
+    sentiment_score: f64,
+    positive_score: f64,
+    negative_score: f64,
+    positive_keywords: Vec<String>,
+    negative_keywords: Vec<String>,
 }
 
 #[allow(dead_code)]
@@ -22,9 +22,11 @@ pub struct News {
     link: String,
     timestamp: String,
     text: String,
-    keywords: Vec<(String, f64)>,
-    sentiment: f64,
-    summary: Vec<String>,
+    sentiment_score: f64,
+    positive_score: f64,
+    negative_score: f64,
+    positive_keywords: Vec<String>,
+    negative_keywords: Vec<String>,
 }
 
 
@@ -61,9 +63,11 @@ pub async fn scrape_news(
                 link: link.clone(),
                 timestamp: pub_date.clone(),
                 text: article.text.clone(),
-                keywords: article.keywords[0].iter().map(|x| (x.text.clone(), x.score as f64)).collect::<Vec<(String, f64)>>(),
-                sentiment: if article.sentiment[0].polarity == SentimentPolarity::Negative { article.sentiment[0].score * -1.0 } else { article.sentiment[0].score },
-                summary: article.summary.clone(),
+                sentiment_score: article.sentiment_score,
+                positive_score: article.positive_score,
+                negative_score: article.negative_score,
+                positive_keywords: article.positive_keywords,
+                negative_keywords: article.negative_keywords,
             };
             dbg!(&news);
             result.push(news);
@@ -117,16 +121,21 @@ fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
         text = title.to_string();
     }
 
-    let keyword_extraction_model = KeywordExtractionModel::new(Default::default())?;
-    let keywords = keyword_extraction_model.predict(&[text.clone()])?;
+    let sentiment_result = analyze(text.clone());
+    let sentiment_score = sentiment_result.score as f64;
+    let positive_score = sentiment_result.positive.score as f64;
+    let negative_score = sentiment_result.negative.score as f64;
+    let positive_keywords = sentiment_result.positive.words;
+    let negative_keywords = sentiment_result.negative.words;
 
-    let sentiment_model = SentimentModel::new(Default::default())?;
-    let sentiment = sentiment_model.predict(&[&text[..]]);
-
-    let model = SummarizationModel::new(Default::default())?;
-    let summary = model.summarize(&[text.clone()]);
-
-    let article = Article {text, keywords, sentiment, summary};
+    let article = Article {
+        text: text.to_string(),
+        sentiment_score,
+        positive_score,
+        negative_score,
+        positive_keywords,
+        negative_keywords,
+    };
 
     Ok(article)
 }

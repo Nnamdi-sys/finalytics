@@ -105,10 +105,7 @@ impl Financials{
         // remove item from cols if it doesnt exist in the income statement dataframe
         cols.retain(|x| self.income_statement.column(*x).is_ok());
 
-        dbg!(&self.income_statement.column("asOfDate")?);
-
         let df = self.income_statement.clone().select(&cols)?;
-        dbg!(&df);
 
         // Create a vector of expressions for renaming and selecting columns
         let expressions: Vec<Expr> = cols

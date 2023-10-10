@@ -1,7 +1,5 @@
 use std::{env, fs};
-use std::error::Error;
-use ejdb::{bson, Database};
-use ejdb::query::{Q, QH};
+use rusqlite::{Connection, Result};
 use crate::data::keys::{AssetClass, Category, Exchange};
 use crate::data::ticker::Ticker;
 use once_cell::sync::Lazy;
@@ -38,7 +36,7 @@ pub static DB_PATH: Lazy<String> = Lazy::new(|| {
                 }
             }
         }
-    }else{
+    } else {
         let test_dir = exe_dir.to_string_lossy().to_string();
         let test_dir = test_dir.replace("deps", "build");
         for entry in fs::read_dir(test_dir).expect("Failed to read target/debug/build directory") {
@@ -66,7 +64,6 @@ pub static DB_PATH: Lazy<String> = Lazy::new(|| {
     db_path.clone()
 });
 
-
 /// Fetches a symbol from the database
 ///
 /// # Arguments
@@ -76,20 +73,24 @@ pub static DB_PATH: Lazy<String> = Lazy::new(|| {
 /// # Returns
 ///
 /// * `Symbol` - Symbol struct
-pub fn get_symbol(symbol: &str) -> Result<Ticker, Box<dyn Error>> {
-    let db = Database::open(&**DB_PATH).unwrap();
-    let col = db.collection("symbols").unwrap();
-    if let Some(document) = col.query(Q.field("symbol").eq(symbol), QH.empty()).find_one().unwrap() {
-        let ticker = Ticker {
-            symbol: document.get_str("symbol").unwrap().to_string(),
-            name: document.get_str("name").unwrap().to_string(),
-            category: document.get_str("category").unwrap().to_string(),
-            asset_class: document.get_str("asset_class").unwrap().to_string(),
-            exchange: document.get_str("exchange").unwrap().to_string(),
-        };
-        Ok(ticker)
-    } else {
-        panic!("Invalid Symbol")
+pub fn get_symbol(symbol: &str) -> Result<Ticker> {
+    let conn = Connection::open(&**DB_PATH).expect("Failed to open database");
+    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE symbol = ?")
+        .expect("Failed to prepare statement");
+
+    let symbol_row = stmt.query_row(&[symbol], |row| {
+        Ok(Ticker {
+            symbol: row.get(0)?,
+            name: row.get(1)?,
+            category: row.get(2)?,
+            asset_class: row.get(3)?,
+            exchange: row.get(4)?,
+        })
+    });
+
+    match symbol_row {
+        Ok(ticker) => Ok(ticker),
+        Err(_) => panic!("Invalid Symbol"),
     }
 }
 
@@ -104,13 +105,25 @@ pub fn get_symbol(symbol: &str) -> Result<Ticker, Box<dyn Error>> {
 /// # Returns
 ///
 /// * `Vec<Symbol>` - Vector of symbols
-pub fn get_symbols(asset_class: AssetClass, category: Category, exchange: Exchange) -> Result<Vec<Ticker>, Box<dyn Error>> {
-    let db = Database::open(&**DB_PATH).unwrap();
-    let col = db.collection("symbols").unwrap();
-    let q1 = Q.field("asset_class").contained_in(asset_class.to_string_vec());
-    let q2 = Q.field("category").contained_in(category.to_string_vec());
-    let q3 = Q.field("exchange").contained_in(exchange.to_string_vec());
-    let result = col.query(Q.and(vec![q1,q2,q3]), QH.empty()).find().unwrap();
-    let symbols: Vec<Ticker> = result.map(|x| bson::from_bson( x.unwrap().into()).unwrap()).collect();
-    Ok(symbols)
+pub fn get_symbols(asset_class: AssetClass, category: Category, exchange: Exchange) -> Result<Vec<Ticker>> {
+    let conn = Connection::open(&**DB_PATH).expect("Failed to open database");
+    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE asset_class IN (?) AND category IN (?) AND exchange IN (?)")
+        .expect("Failed to prepare statement");
+
+    let asset_class_str = &*asset_class.to_string_vec()[0];
+    let category_str = &*category.to_string_vec()[0];
+    let exchange_str = &*exchange.to_string_vec()[0];
+
+    let rows = stmt.query_map(&[&asset_class_str, &category_str, &exchange_str], |row| {
+        Ok(Ticker {
+            symbol: row.get(0)?,
+            name: row.get(1)?,
+            category: row.get(2)?,
+            asset_class: row.get(3)?,
+            exchange: row.get(4)?,
+        })
+    })?;
+
+    let symbols: Result<Vec<Ticker>> = rows.collect();
+    symbols
 }

@@ -8,8 +8,7 @@ fn main() {
     let exe_dir = exe_path.parent().expect("Failed to get executable directory");
 
     // Define the paths to the database files
-    let db_files = [("finalytics", "src/database/ejdb/finalytics"),
-        ("finalytics_symbols", "src/database/ejdb/finalytics_symbols")];
+    let db_files = [("finalytics", "src/database/sqlite/finalytics.db")];
 
     // Copy the database files to the executable directory
     for (file_name, source_path) in &db_files {

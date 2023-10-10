@@ -1,11 +1,9 @@
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use ejdb::{bson, Database};
-use ejdb::bson::ordered::OrderedDocument;
-use ejdb::query::{Q, QH, Query};
+use rusqlite::{Connection, Result};
+use rusqlite::params;
 use crate::data::ticker::Ticker;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SymbolList {
@@ -14,63 +12,56 @@ struct SymbolList {
 
 #[allow(dead_code)]
 async fn save_symbols() -> Result<(), Box<dyn Error>> {
-    let db = Database::open("./src/database/ejdb/finalytics").unwrap();
-    let col = db.collection("symbols").unwrap();
-    let base_url = "https://finance.yahoo.com/lookup/";
-    let sectors = [ "all", "equity", "mutualfund", "etf", "index", "future", "currency"];
-    let search_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".chars();
+    let conn = Connection::open("./src/database/sqlite/finalytics.db")?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS symbols (
+             symbol TEXT PRIMARY KEY,
+             name TEXT,
+             category TEXT,
+             asset_class TEXT,
+             exchange TEXT
+         )",
+        [],
+    )?;
 
-    for c1 in search_set.clone() {
-        for c2 in search_set.clone() {
-            let symbol = format!("^{}{}", c1, c2);
-            let result = scrape_symbols(base_url, "index", &symbol).await?;
-            dbg!(&result);
-            for doc in result{
-                if doc_query(&doc).iter().all(|x| col.query(x, QH.empty()).count().unwrap() == 0) {
-                    col.save(doc).expect("Doc Must be a Valid Bson Document");
-                }
-            }
-        }
-    }
+    let base_url = "https://finance.yahoo.com/lookup/";
+    let sectors = ["all", "equity", "mutualfund", "etf", "index", "future", "currency"];
+    let search_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".chars();
 
     for sector in sectors.iter() {
         for c1 in search_set.clone() {
             let symbol = format!("{}", c1);
+            dbg!(&symbol);
             let result = scrape_symbols(base_url, sector, &symbol).await?;
-            for doc in result{
-                if doc_query(&doc).iter().all(|x| col.query(x, QH.empty()).count().unwrap() == 0) {
-                    col.save(doc).expect("Doc Must be a Valid Bson Document");
+            for doc in result {
+                if !document_exists_in_db(&conn, &doc) {
+                    insert_document(&conn, &doc)?;
                 }
             }
         }
     }
 
-    for sector in sectors.iter() {
-        for c1 in search_set.clone() {
-            for c2 in search_set.clone() {
-                let symbol = format!("{}{}", c1, c2);
-                let result = scrape_symbols(base_url, sector, &symbol).await?;
-                for doc in result{
-                    if doc_query(&doc).iter().all(|x| col.query(x, QH.empty()).count().unwrap() == 0) {
-                        col.save(doc).expect("Doc Must be a Valid Bson Document");
-                    }
-                }
+    for c1 in search_set.clone() {
+        let symbol = format!("^{}", c1);
+        dbg!(&symbol);
+        let result = scrape_symbols(base_url, "index", &symbol).await?;
+        for doc in result {
+            if !document_exists_in_db(&conn, &doc) {
+                insert_document(&conn, &doc)?;
             }
         }
     }
-
 
     Ok(())
 }
 
-
 #[allow(dead_code)]
-async fn scrape_symbols(base_url: &str, sector: &str, symbol: &str) -> Result<Vec<OrderedDocument>, Box<dyn Error>> {
-    let url = format!("{}{}?s={}&t=A&b=0&c=1000", base_url, sector, symbol);
+async fn scrape_symbols(base_url: &str, sector: &str, symbol: &str) -> Result<Vec<Ticker>, Box<dyn Error>> {
+    let url = format!("{}{}?s={}&t=A&b=0&c=5000", base_url, sector, symbol);
     let response = reqwest::get(&url).await?;
     let body = response.text().await?;
     let document = Html::parse_document(&body);
-    let mut result: Vec<OrderedDocument> = Vec::new();
+    let mut result: Vec<Ticker> = Vec::new();
 
     // Selector for the table rows containing symbol data
     let row_selector = Selector::parse("table tbody tr").unwrap();
@@ -110,30 +101,39 @@ async fn scrape_symbols(base_url: &str, sector: &str, symbol: &str) -> Result<Ve
                 exchange: columns[5].clone(),
             };
 
-            let symbol = symbol_struct.symbol.clone();
-            let name = symbol_struct.name.clone();
-            let category = symbol_struct.category.clone();
-            let asset_class = symbol_struct.asset_class.clone();
-            let exchange = symbol_struct.exchange.clone();
-            let doc = bson! {
-                            "symbol" => symbol,
-                            "name" => name,
-                            "category" => category,
-                            "asset_class" => asset_class,
-                            "exchange" => exchange
-            };
-            result.push(doc);
+            result.push(symbol_struct);
         }
     }
     Ok(result)
 }
 
-#[allow(dead_code)]
-fn doc_query(doc: &OrderedDocument) -> Vec<Query> {
-    let queries = vec![
-        Q.field("symbol").eq(doc.get_str("symbol").unwrap()),
-        Q.field("name").eq(doc.get_str("name").unwrap())];
-    queries
+fn document_exists_in_db(conn: &Connection, doc: &Ticker) -> bool {
+    let sql = "SELECT COUNT(*) FROM symbols WHERE symbol = ?";
+    let count: i64 = conn.query_row(sql, &[&doc.symbol], |row| row.get(0)).unwrap_or(0);
 
+    count > 0
 }
 
+fn insert_document(conn: &Connection, doc: &Ticker) -> Result<()> {
+    let sql = "INSERT INTO symbols (symbol, name, category, asset_class, exchange) VALUES (?, ?, ?, ?, ?)";
+    conn.execute(
+        sql,
+        params![
+            &doc.symbol,
+            &doc.name,
+            &doc.category,
+            &doc.asset_class,
+            &doc.exchange
+        ],
+    )?;
+    dbg!(&doc);
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn symbol_count() -> Result<i64> {
+    let conn = Connection::open("./src/database/sqlite/finalytics.db")?;
+    let sql = "SELECT COUNT(*) FROM symbols";
+    let count: i64 = conn.query_row(sql, [], |row| row.get(0))?;
+    Ok(count)
+}
