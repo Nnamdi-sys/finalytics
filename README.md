@@ -16,16 +16,3 @@ finalytics = "0.1.1"
 You can access the user guide by visiting [finalytics.rs](https://finalytics.rs/)
 
 You can access the crates.io documentation by visiting [docs.rs/finalytics](https://docs.rs/finalytics/)
-
-
-### Sample Applications
-
-#### Ticker Chart Viewer
-
-You can access the Ticker Chart Viewer by visiting [finalytics.rs/ticker](https://finalytics.rs/ticker). This sample application allows you to perform security analysis based on the Finalytics Library.
-
-#### Portfolio Chart Viewer
-
-You can access the Portfolio Chart Viewer by visiting [finalytics.rs/portfolio](https://finalytics.rs/portfolio). This sample application enables you to perform portfolio optimization based on the Finalytics Library.
-
-
