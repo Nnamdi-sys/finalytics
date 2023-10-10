@@ -1,9 +1,9 @@
 [package]
 name = "finalytics"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
-homepage = "https://finalytics.fly.dev/"
+homepage = "https://finalytics.rs/"
 repository = "https://github.com/Nnamdi-sys/finalytics"
 license = "MIT"
 description = "A rust library for financial data analysis"
