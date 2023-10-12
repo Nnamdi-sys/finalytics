@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -8,9 +8,6 @@ repository = "https://github.com/Nnamdi-sys/finalytics"
 license = "MIT"
 description = "A rust library for financial data analysis"
 keywords = ["finance", "analytics"]
-
-[package.metadata.files]
-include = ["./src/database/sqlite/finalytics.db"]
 
 
 [dependencies]

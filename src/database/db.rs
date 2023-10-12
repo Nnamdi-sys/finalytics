@@ -2,6 +2,23 @@ use rusqlite::{Connection, Result};
 use crate::data::keys::{AssetClass, Category, Exchange};
 use crate::data::ticker::Ticker;
 
+
+static EMBEDDED_DATABASE: &[u8] = include_bytes!("sqlite/finalytics.db");
+
+fn open_database_connection() -> Result<Connection> {
+    // Open a connection to an in-memory SQLite database
+    let conn = Connection::open_in_memory()?;
+
+    // Write the contents of the embedded database to a temporary file
+    std::fs::write("temp_embedded.db", EMBEDDED_DATABASE).expect("Failed to write embedded database to file");
+
+    // Attach the temporary database
+    conn.execute("ATTACH DATABASE 'temp_embedded.db' AS embedded_db", [])?;
+
+    Ok(conn)
+}
+
+
 /// Fetches a symbol from the database
 ///
 /// # Arguments
@@ -12,8 +29,8 @@ use crate::data::ticker::Ticker;
 ///
 /// * `Symbol` - Symbol struct
 pub fn get_symbol(symbol: &str) -> Result<Ticker> {
-    let conn = Connection::open("./src/database/sqlite/finalytics.db").expect("Failed to open database");
-    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE symbol = ?")
+    let conn = open_database_connection().expect("Failed to open database");
+    let mut stmt = conn.prepare("SELECT * FROM embedded_db.symbols WHERE symbol = ?")
         .expect("Failed to prepare statement");
 
     let symbol_row = stmt.query_row(&[symbol], |row| {
@@ -44,8 +61,8 @@ pub fn get_symbol(symbol: &str) -> Result<Ticker> {
 ///
 /// * `Vec<Symbol>` - Vector of symbols
 pub fn get_symbols(asset_class: AssetClass, category: Category, exchange: Exchange) -> Result<Vec<Ticker>> {
-    let conn = Connection::open("./src/database/sqlite/finalytics.db").expect("Failed to open database");
-    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE asset_class IN (?) AND category IN (?) AND exchange IN (?)")
+    let conn = open_database_connection().expect("Failed to open database");
+    let mut stmt = conn.prepare("SELECT * FROM embedded_db.symbols WHERE asset_class IN (?) AND category IN (?) AND exchange IN (?)")
         .expect("Failed to prepare statement");
 
     let asset_class_str = &*asset_class.to_string_vec()[0];
