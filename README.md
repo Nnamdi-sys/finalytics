@@ -8,7 +8,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.1.3"
+finalytics = "0.1.4"
 ```
 
 ### Documentation

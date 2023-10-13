@@ -1,21 +1,27 @@
-use rusqlite::{Connection, Result};
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::Result;
+use std::path::PathBuf;
 use crate::data::keys::{AssetClass, Category, Exchange};
 use crate::data::ticker::Ticker;
 
 
 static EMBEDDED_DATABASE: &[u8] = include_bytes!("sqlite/finalytics.db");
 
-fn open_database_connection() -> Result<Connection> {
-    // Open a connection to an in-memory SQLite database
-    let conn = Connection::open_in_memory()?;
+lazy_static::lazy_static! {
+    static ref DATABASE_POOL: Pool<SqliteConnectionManager> = {
+        let db_file = "temp_embedded.db";
+        let db_path = PathBuf::from(db_file);
 
-    // Write the contents of the embedded database to a temporary file
-    std::fs::write("temp_embedded.db", EMBEDDED_DATABASE).expect("Failed to write embedded database to file");
+        if !db_path.exists() {
+            std::fs::write(db_file, EMBEDDED_DATABASE)
+                .expect("Failed to write embedded database to file");
+        }
+        let manager = SqliteConnectionManager::file(db_file);
+        let pool = Pool::new(manager).expect("Failed to create database connection pool");
 
-    // Attach the temporary database
-    conn.execute("ATTACH DATABASE 'temp_embedded.db' AS embedded_db", [])?;
-
-    Ok(conn)
+        pool
+    };
 }
 
 
@@ -29,8 +35,8 @@ fn open_database_connection() -> Result<Connection> {
 ///
 /// * `Symbol` - Symbol struct
 pub fn get_symbol(symbol: &str) -> Result<Ticker> {
-    let conn = open_database_connection().expect("Failed to open database");
-    let mut stmt = conn.prepare("SELECT * FROM embedded_db.symbols WHERE symbol = ?")
+    let conn = DATABASE_POOL.clone().get().expect("Failed to get connection from pool");
+    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE symbol = ?")
         .expect("Failed to prepare statement");
 
     let symbol_row = stmt.query_row(&[symbol], |row| {
@@ -61,8 +67,8 @@ pub fn get_symbol(symbol: &str) -> Result<Ticker> {
 ///
 /// * `Vec<Symbol>` - Vector of symbols
 pub fn get_symbols(asset_class: AssetClass, category: Category, exchange: Exchange) -> Result<Vec<Ticker>> {
-    let conn = open_database_connection().expect("Failed to open database");
-    let mut stmt = conn.prepare("SELECT * FROM embedded_db.symbols WHERE asset_class IN (?) AND category IN (?) AND exchange IN (?)")
+    let conn = DATABASE_POOL.clone().get().expect("Failed to get connection from pool");
+    let mut stmt = conn.prepare("SELECT * FROM symbols WHERE asset_class IN (?) AND category IN (?) AND exchange IN (?)")
         .expect("Failed to prepare statement");
 
     let asset_class_str = &*asset_class.to_string_vec()[0];
