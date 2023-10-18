@@ -5,7 +5,9 @@ mod tests {
     use finalytics::analytics::performance::{PortfolioPerformanceStats, TickerPerformanceStats};
     use finalytics::charts::portfolio::PortfolioCharts;
     use finalytics::charts::ticker::TickerCharts;
+    use finalytics::data::keys::{AssetClass, Category, Exchange};
     use finalytics::data::ticker::{Interval, Ticker};
+    use finalytics::database::db::{get_symbols_count, get_symbols};
 
     #[tokio::test]
     async fn test_ticker_functions() {
@@ -106,5 +108,14 @@ mod tests {
 
         let asset_returns_chart = portfolio_charts.asset_returns_chart();
         assert!(matches!(asset_returns_chart, Plot));
+    }
+    #[tokio::test]
+    async fn test_db_functions() {
+        // Database-related tests
+        let result = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
+        assert_eq!(result.len(), 235556);
+
+        let result = get_symbols_count().unwrap();
+        assert_eq!(result, 235556);
     }
 }

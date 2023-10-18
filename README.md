@@ -1,4 +1,6 @@
-## Finalytics
+<div style="text-align:center;">
+    <img src="https://finalytics.rs/statics/logo.png" alt="Finalytics" style="width:100%; max-height:250px;">
+</div>
 
 **Finalytics** is a Rust library designed for retrieving financial data and performing various financial analysis tasks, including fundamental analysis, technical analysis, sentiment analysis, options pricing, portfolio optimization, and displaying financial charts. The library fetches data from Yahoo Finance.
 
@@ -8,7 +10,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.1.4"
+finalytics = "0.1.5"
 ```
 
 ### Documentation

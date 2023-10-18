@@ -6,6 +6,24 @@ use crate::analytics::statistics::{PerformanceStats, covariance_matrix, daily_po
 use crate::data::ticker::Interval;
 
 
+/// Performance statistics for a ticker
+///
+/// # Example
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::Interval;
+/// use finalytics::analytics::performance::TickerPerformanceStats;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let result = TickerPerformanceStats::new(
+///         "MSFT", "^GSPC", "2022-01-01", "2022-12-31", Interval::OneDay,
+///         0.95, 0.02).await?.compute_stats()?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct TickerPerformanceStats {
     pub ticker_symbol: String,
@@ -21,6 +39,27 @@ pub struct TickerPerformanceStats {
     pub performance_stats: PerformanceStats,
 }
 
+/// Performance statistics for a portfolio
+///
+/// # Example
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::Interval;
+/// use finalytics::analytics::optimization::ObjectiveFunction;
+/// use finalytics::analytics::performance::PortfolioPerformanceStats;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let result = PortfolioPerformanceStats::new(
+///         Vec::from(["AAPL".to_string(), "GOOG".to_string(), "MSFT".to_string(), "^TNX".to_string()]),
+///         "^GSPC", "2021-01-01", "2023-01-01",
+///         Interval::OneDay, 0.95, 0.02, 1000,
+///         ObjectiveFunction::MaxSharpe).await?.compute_stats()?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct PortfolioPerformanceStats {
     pub ticker_symbols: Vec<String>,

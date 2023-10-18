@@ -49,6 +49,17 @@ impl BlackScholesModel {
     /// # Returns
     ///
     /// * `BlackScholesModel` struct
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use finalytics::analytics::stochastics::{BlackScholesModel, OptionType};
+    ///
+    /// fn main() {
+    ///     let result = BlackScholesModel::compute(100.0, 100.0, 1.0, 0.05, 0.2, OptionType::Call);
+    ///     println!("{:?}", result);
+    /// }
+    /// ```
     pub fn compute(
         s: f64,
         k: f64,
@@ -139,6 +150,17 @@ impl BlackScholesModel {
 /// # Returns
 ///
 /// * `f64` Implied volatility in decimal
+///
+/// # Example
+///
+/// ```
+/// use finalytics::analytics::stochastics::{implied_volatility_bisection, OptionType};
+///
+/// fn main() {
+///     let result = implied_volatility_bisection(10.0, 100.0, 100.0, 1.0, 0.05, OptionType::Call);
+///     println!("{:?}", result);
+/// }
+/// ```
 pub fn implied_volatility_bisection(
     option_price: f64,
     s: f64,

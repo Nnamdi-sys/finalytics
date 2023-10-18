@@ -9,7 +9,28 @@ use crate::analytics::statistics::cumulative_returns_list;
 use crate::data::ticker::Interval;
 use crate::utils::date_utils::generate_dates;
 
-
+/// Financial Analysis Charts for Portfolio Optimization
+///
+/// # Example
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::Interval;
+/// use finalytics::analytics::optimization::ObjectiveFunction;
+/// use finalytics::charts::portfolio::PortfolioCharts;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let pc = PortfolioCharts::new(
+///         Vec::from(["NVDA".to_string(), "BRK-A".to_string(), "MSFT".to_string(), "^TNX".to_string()]),
+///         "^GSPC", "2017-01-01", "2023-01-01", Interval::OneDay, 0.95, 0.02, 1000, ObjectiveFunction::MaxSharpe).await?;
+///     let _ = pc.optimization_chart().show();
+///     let _ = pc.performance_chart().show();
+///     let _ = pc.asset_returns_chart().show();
+///     let _ = pc.performance_stats_table().show();
+///     Ok(())
+/// }
+/// ```
 pub struct PortfolioCharts {
     performance_stats: PortfolioPerformanceStats,
 }

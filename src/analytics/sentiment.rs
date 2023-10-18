@@ -41,6 +41,20 @@ pub struct News {
 /// # Returns
 ///
 /// * `Vec<News>` Vector of News struct
+///
+/// # Example
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::analytics::sentiment::scrape_news;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let result = scrape_news("MSFT", "2023-01-01", "2023-01-02").await?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 pub async fn scrape_news(
     token: &str,
     start: &str,

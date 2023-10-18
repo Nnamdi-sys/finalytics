@@ -1,3 +1,5 @@
+use crate::database::db::{get_distinct_asset_classes, get_distinct_categories, get_distinct_exchanges};
+
 pub struct Fundamentals;
 
 impl Fundamentals {
@@ -192,9 +194,7 @@ impl AssetClass {
             AssetClass::Futures => vec!["Future".to_string()],
             AssetClass::Currencies => vec!["Currency".to_string()],
             AssetClass::Cryptocurrencies => vec!["CRYPTOCURRENCY".to_string()],
-            AssetClass::All => vec!["Stocks".to_string(), "ETF".to_string(), "Mutual Fund".to_string(),
-                                    "Index".to_string(), "Future".to_string(), "Currency".to_string(),
-                                    "CRYPTOCURRENCY".to_string()],
+            AssetClass::All => get_distinct_asset_classes().unwrap(),
         }
     }
 }
@@ -240,14 +240,7 @@ impl Category {
             Category::IndustrialGoods => vec!["Industrial Goods".to_string()],
             Category::ConsumerGoods => vec!["Consumer Goods".to_string()],
             Category::Conglomerates => vec!["Conglomerates".to_string()],
-            Category::All => vec!["Consumer Cyclical".to_string(), "Communication Services".to_string(),
-                                  "Financial Services".to_string(), "Real Estate".to_string(),
-                                  "Basic Materials".to_string(), "Utilities".to_string(),
-                                  "Technology".to_string(), "Consumer Defensive".to_string(),
-                                  "Healthcare".to_string(), "Energy".to_string(), "Industrials".to_string(),
-                                  "N/A".to_string(), "Services".to_string(), "Financial".to_string(),
-                                  "Industrial Goods".to_string(), "Consumer Goods".to_string(),
-                                  "Conglomerates".to_string()],
+            Category::All => get_distinct_categories().unwrap(),
         }
     }
 }
@@ -260,6 +253,7 @@ pub enum Exchange {
     DowJonesIndices, // DJI
     NasdaqCapitalMarket,       // NCM
     NasdaqGlobalMarket,       // NGM
+    Currencies,               // CCY
     Crytpocurrencies,   // CCC
     NYSEArca,                 // PCX
     NYSEAmerican,             // NIM
@@ -374,6 +368,7 @@ impl Exchange {
             Exchange::DowJonesIndices => vec!["DJI".to_string()],
             Exchange::NasdaqCapitalMarket => vec!["NCM".to_string()],
             Exchange::NasdaqGlobalMarket => vec!["NGM".to_string()],
+            Exchange::Currencies => vec!["CCY".to_string()],
             Exchange::Crytpocurrencies => vec!["CCC".to_string()],
             Exchange::NYSEArca => vec!["PCX".to_string()],
             Exchange::NYSEAmerican => vec!["NIM".to_string()],
@@ -475,33 +470,7 @@ impl Exchange {
             Exchange::CaracasStockExchange => vec!["CCS".to_string()],
             Exchange::OPI => vec!["OPI".to_string()],
             Exchange::Euronext => vec!["ENX".to_string()],
-            Exchange::All => vec!["NYQ".to_string(), "NMS".to_string(), "STO".to_string(), "DJI".to_string(),
-                                  "NCM".to_string(), "NGM".to_string(), "CCC".to_string(), "PCX".to_string(),
-                                  "NIM".to_string(), "NYM".to_string(), "CMX".to_string(), "CBT".to_string(),
-                                  "CME".to_string(), "PNK".to_string(), "TOR".to_string(), "ASE".to_string(),
-                                  "NYB".to_string(), "SNP".to_string(), "WCB".to_string(), "BTS".to_string(),
-                                  "CXI".to_string(), "NAS".to_string(), "NSI".to_string(), "LSE".to_string(),
-                                  "GER".to_string(), "BER".to_string(), "DUS".to_string(), "PAR".to_string(),
-                                  "NYS".to_string(), "IOB".to_string(), "ZRH".to_string(), "BUE".to_string(),
-                                  "BSE".to_string(), "ASX".to_string(), "VAN".to_string(), "AMS".to_string(),
-                                  "JPX".to_string(), "CNQ".to_string(), "FRA".to_string(), "MUN".to_string(),
-                                  "IST".to_string(), "MEX".to_string(), "MIL".to_string(), "NZE".to_string(),
-                                  "SAO".to_string(), "KSC".to_string(), "FGI".to_string(), "HKG".to_string(),
-                                  "SET".to_string(), "SES".to_string(), "SHH".to_string(), "EBS".to_string(),
-                                  "OSL".to_string(), "TLV".to_string(), "KOE".to_string(), "CPH".to_string(),
-                                  "STU".to_string(), "KLS".to_string(), "HAM".to_string(), "VIE".to_string(),
-                                  "PRA".to_string(), "HAN".to_string(), "JNB".to_string(), "DXE".to_string(),
-                                  "MSC".to_string(), "CXA".to_string(), "SHZ".to_string(), "VSE".to_string(),
-                                  "WSE".to_string(), "ICE".to_string(), "RIS".to_string(), "CXE".to_string(),
-                                  "JKT".to_string(), "TWO".to_string(), "OSA".to_string(), "AQS".to_string(),
-                                  "TAI".to_string(), "DOH".to_string(), "HEL".to_string(), "TSI".to_string(),
-                                  "MCE".to_string(), "NEO".to_string(), "BRU".to_string(), "LIT".to_string(),
-                                  "BUD".to_string(), "LIS".to_string(), "SGO".to_string(), "FSI".to_string(),
-                                  "ISE".to_string(), "ATH".to_string(), "SAU".to_string(), "TLO".to_string(),
-                                  "CBO".to_string(), "BVC".to_string(), "TAL".to_string(), "KUW".to_string(),
-                                  "CAI".to_string(), "CSE".to_string(), "DFM".to_string(), "PHS".to_string(),
-                                  "FKA".to_string(), "OBB".to_string(), "YHD".to_string(), "SAP".to_string(),
-                                  "CCS".to_string(), "OPI".to_string(), "ENX".to_string()],
+            Exchange::All => get_distinct_exchanges().unwrap(),
         }
     }
 }

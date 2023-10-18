@@ -129,11 +129,3 @@ fn insert_document(conn: &Connection, doc: &Ticker) -> Result<()> {
     dbg!(&doc);
     Ok(())
 }
-
-#[allow(dead_code)]
-fn symbol_count() -> Result<i64> {
-    let conn = Connection::open("./src/database/sqlite/finalytics.db")?;
-    let sql = "SELECT COUNT(*) FROM symbols";
-    let count: i64 = conn.query_row(sql, [], |row| row.get(0))?;
-    Ok(count)
-}

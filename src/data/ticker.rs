@@ -10,6 +10,33 @@ use crate::utils::date_utils::{time_to_maturity, to_date, to_timestamp};
 use crate::data::keys::Fundamentals;
 use crate::database::db::get_symbol;
 
+
+/// Ticker struct
+///
+/// # Examples
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::{Interval, Ticker};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///    let ticker = Ticker::new("MSFT").await?;
+///    let result = ticker.get_quote().await?;
+///     println!("{:?}", result);
+///     let result = ticker.get_ticker_stats().await?;
+///     println!("{:?}", result);
+///     let result = ticker.get_options().await?;
+///     println!("{:?}", result);
+///     let result = ticker.get_chart("2023-01-01", "2023-02-01", Interval::OneDay).await?;
+///    println!("{:?}", result);
+///     let result = ticker.get_fundamentals("income-statement","quarterly").await?;
+///     println!("{:?}", result);
+///     let result = ticker.get_news("2023-01-01", "2023-01-02").await?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Ticker {
     pub symbol: String,

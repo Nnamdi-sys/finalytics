@@ -3,6 +3,28 @@ use std::error::Error;
 use polars::prelude::*;
 use crate::data::ticker::Ticker;
 
+/// Financials struct
+///
+/// # Examples
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::analytics::fundamentals::Financials;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let financials = Financials::new("MSFT").await?;
+///     let result = financials.format_income_statement()?;
+///     println!("{:?}", result);
+///     let result = financials.format_balance_sheet()?;
+///     println!("{:?}", result);
+///     let result = financials.format_cashflow_statement()?;
+///     println!("{:?}", result);
+///     let result = financials.compute_ratios()?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Financials {
     income_statement: DataFrame,

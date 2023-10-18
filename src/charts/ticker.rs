@@ -12,6 +12,39 @@ use crate::charts::options::OptionCharts;
 use crate::data::ticker::{Interval, Ticker};
 use crate::utils::date_utils::{generate_dates, to_date};
 
+
+/// Financial Analysis Charts for a Ticker
+///
+/// # Example
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::Interval;
+/// use finalytics::charts::ticker::TickerCharts;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let tc = TickerCharts::new("MSFT", "2019-01-01", "2023-01-01", Interval::OneDay
+///     ,"^GSPC", 0.95, 0.02);
+///     let result = tc.candlestick_chart().await?.show();
+///     println!("{:?}", result);
+///     let result = tc.performance_chart().await?.show();
+///     println!("{:?}", result);
+///     let result = tc.performance_stats_table().await?.show();
+///     println!("{:?}", result);
+///    let fin_plots = tc.financial_statements().await?;
+///     for plot in fin_plots {
+///         let _ = plot.show();
+///     }
+///     let result = tc.summary_stats_table().await?.show();
+///     println!("{:?}", result);
+///    let vol_plots = tc.options_volatility_charts().await?;
+///     for plot in vol_plots {
+///         let _ = plot.show();
+///     }
+///     Ok(())
+/// }
+/// ```
 pub struct TickerCharts {
     symbol: String,
     start_date: String,

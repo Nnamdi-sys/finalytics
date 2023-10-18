@@ -5,6 +5,42 @@ use chrono::NaiveDateTime;
 use polars::prelude::*;
 use crate::data::ticker::{Interval, Ticker};
 
+
+/// Technical Indicators struct
+///
+/// # Examples
+///
+/// ```
+/// use std::error::Error;
+/// use finalytics::data::ticker::Interval;
+/// use finalytics::analytics::technicals::TechnicalIndicators;
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), Box<dyn Error>> {
+///     let technicals = TechnicalIndicators::new("MSFT",  "2023-08-01", "2023-08-30", Interval::OneHour).await?;
+///     let result = technicals.sma(20)?;
+///     println!("{:?}", result);
+///     let result = technicals.ema(20)?;
+///     println!("{:?}", result);
+///     let result = technicals.rsi(14)?;
+///     println!("{:?}", result);
+///     let result = technicals.macd(12, 26, 9)?;
+///     println!("{:?}", result);
+///     let result = technicals.bb(20, 2.0)?;
+///     println!("{:?}", result);
+///     let result = technicals.atr(14)?;
+///     println!("{:?}", result);
+///     let result = technicals.roc(1)?;
+///     println!("{:?}", result);
+///     let result = technicals.sd(10)?;
+///     println!("{:?}", result);
+///     let result = technicals.mfi(14)?;
+///     println!("{:?}", result);
+///     let result = technicals.obv()?;
+///     println!("{:?}", result);
+///     Ok(())
+/// }
+/// ```
 pub struct TechnicalIndicators {
     pub timestamp: Vec<NaiveDateTime>,
     pub open: Vec<f64>,
