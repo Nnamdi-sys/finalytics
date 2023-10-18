@@ -1,5 +1,5 @@
 <div style="text-align:center;">
-    <img src="https://finalytics.rs/statics/logo.png" alt="Finalytics" style="width:100%; max-height:50px;">
+    <img src="https://finalytics.rs/statics/logo.png" alt="Finalytics" style="width:100px; max-height:50px;">
 </div>
 
 **Finalytics** is a Rust library designed for retrieving financial data and performing various financial analysis tasks, including fundamental analysis, technical analysis, sentiment analysis, options pricing, portfolio optimization, and displaying financial charts. The library fetches data from Yahoo Finance.
