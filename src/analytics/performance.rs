@@ -6,7 +6,9 @@ use crate::analytics::statistics::{PerformanceStats, covariance_matrix, daily_po
 use crate::data::ticker::Interval;
 
 
-/// Performance statistics for a ticker
+/// # Ticker Performance Struct
+///
+/// Helps compute the performance statistics for a ticker
 ///
 /// # Example
 ///
@@ -39,7 +41,9 @@ pub struct TickerPerformanceStats {
     pub performance_stats: PerformanceStats,
 }
 
-/// Performance statistics for a portfolio
+/// # Portfolio Performance Struct
+///
+/// Helps compute the performance statistics for a portfolio
 ///
 /// # Example
 ///
@@ -121,14 +125,9 @@ impl PortfolioPerformanceStats {
             dfs.push(security_returns_df);
         }
 
-        let mut portfolio_returns = match dfs.pop() {
-            Some(first_df) => first_df,
-            None => {
-                return Err("No DataFrames found".into());
-            }
-        };
+        let mut portfolio_returns = dfs[0].clone();
 
-        for df in dfs.iter() {
+        for df in dfs[1..].iter() {
             portfolio_returns = portfolio_returns
                 .join(
                     df,

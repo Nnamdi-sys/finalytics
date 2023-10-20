@@ -3,7 +3,9 @@ use std::error::Error;
 use polars::prelude::*;
 use crate::data::ticker::Ticker;
 
-/// Financials struct
+/// # Financials Struct
+///
+/// Helps to compute financial ratios and format financial statements
 ///
 /// # Examples
 ///

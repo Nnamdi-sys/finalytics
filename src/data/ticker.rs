@@ -11,7 +11,9 @@ use crate::data::keys::Fundamentals;
 use crate::database::db::get_symbol;
 
 
-/// Ticker struct
+/// # Ticker Data Struct
+///
+/// Helps fetch ticker data from Yahoo Finance & Google News
 ///
 /// # Examples
 ///

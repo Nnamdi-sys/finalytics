@@ -6,7 +6,9 @@ use polars::prelude::*;
 use crate::data::ticker::{Interval, Ticker};
 
 
-/// Technical Indicators struct
+/// # Technical Indicators Struct
+///
+/// Helps generate technical indicators for a given ticker symbol
 ///
 /// # Examples
 ///

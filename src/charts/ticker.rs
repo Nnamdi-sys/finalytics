@@ -13,7 +13,9 @@ use crate::data::ticker::{Interval, Ticker};
 use crate::utils::date_utils::{generate_dates, to_date};
 
 
-/// Financial Analysis Charts for a Ticker
+/// # Ticker Charts Struct
+///
+/// Helps generate Financial Analytics charts for a given ticker
 ///
 /// # Example
 ///

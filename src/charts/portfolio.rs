@@ -9,7 +9,9 @@ use crate::analytics::statistics::cumulative_returns_list;
 use crate::data::ticker::Interval;
 use crate::utils::date_utils::generate_dates;
 
-/// Financial Analysis Charts for Portfolio Optimization
+/// # Portfolio Charts Struct
+///
+/// Helps generate financial analytics charts for portfolio optimization and performance
 ///
 /// # Example
 ///
