@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -32,7 +32,7 @@ lazy_static = "1.4.0"
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.22.0"
 sentiment = "0.1.1"
-plotly = { version = "0.8.4", package = "plotly-fork" }
+plotly = { version = "0.8.4", package = "plotly-fork", features = ["kaleido"] }
 
 
 
