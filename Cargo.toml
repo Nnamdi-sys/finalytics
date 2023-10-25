@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -13,7 +13,7 @@ keywords = ["finance", "analytics"]
 [dependencies]
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.105"
-reqwest = { version = "0.11.18", features = ["json", "blocking"] }
+reqwest = { version = "0.11.18", features = ["json"] }
 tokio = { version = "1.32.0", features = ["full"] }
 scraper = "0.17.1"
 select = "0.6.0"

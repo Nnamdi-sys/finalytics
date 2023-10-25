@@ -1,5 +1,5 @@
 use std::error::Error;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use select::document::Document;
 use select::predicate::Name;
 use sentiment::analyze;
@@ -70,7 +70,7 @@ pub async fn scrape_news(
         let source = item.last_child().map(|n| n.text()).unwrap_or_default();
         let link = item.children().nth(2).map(|n| n.text()).unwrap_or_default();
         let pub_date = item.children().nth(4).map(|n| n.text()).unwrap_or_default();
-        if let Ok(article) = tokio::task::block_in_place(|| scrape_text(&link, &title)) {
+        if let Ok(article) = scrape_text(&link, &title).await {
             let news = News {
                 title: title.clone(),
                 source: source.clone(),
@@ -95,10 +95,10 @@ pub async fn scrape_news(
     Ok(result)
 }
 
-fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
+async fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
     let client = Client::new();
-    let response = client.get(url).send()?;
-    let body = response.text()?;
+    let response = client.get(url).send().await?;
+    let body = response.text().await?;
 
     // Parse the HTML content of the article
     let document = Document::from_read(body.as_bytes()).unwrap();
@@ -109,8 +109,8 @@ fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
 
     for node in document.find(Name("a")) {
         link.push_str(&node.text());
-        let response = client.get(&node.text()).send()?;
-        let body = response.text()?;
+        let response = client.get(&node.text()).send().await?;
+        let body = response.text().await?;
         let document = Document::from_read(body.as_bytes()).unwrap();
         for node in document.find(Name("p")) {
             let mut include_node = false;
