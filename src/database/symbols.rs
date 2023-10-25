@@ -1,18 +1,52 @@
+#!/usr/bin/env cargo eval --
+//! `cargo` "language".
+//!
+//! ```cargo
+//! [package]
+//! edition = "2021"
+//!
+//! [dependencies]
+//! rusqlite = "0.29.0"
+//! reqwest = { version = "0.11.18", features = ["json", "blocking"] }
+//! tokio = { version = "1.32.0", features = ["full"] }
+//! serde = { version = "1.0.183", features = ["derive"] }
+//! serde_json = "1.0.105"
+//! scraper = "0.17.1"
+//! html-escape = "0.2.13"
+//! ```
+
+extern crate reqwest;
+extern crate scraper;
+extern crate serde;
+extern crate serde_json;
+extern crate rusqlite;
+extern crate tokio;
+extern crate html_escape;
+
+
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use rusqlite::{Connection, Result};
 use rusqlite::params;
-use crate::data::ticker::Ticker;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct SymbolList {
     pub symbols: Vec<Ticker>,
 }
 
-#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct Ticker {
+    pub symbol: String,
+    pub name: String,
+    pub category: String,
+    pub asset_class: String,
+    pub exchange: String,
+}
 async fn save_symbols() -> Result<(), Box<dyn Error>> {
-    let conn = Connection::open("./src/database/sqlite/finalytics.db")?;
+    let current_dir = std::env::current_dir()?;
+    let db_path = current_dir.to_str().unwrap().to_string() +  "/sqlite/finalytics.db";
+    let conn = Connection::open(&db_path)?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS symbols (
              symbol TEXT PRIMARY KEY,
@@ -55,7 +89,6 @@ async fn save_symbols() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[allow(dead_code)]
 async fn scrape_symbols(base_url: &str, sector: &str, symbol: &str) -> Result<Vec<Ticker>, Box<dyn Error>> {
     let url = format!("{}{}?s={}&t=A&b=0&c=5000", base_url, sector, symbol);
     let response = reqwest::get(&url).await?;
@@ -120,12 +153,18 @@ fn insert_document(conn: &Connection, doc: &Ticker) -> Result<()> {
         sql,
         params![
             &doc.symbol,
-            &doc.name,
+            html_escape::decode_html_entities(&doc.name).to_string(),
             &doc.category,
             &doc.asset_class,
             &doc.exchange
         ],
     )?;
     dbg!(&doc);
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    save_symbols().await?;
     Ok(())
 }

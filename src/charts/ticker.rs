@@ -364,8 +364,8 @@ impl TickerCharts {
 
         let trace = Table::new(
             vec![
-                "<span style=\"font-weight:bold; color:darkgreen;\">Summary Stats</span>",
-                "<span style=\"font-weight:bold; color:darkgreen;\">Values</span>",
+                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Summary Stats"),
+                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
             ],
             vec![fields, values],
         );
@@ -434,8 +434,8 @@ impl TickerCharts {
 
         let trace = Table::new(
             vec![
-                "<span style=\"font-weight:bold; color:darkgreen;\">Performance Stats</span>",
-                "<span style=\"font-weight:bold; color:darkgreen;\">Values</span>",
+                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Performance Stats"),
+                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
             ],
             vec![fields, values],
         );

@@ -32,6 +32,7 @@ lazy_static = "1.4.0"
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.22.0"
 sentiment = "0.1.1"
+html-escape = "0.2.13"
 plotly = { version = "0.8.4", package = "plotly-fork", features = ["kaleido"] }
 
 

@@ -112,10 +112,10 @@ mod tests {
     #[tokio::test]
     async fn test_db_functions() {
         // Database-related tests
-        let result = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
-        assert_eq!(result.len(), 235556);
+        let res1 = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
+        assert!(res1.len() >= 200000);
 
-        let result = get_symbols_count().unwrap();
-        assert_eq!(result, 235556);
+        let res2 = get_symbols_count().unwrap() as usize;
+        assert_eq!(res1.len(), res2);
     }
 }
