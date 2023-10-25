@@ -17,16 +17,16 @@ pub struct Article {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct News {
-    title: String,
-    source: String,
-    link: String,
-    timestamp: String,
-    text: String,
-    sentiment_score: f64,
-    positive_score: f64,
-    negative_score: f64,
-    positive_keywords: Vec<String>,
-    negative_keywords: Vec<String>,
+    pub title: String,
+    pub source: String,
+    pub link: String,
+    pub timestamp: String,
+    pub text: String,
+    pub sentiment_score: f64,
+    pub positive_score: f64,
+    pub negative_score: f64,
+    pub positive_keywords: Vec<String>,
+    pub negative_keywords: Vec<String>,
 }
 
 
