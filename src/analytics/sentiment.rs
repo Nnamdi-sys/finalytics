@@ -40,6 +40,7 @@ pub struct News {
 /// * `token` - Search token (e.g. "AAPL")
 /// * `start` - Start date in YYYY-MM-DD format (e.g. "2021-01-01")
 /// * `end` - End date in YYYY-MM-DD format (e.g. "2021-01-31")
+/// * `compute_sentiment` - Boolean flag to compute sentiment scores and get keywords (expensive)
 ///
 /// # Returns
 ///
@@ -53,7 +54,7 @@ pub struct News {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let result = scrape_news("AAPL", "2023-01-01", "2023-01-02").await?;
+///     let result = scrape_news("AAPL", "2023-01-01", "2023-01-02", true).await?;
 ///     println!("{:?}", result);
 ///     Ok(())
 /// }
@@ -62,6 +63,7 @@ pub async fn scrape_news(
     token: &str,
     start: &str,
     end: &str,
+    compute_sentiment: bool,
 ) -> Result<Vec<News>, Box<dyn Error>> {
     let mut result = vec![];
     let url = format!("https://news.google.com/rss/search?q=allintext:{token}+when:after:{start}+before:{end}");
@@ -78,22 +80,8 @@ pub async fn scrape_news(
         let timeout_duration = Duration::from_secs(10); // Set your desired timeout duration in seconds
 
         let fetch_task = async {
-            let news = match timeout(timeout_duration, scrape_text(&link, &title)).await {
-                Ok(Ok(article)) => {
-                    News {
-                        title: title.clone(),
-                        source: source.clone(),
-                        link: link.clone(),
-                        timestamp: pub_date.clone(),
-                        text: article.text.clone(),
-                        sentiment_score: article.sentiment_score,
-                        positive_score: article.positive_score,
-                        negative_score: article.negative_score,
-                        positive_keywords: article.positive_keywords,
-                        negative_keywords: article.negative_keywords,
-                    }
-                }
-                _ => News {
+            let news = if !compute_sentiment {
+                News {
                     title: title.clone(),
                     source: source.clone(),
                     link: link.clone(),
@@ -104,9 +92,38 @@ pub async fn scrape_news(
                     negative_score: 0.0,
                     positive_keywords: vec![],
                     negative_keywords: vec![],
-                },
+                }
+            }
+            else {
+                match timeout(timeout_duration, scrape_text(&link, &title)).await {
+                    Ok(Ok(article)) => {
+                        News {
+                            title: title.clone(),
+                            source: source.clone(),
+                            link: link.clone(),
+                            timestamp: pub_date.clone(),
+                            text: article.text.clone(),
+                            sentiment_score: article.sentiment_score,
+                            positive_score: article.positive_score,
+                            negative_score: article.negative_score,
+                            positive_keywords: article.positive_keywords,
+                            negative_keywords: article.negative_keywords,
+                        }
+                    }
+                    _ => News {
+                        title: title.clone(),
+                        source: source.clone(),
+                        link: link.clone(),
+                        timestamp: pub_date.clone(),
+                        text: " ".to_string(),
+                        sentiment_score: 0.0,
+                        positive_score: 0.0,
+                        negative_score: 0.0,
+                        positive_keywords: vec![],
+                        negative_keywords: vec![],
+                    }
+                }
             };
-
             result.push(news);
         };
 

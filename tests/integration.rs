@@ -29,6 +29,10 @@ mod tests {
         let chart = ticker.get_chart("2023-08-01",
                                      "2023-09-20", Interval::OneHour).await;
         assert!(chart.is_ok());
+
+        let news = ticker.get_news("2023-01-01",
+                                   "2023-01-07", false).await;
+        assert!(news.is_ok());
     }
 
 

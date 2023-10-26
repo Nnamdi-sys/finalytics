@@ -34,7 +34,7 @@ use crate::database::db::get_symbol;
 ///    println!("{:?}", result);
 ///     let result = ticker.get_fundamentals("income-statement","quarterly").await?;
 ///     println!("{:?}", result);
-///     let result = ticker.get_news("2023-01-01", "2023-01-02").await?;
+///     let result = ticker.get_news("2023-01-01", "2023-01-02", false).await?;
 ///     println!("{:?}", result);
 ///     Ok(())
 /// }
@@ -431,6 +431,7 @@ impl Ticker {
     ///
     /// * `start` - Start Date in YYYY-MM-DD format
     /// * `end` - End Date in YYYY-MM-DD format
+    /// * `compute_sentiment` - Boolean flag to compute sentiment scores and get keywords (expensive)
     ///
     /// # Returns
     ///
@@ -438,11 +439,12 @@ impl Ticker {
     pub async fn get_news(
         &self,
         start: &str,
-        end: &str
+        end: &str,
+        compute_sentiment: bool
     ) -> Result<Vec<News>, Box<dyn Error>> {
         let symbol = if self.asset_class == "CRYPTOCURRENCY" {self.symbol.replace("-USD", "")} else {self.symbol.clone()};
         let token = format!("({} OR {})", &symbol, &self.name);
-        let result = scrape_news(&token, start, end).await?;
+        let result = scrape_news(&token, start, end, compute_sentiment).await?;
         Ok(result)
     }
 
