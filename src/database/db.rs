@@ -63,10 +63,7 @@ pub fn get_symbol(symbol: &str) -> Result<Ticker> {
         })
     });
 
-    match symbol_row {
-        Ok(ticker) => Ok(ticker),
-        Err(_) => panic!("Invalid Symbol"),
-    }
+    symbol_row
 }
 
 /// Fetches symbols that match the specified asset class, category, and exchange from the database

@@ -82,7 +82,7 @@ mod tests {
         // Ticker charts-related tests
         let ticker_charts = TickerCharts::new("AAPL", "2019-01-01", "2023-01-01",
                                               Interval::OneDay, "^GSPC", 0.95,
-                                              0.02);
+                                              0.02).unwrap();
 
         let candlestick_chart = ticker_charts.candlestick_chart().await;
         #[cfg(feature = "kaleido")]

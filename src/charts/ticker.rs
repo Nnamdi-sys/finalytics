@@ -27,7 +27,7 @@ use crate::utils::date_utils::{generate_dates, to_date};
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///     let tc = TickerCharts::new("AAPL", "2019-01-01", "2023-01-01", Interval::OneDay
-///     ,"^GSPC", 0.95, 0.02);
+///     ,"^GSPC", 0.95, 0.02).unwrap();
 ///     let result = tc.candlestick_chart().await?.show();
 ///     println!("{:?}", result);
 ///     let result = tc.performance_chart().await?.show();
@@ -75,8 +75,8 @@ impl TickerCharts {
     ///
     /// * `TickerCharts` struct
     pub fn new(symbol: &str, start_date: &str, end_date: &str, interval: Interval,
-                     benchmark_symbol: &str, confidence_level: f64, risk_free_rate: f64) -> TickerCharts {
-        TickerCharts {
+               benchmark_symbol: &str, confidence_level: f64, risk_free_rate: f64) -> Result<TickerCharts, Box<dyn Error>> {
+        Ok(TickerCharts {
             symbol: symbol.to_string(),
             start_date: start_date.to_string(),
             end_date: end_date.to_string(),
@@ -84,7 +84,7 @@ impl TickerCharts {
             benchmark_symbol: benchmark_symbol.to_string(),
             confidence_level,
             risk_free_rate,
-        }
+        })
     }
 
     /// Generates an OHLCV candlestick chart for the ticker with technical indicators
