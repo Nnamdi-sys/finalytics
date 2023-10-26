@@ -43,7 +43,7 @@ lazy_static::lazy_static! {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let result = get_symbol("MSFT")?;
+///     let result = get_symbol("AAPL")?;
 ///     println!("{:?}", result);
 ///     Ok(())
 /// }

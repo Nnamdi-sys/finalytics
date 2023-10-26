@@ -26,7 +26,7 @@ use crate::utils::date_utils::{generate_dates, to_date};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let tc = TickerCharts::new("MSFT", "2019-01-01", "2023-01-01", Interval::OneDay
+///     let tc = TickerCharts::new("AAPL", "2019-01-01", "2023-01-01", Interval::OneDay
 ///     ,"^GSPC", 0.95, 0.02);
 ///     let result = tc.candlestick_chart().await?.show();
 ///     println!("{:?}", result);

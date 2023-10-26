@@ -19,7 +19,7 @@ use crate::data::ticker::{Interval, Ticker};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let technicals = TechnicalIndicators::new("MSFT",  "2023-08-01", "2023-08-30", Interval::OneHour).await?;
+///     let technicals = TechnicalIndicators::new("AAPL",  "2023-08-01", "2023-08-30", Interval::OneHour).await?;
 ///     let result = technicals.sma(20)?;
 ///     println!("{:?}", result);
 ///     let result = technicals.ema(20)?;

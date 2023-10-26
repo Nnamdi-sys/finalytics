@@ -23,7 +23,7 @@ use crate::database::db::get_symbol;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///    let ticker = Ticker::new("MSFT").await?;
+///    let ticker = Ticker::new("AAPL").await?;
 ///    let result = ticker.get_quote().await?;
 ///     println!("{:?}", result);
 ///     let result = ticker.get_ticker_stats().await?;

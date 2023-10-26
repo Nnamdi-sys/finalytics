@@ -3,6 +3,9 @@ use reqwest::Client;
 use select::document::Document;
 use select::predicate::Name;
 use sentiment::analyze;
+use serde::{Deserialize, Serialize};
+use tokio::time::Duration;
+use tokio::time::timeout;
 
 #[derive(Debug)]
 pub struct Article {
@@ -15,7 +18,7 @@ pub struct Article {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct News {
     pub title: String,
     pub source: String,
@@ -50,7 +53,7 @@ pub struct News {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let result = scrape_news("MSFT", "2023-01-01", "2023-01-02").await?;
+///     let result = scrape_news("AAPL", "2023-01-01", "2023-01-02").await?;
 ///     println!("{:?}", result);
 ///     Ok(())
 /// }
@@ -58,42 +61,61 @@ pub struct News {
 pub async fn scrape_news(
     token: &str,
     start: &str,
-    end: &str
+    end: &str,
 ) -> Result<Vec<News>, Box<dyn Error>> {
     let mut result = vec![];
     let url = format!("https://news.google.com/rss/search?q=allintext:{token}+when:after:{start}+before:{end}");
-    let response = reqwest::get(url).await?;
+    let response = reqwest::get(&url).await?;
     let body = response.text().await?;
     let document = Document::from_read(body.as_bytes()).unwrap();
+
     for item in document.find(Name("item")) {
         let title = item.children().nth(0).map(|n| n.text()).unwrap_or_default();
         let source = item.last_child().map(|n| n.text()).unwrap_or_default();
         let link = item.children().nth(2).map(|n| n.text()).unwrap_or_default();
         let pub_date = item.children().nth(4).map(|n| n.text()).unwrap_or_default();
-        if let Ok(article) = scrape_text(&link, &title).await {
-            let news = News {
-                title: title.clone(),
-                source: source.clone(),
-                link: link.clone(),
-                timestamp: pub_date.clone(),
-                text: article.text.clone(),
-                sentiment_score: article.sentiment_score,
-                positive_score: article.positive_score,
-                negative_score: article.negative_score,
-                positive_keywords: article.positive_keywords,
-                negative_keywords: article.negative_keywords,
-            };
-            dbg!(&news);
-            result.push(news);
-        }
-        else {
-            eprintln!("Error scraping article from {}", &link);
-            continue;
-        }
 
+        let timeout_duration = Duration::from_secs(10); // Set your desired timeout duration in seconds
+
+        let fetch_task = async {
+            let news = match timeout(timeout_duration, scrape_text(&link, &title)).await {
+                Ok(Ok(article)) => {
+                    News {
+                        title: title.clone(),
+                        source: source.clone(),
+                        link: link.clone(),
+                        timestamp: pub_date.clone(),
+                        text: article.text.clone(),
+                        sentiment_score: article.sentiment_score,
+                        positive_score: article.positive_score,
+                        negative_score: article.negative_score,
+                        positive_keywords: article.positive_keywords,
+                        negative_keywords: article.negative_keywords,
+                    }
+                }
+                _ => News {
+                    title: title.clone(),
+                    source: source.clone(),
+                    link: link.clone(),
+                    timestamp: pub_date.clone(),
+                    text: " ".to_string(),
+                    sentiment_score: 0.0,
+                    positive_score: 0.0,
+                    negative_score: 0.0,
+                    positive_keywords: vec![],
+                    negative_keywords: vec![],
+                },
+            };
+
+            result.push(news);
+        };
+
+        fetch_task.await;
     }
+
     Ok(result)
 }
+
 
 async fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
     let client = Client::new();

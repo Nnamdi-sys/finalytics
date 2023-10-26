@@ -20,7 +20,7 @@ use crate::data::ticker::Interval;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///     let result = TickerPerformanceStats::new(
-///         "MSFT", "^GSPC", "2022-01-01", "2022-12-31", Interval::OneDay,
+///         "AAPL", "^GSPC", "2022-01-01", "2022-12-31", Interval::OneDay,
 ///         0.95, 0.02).await?.compute_stats()?;
 ///     println!("{:?}", result);
 ///     Ok(())
@@ -56,7 +56,7 @@ pub struct TickerPerformanceStats {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///     let result = PortfolioPerformanceStats::new(
-///         Vec::from(["AAPL".to_string(), "GOOG".to_string(), "MSFT".to_string(), "^TNX".to_string()]),
+///         Vec::from(["AAPL".to_string(), "GOOG".to_string(), "NVDA".to_string(), "^TNX".to_string()]),
 ///         "^GSPC", "2021-01-01", "2023-01-01",
 ///         Interval::OneDay, 0.95, 0.02, 1000,
 ///         ObjectiveFunction::MaxSharpe).await?.compute_stats()?;
@@ -90,7 +90,7 @@ impl PortfolioPerformanceStats {
     ///
     /// # Arguments
     ///
-    /// * `ticker_symbols` - Vector of ticker symbols (e.g. ["AAPL", "MSFT", "GOOG"])
+    /// * `ticker_symbols` - Vector of ticker symbols (e.g. ["AAPL", "NVDA", "GOOG"])
     /// * `benchmark_symbol` - Benchmark ticker symbol (e.g. "^GSPC")
     /// * `start_date` - Start date in YYYY-MM-DD format (e.g. "2021-01-01")
     /// * `end_date` - End date in YYYY-MM-DD format (e.g. "2021-01-31")

@@ -15,7 +15,7 @@ use crate::data::ticker::Ticker;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
-///     let financials = Financials::new("MSFT").await?;
+///     let financials = Financials::new("AAPL").await?;
 ///     let result = financials.format_income_statement()?;
 ///     println!("{:?}", result);
 ///     let result = financials.format_balance_sheet()?;

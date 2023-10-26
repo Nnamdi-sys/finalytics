@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.1.8"
+finalytics = "0.1.9"
 ```
 
 ## Documentation
@@ -29,4 +29,7 @@ This sample application allows you to perform security analysis based on the Fin
 <h3><a href="https://finalytics.rs/portfolio">Portfolio Charts Viewer</a></h3>
 
 This sample application enables you to perform portfolio optimization based on the Finalytics Library.
+
+<h3><a href="https://t.me/finalytics_bot">Telegram Bot</a></h3>
+The Finalytics Telegram Bot allows you to perform security analysis, portfolio optimization and news sentiment analysis directly from Telegram.
 
