@@ -52,7 +52,9 @@ pub struct Ticker {
 #[serde(rename_all = "camelCase")]
 pub struct TickerSummaryStats {
     pub symbol: String,
+    #[serde(default)]
     pub display_name: String,
+    #[serde(default)]
     pub full_exchange_name: String,
     pub currency: String,
     pub regular_market_time: i64,

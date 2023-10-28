@@ -101,12 +101,12 @@ pub fn portfolio_optimization(
             ObjectiveFunction::MinVar => {
                 let returns = daily_portfolio_returns(&weights, portfolio_returns);
                 let var = value_at_risk(&returns, confidence_level);
-                var
+                -var
             },
             ObjectiveFunction::MinCVaR => {
                 let returns = daily_portfolio_returns(&weights, portfolio_returns);
                 let es = expected_shortfall(&returns, confidence_level);
-                es
+                -es
             }
         };
         objective

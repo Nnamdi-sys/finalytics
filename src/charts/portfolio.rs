@@ -26,10 +26,10 @@ use crate::utils::date_utils::generate_dates;
 ///     let pc = PortfolioCharts::new(
 ///         Vec::from(["NVDA".to_string(), "BRK-A".to_string(), "AAPL".to_string(), "^TNX".to_string()]),
 ///         "^GSPC", "2017-01-01", "2023-01-01", Interval::OneDay, 0.95, 0.02, 1000, ObjectiveFunction::MaxSharpe).await?;
-///     let _ = pc.optimization_chart().show();
-///     let _ = pc.performance_chart().show();
-///     let _ = pc.asset_returns_chart().show();
-///     let _ = pc.performance_stats_table().show();
+///     let _ = pc.optimization_chart().unwrap().show();
+///     let _ = pc.performance_chart().unwrap().show();
+///     let _ = pc.asset_returns_chart().unwrap().show();
+///     let _ = pc.performance_stats_table().unwrap().show();
 ///     Ok(())
 /// }
 /// ```
@@ -81,7 +81,7 @@ impl PortfolioCharts {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    pub fn optimization_chart(&self) -> Plot{
+    pub fn optimization_chart(&self) -> Result<Plot, Box<dyn Error>> {
         let ef_returns = self.performance_stats.efficient_frontier.clone().iter()
             .map(|x| x[0]).collect::<Vec<f64>>();
 
@@ -137,7 +137,7 @@ impl PortfolioCharts {
 
         plot.set_layout(layout);
 
-        plot
+        Ok(plot)
     }
 
     /// Generates Chart of the Portfolio Performance Results
@@ -145,7 +145,7 @@ impl PortfolioCharts {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    pub fn performance_chart(&self) -> Plot {
+    pub fn performance_chart(&self) -> Result<Plot, Box<dyn Error>> {
         let dates = generate_dates(&*self.performance_stats.start_date,
                                    &*self.performance_stats.end_date, 1);
 
@@ -216,7 +216,7 @@ impl PortfolioCharts {
 
         plot.set_layout(layout);
 
-        plot
+        Ok(plot)
     }
 
     /// Generates Chart of the Portfolio Asset Returns
@@ -224,7 +224,7 @@ impl PortfolioCharts {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    pub fn asset_returns_chart(&self) -> Plot {
+    pub fn asset_returns_chart(&self) -> Result<Plot, Box<dyn Error>> {
         let symbols = self.performance_stats.ticker_symbols.clone();
         let asset_returns = self.performance_stats.portfolio_returns.clone();
         let dates = generate_dates(&*self.performance_stats.start_date, &*self.performance_stats.end_date, 1);
@@ -246,7 +246,7 @@ impl PortfolioCharts {
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"));
 
         plot.set_layout(layout);
-        plot
+        Ok(plot)
     }
 
     /// Displays the Performance Statistics table for the portfolio
@@ -254,7 +254,7 @@ impl PortfolioCharts {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    pub fn performance_stats_table(&self) -> Plot {
+    pub fn performance_stats_table(&self) -> Result<Plot, Box<dyn Error>> {
         let stats = &self.performance_stats.performance_stats;
 
         let fields = vec![
@@ -313,7 +313,7 @@ impl PortfolioCharts {
 
         plot.set_layout(layout);
 
-        plot
+        Ok(plot)
     }
 }
 

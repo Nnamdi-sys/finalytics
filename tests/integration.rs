@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use plotly::ImageFormat;
     use finalytics::analytics::fundamentals::Financials;
     use finalytics::analytics::optimization::ObjectiveFunction;
     use finalytics::analytics::performance::{PortfolioPerformanceStats, TickerPerformanceStats};
@@ -9,6 +8,7 @@ mod tests {
     use finalytics::data::keys::{AssetClass, Category, Exchange};
     use finalytics::data::ticker::{Interval, Ticker};
     use finalytics::database::db::{get_symbols_count, get_symbols};
+    use finalytics::utils::chart_utils::ImgFormat;
     #[cfg(feature = "kaleido")]
     use finalytics::utils::chart_utils::PlotImage;
 
@@ -86,7 +86,7 @@ mod tests {
 
         let candlestick_chart = ticker_charts.candlestick_chart().await;
         #[cfg(feature = "kaleido")]
-        candlestick_chart.unwrap().save_image("candlestick.png", ImageFormat::PNG, 1000, 1000, 1.0);
+        candlestick_chart.unwrap().save_image("candlestick.png", ImgFormat::PNG, 1000, 1000, 1.0);
 
         let performance_chart = ticker_charts.performance_chart().await;
         assert!(performance_chart.is_ok());
@@ -110,13 +110,17 @@ mod tests {
             0.95, 0.02, 1000, ObjectiveFunction::MaxSharpe).await.unwrap();
 
         let optimization_chart = portfolio_charts.optimization_chart();
-        assert!(matches!(optimization_chart, Plot));
+        #[cfg(feature = "kaleido")]
+        optimization_chart.unwrap().save_image("optimization.png", ImgFormat::PNG, 1000, 1000, 1.0);
 
         let performance_chart = portfolio_charts.performance_chart();
-        assert!(matches!(performance_chart, Plot));
+        assert!(performance_chart.is_ok());
 
         let asset_returns_chart = portfolio_charts.asset_returns_chart();
-        assert!(matches!(asset_returns_chart, Plot));
+        assert!(asset_returns_chart.is_ok());
+
+        let performance_stats_table = portfolio_charts.performance_stats_table();
+        assert!(performance_stats_table.is_ok());
     }
     #[tokio::test]
     async fn test_db_functions() {
