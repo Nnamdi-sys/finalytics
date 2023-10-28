@@ -10,6 +10,7 @@ mod tests {
     use finalytics::database::db::{get_symbols_count, get_symbols};
     #[cfg(feature = "kaleido")]
     use finalytics::utils::chart_utils::PlotImage;
+    #[cfg(feature = "kaleido")]
     use finalytics::utils::chart_utils::ImgFormat;
 
     #[tokio::test]
