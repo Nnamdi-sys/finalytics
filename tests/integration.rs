@@ -8,9 +8,9 @@ mod tests {
     use finalytics::data::keys::{AssetClass, Category, Exchange};
     use finalytics::data::ticker::{Interval, Ticker};
     use finalytics::database::db::{get_symbols_count, get_symbols};
-    use finalytics::utils::chart_utils::ImgFormat;
     #[cfg(feature = "kaleido")]
     use finalytics::utils::chart_utils::PlotImage;
+    use finalytics::utils::chart_utils::ImgFormat;
 
     #[tokio::test]
     async fn test_ticker_functions() {
