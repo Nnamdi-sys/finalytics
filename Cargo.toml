@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"

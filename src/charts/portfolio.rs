@@ -34,7 +34,7 @@ use crate::utils::date_utils::generate_dates;
 /// }
 /// ```
 pub struct PortfolioCharts {
-    performance_stats: PortfolioPerformanceStats,
+    pub performance_stats: PortfolioPerformanceStats,
 }
 
 impl PortfolioCharts {
