@@ -11,7 +11,9 @@ pub use crate::analytics::fundamentals::Financials;
 pub use crate::analytics::stochastics::BlackScholesModel;
 pub use crate::analytics::performance::TickerPerformanceStats;
 pub use crate::analytics::performance::PortfolioPerformanceStats;
+#[cfg(feature = "with_plotly")]
 pub use crate::charts::ticker::TickerCharts;
+#[cfg(feature = "with_plotly")]
 pub use crate::charts::portfolio::PortfolioCharts;
 pub use crate::database::db::get_symbols;
 pub use crate::analytics::sentiment::scrape_news;

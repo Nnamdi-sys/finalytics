@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.2.3"
+finalytics = {version = "0.2.4", features = ["with_plotly"]}
 ```
 
 ## Documentation
