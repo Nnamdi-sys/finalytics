@@ -1,38 +1,36 @@
-#[cfg(feature = "kaleido")]
 use plotly::{Plot, ImageFormat};
 
-#[cfg(feature = "kaleido")]
-pub enum ImgFormat {
-    PNG,
-    SVG,
-    JPEG,
-    PDF,
-    EPS,
-    WEBP,
-}
-
-#[cfg(feature = "kaleido")]
-impl ImgFormat {
-    pub fn format(&self) -> ImageFormat {
-        match self {
-            ImgFormat::PNG => ImageFormat::PNG,
-            ImgFormat::SVG => ImageFormat::SVG,
-            ImgFormat::JPEG => ImageFormat::JPEG,
-            ImgFormat::PDF => ImageFormat::PDF,
-            ImgFormat::EPS => ImageFormat::EPS,
-            ImgFormat::WEBP => ImageFormat::WEBP,
-        }
-    }
-}
-
-#[cfg(feature = "kaleido")]
 pub trait PlotImage {
-    fn save_image(&self, filename: &str, format: ImgFormat, width: usize, height: usize, scale: f64);
+    fn to_png(&self, filename: &str, width: usize, height: usize, scale: f64);
+    fn to_svg(&self, filename: &str, width: usize, height: usize, scale: f64);
+    fn to_jpeg(&self, filename: &str, width: usize, height: usize, scale: f64);
+    fn to_pdf(&self, filename: &str, width: usize, height: usize, scale: f64);
+    fn to_webp(&self, filename: &str, width: usize, height: usize, scale: f64);
+    fn to_eps(&self, filename: &str, width: usize, height: usize, scale: f64);
 }
 
-#[cfg(feature = "kaleido")]
 impl PlotImage for Plot {
-    fn save_image(&self, filename: &str, format: ImgFormat, width: usize, height: usize, scale: f64) {
-        self.write_image(filename, format.format(), width, height, scale);
+    fn to_png(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::PNG, width, height, scale);
+    }
+
+    fn to_svg(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::SVG, width, height, scale);
+    }
+
+    fn to_jpeg(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::JPEG, width, height, scale);
+    }
+
+    fn to_pdf(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::PDF, width, height, scale);
+    }
+
+    fn to_webp(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::WEBP, width, height, scale);
+    }
+
+    fn to_eps(&self, filename: &str, width: usize, height: usize, scale: f64) {
+        self.write_image(filename, ImageFormat::EPS, width, height, scale);
     }
 }

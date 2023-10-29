@@ -10,8 +10,6 @@ mod tests {
     use finalytics::database::db::{get_symbols_count, get_symbols};
     #[cfg(feature = "kaleido")]
     use finalytics::utils::chart_utils::PlotImage;
-    #[cfg(feature = "kaleido")]
-    use finalytics::utils::chart_utils::ImgFormat;
 
     #[tokio::test]
     async fn test_ticker_functions() {
@@ -87,7 +85,7 @@ mod tests {
 
         let candlestick_chart = ticker_charts.candlestick_chart().await;
         #[cfg(feature = "kaleido")]
-        candlestick_chart.unwrap().save_image("candlestick.png", ImgFormat::PNG, 1000, 1000, 1.0);
+        candlestick_chart.unwrap().to_png("candlestick.png",  1000, 1000, 1.0);
 
         let performance_chart = ticker_charts.performance_chart().await;
         assert!(performance_chart.is_ok());
@@ -112,7 +110,7 @@ mod tests {
 
         let optimization_chart = portfolio_charts.optimization_chart();
         #[cfg(feature = "kaleido")]
-        optimization_chart.unwrap().save_image("optimization.png", ImgFormat::PNG, 1000, 1000, 1.0);
+        optimization_chart.unwrap().to_png("optimization.png",  1000, 1000, 1.0);
 
         let performance_chart = portfolio_charts.performance_chart();
         assert!(performance_chart.is_ok());

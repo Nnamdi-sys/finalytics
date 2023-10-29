@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.2.3"
+finalytics = "0.2.4"
 ```
 
 ## Documentation
