@@ -56,7 +56,7 @@ pub struct TickerPerformanceStats {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///     let result = PortfolioPerformanceStats::new(
-///         Vec::from(["AAPL".to_string(), "GOOG".to_string(), "NVDA".to_string(), "^TNX".to_string()]),
+///         Vec::from(["AAPL".to_string(), "GOOG".to_string(), "NVDA".to_string(), "ZN=F".to_string()]),
 ///         "^GSPC", "2021-01-01", "2023-01-01",
 ///         Interval::OneDay, 0.95, 0.02, 1000,
 ///         ObjectiveFunction::MaxSharpe).await?.compute_stats()?;
@@ -244,10 +244,22 @@ impl TickerPerformanceStats {
         let security_df = TechnicalIndicators::new(
             ticker_symbol, start_date, end_date, interval).await?.roc(1)?;
         let security_prices = security_df.column("close")?.clone();
-        let security_returns = security_df.column("roc-1")?.clone();
-        let benchmark_returns = TechnicalIndicators::new(
-            benchmark_symbol,  start_date, end_date, interval).await?.roc(1)?
-            .column("roc-1")?.clone();
+        let security_returns = DataFrame::new(vec![
+            security_df.column("timestamp")?.clone(),
+            security_df.column("roc-1")?.clone().with_name(ticker_symbol)
+        ])?;
+        let benchmark_returns = TechnicalIndicators::new(benchmark_symbol, start_date, end_date, interval).await?.roc(1)?;
+        let benchmark_returns = benchmark_returns.join(
+            &security_returns,
+            &["timestamp"],
+            &["timestamp"],
+            JoinArgs::new(JoinType::Outer),
+        )?;
+        let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
+        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
+        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
+        let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
+        let security_returns = security_returns.column(ticker_symbol)?.clone();
 
         Ok(TickerPerformanceStats {
             ticker_symbol: ticker_symbol.to_string(),

@@ -24,7 +24,7 @@ use crate::utils::date_utils::generate_dates;
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///     let pc = PortfolioCharts::new(
-///         Vec::from(["NVDA".to_string(), "BRK-A".to_string(), "AAPL".to_string(), "^TNX".to_string()]),
+///         Vec::from(["NVDA".to_string(), "BRK-A".to_string(), "AAPL".to_string(), "ZN=F".to_string()]),
 ///         "^GSPC", "2017-01-01", "2023-01-01", Interval::OneDay, 0.95, 0.02, 1000, ObjectiveFunction::MaxSharpe).await?;
 ///     let _ = pc.optimization_chart().unwrap().show();
 ///     let _ = pc.performance_chart().unwrap().show();

@@ -38,7 +38,7 @@ mod tests {
     #[tokio::test]
     async fn test_financials_functions() {
         // Financials-related tests
-        let financials = Financials::new("AAPL").await.unwrap();
+        let financials = Financials::new("MSFT").await.unwrap();
 
         let income_statement = financials.format_income_statement();
         assert!(income_statement.is_ok());
@@ -47,8 +47,7 @@ mod tests {
         assert!(balance_sheet.is_ok());
 
         let cash_flow = financials.format_cashflow_statement();
-        dbg!(cash_flow.unwrap());
-        //assert!(cash_flow.is_ok());
+        assert!(cash_flow.is_ok());
 
         let ratios = financials.compute_ratios();
         assert!(ratios.is_ok());
@@ -65,7 +64,7 @@ mod tests {
         assert!(ticker_perf.is_ok());
 
         let portfolio_perf = PortfolioPerformanceStats::new(
-            Vec::from(["AAPL".to_string(), "GOOG".to_string(), "NVDA".to_string(), "^TNX".to_string()]),
+            Vec::from(["AAPL".to_string(), "GOOG".to_string(), "NVDA".to_string(), "ZN=F".to_string()]),
             "^GSPC", "2021-01-01", "2023-01-01", Interval::OneDay,
             0.95, 0.02, 1000,
             ObjectiveFunction::MaxSharpe)
@@ -73,19 +72,35 @@ mod tests {
             .compute_stats();
         assert!(portfolio_perf.is_ok());
 
-        // Add similar assertions for other performance functions
     }
 
     #[tokio::test]
     async fn test_charts_functions() {
         // Ticker charts-related tests
-        let ticker_charts = TickerCharts::new("AAPL", "2019-01-01", "2023-01-01",
-                                              Interval::OneDay, "^GSPC", 0.95,
+        let ticker_charts = TickerCharts::new("BTC-USD", "2023-01-01", "2023-02-01",
+                                              Interval::OneHour, "^GSPC", 0.95,
                                               0.02).unwrap();
 
         let candlestick_chart = ticker_charts.candlestick_chart().await;
         #[cfg(feature = "kaleido")]
         candlestick_chart.unwrap().to_png("candlestick.png",  1000, 1000, 1.0);
+
+        let performance_chart = ticker_charts.performance_chart().await;
+        assert!(performance_chart.is_ok());
+
+        let summary_stats = ticker_charts.summary_stats_table().await;
+        assert!(summary_stats.is_ok());
+
+        let performance_stats = ticker_charts.performance_stats_table().await;
+        assert!(performance_stats.is_ok());
+
+
+        let ticker_charts = TickerCharts::new("AAPL", "2019-01-01", "2023-01-01",
+                                              Interval::OneDay, "^GSPC", 0.95,
+                                              0.02).unwrap();
+
+        let candlestick_chart = ticker_charts.candlestick_chart().await;
+        assert!(candlestick_chart.is_ok());
 
         let performance_chart = ticker_charts.performance_chart().await;
         assert!(performance_chart.is_ok());
@@ -104,7 +119,7 @@ mod tests {
 
         // Portfolio charts-related tests
         let portfolio_charts = PortfolioCharts::new(
-            Vec::from(["NVDA".to_string(), "BRK-A".to_string(), "AAPL".to_string(), "^TNX".to_string()]),
+            Vec::from(["NVDA".to_string(), "BTC-USD".to_string(), "AAPL".to_string(), "ZN=F".to_string()]),
             "^GSPC", "2017-01-01", "2023-01-01", Interval::OneDay,
             0.95, 0.02, 1000, ObjectiveFunction::MaxSharpe).await.unwrap();
 

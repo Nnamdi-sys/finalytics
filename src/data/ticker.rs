@@ -6,7 +6,7 @@ use polars::prelude::*;
 use std::collections::HashMap;
 use chrono::{Duration, NaiveDateTime, Utc};
 use crate::analytics::sentiment::{News, scrape_news};
-use crate::utils::date_utils::{time_to_maturity, to_date, to_timestamp};
+use crate::utils::date_utils::{round_datetime_to_day, round_datetime_to_hour, round_datetime_to_minute, time_to_maturity, to_date, to_datetime, to_timestamp};
 use crate::data::keys::Fundamentals;
 use crate::database::db::get_symbol;
 
@@ -70,25 +70,36 @@ pub struct TickerSummaryStats {
     pub fifty_two_week_change_percent: f64,
     pub fifty_day_average: f64,
     pub two_hundred_day_average: f64,
+    #[serde(default)]
     #[serde(rename = "epsTrailingTwelveMonths")]
     pub trailing_eps: f64,
+    #[serde(default)]
     #[serde(rename = "epsCurrentYear")]
     pub current_eps: f64,
+    #[serde(default)]
     pub eps_forward: f64,
+    #[serde(default)]
     #[serde(rename = "trailingPE")]
     pub trailing_pe: f64,
+    #[serde(default)]
     #[serde(rename = "priceEpsCurrentYear")]
     pub current_pe: f64,
+    #[serde(default)]
     #[serde(rename = "forwardPE")]
     pub forward_pe: f64,
     #[serde(default)]
     pub dividend_rate: f64,
     #[serde(default)]
     pub dividend_yield: f64,
+    #[serde(default)]
     pub book_value: f64,
+    #[serde(default)]
     pub price_to_book: f64,
+    #[serde(default)]
     pub market_cap: f64,
+    #[serde(default)]
     pub shares_outstanding: f64,
+    #[serde(default)]
     pub average_analyst_rating: String,
 }
 
@@ -237,11 +248,12 @@ impl Ticker {
     pub async fn get_ticker_stats(&self) -> Result<TickerSummaryStats, Box<dyn Error>> {
         let url = format!("https://query2.finance.yahoo.com/v7/finance/options/{}", self.symbol);
         let response = reqwest::get(&url).await?;
-        let result= response.json::<Value>().await?;
+        let result = response.json::<Value>().await?;
         let value = &result["optionChain"]["result"][0]["quote"].to_string();
-        let stats: TickerSummaryStats = serde_json::from_value(value.parse()?).expect("Failed to deserialize into MyStruct");
+        let stats: TickerSummaryStats = serde_json::from_value(value.parse()?).expect("Failed to deserialize into TickerSummaryStats");
         Ok(stats)
     }
+
 
     /// Returns the Ticker OHLCV Data from Yahoo Finance for a given time range
     ///
@@ -273,7 +285,21 @@ impl Ticker {
             .as_array()
             .ok_or(format!("timestamp array not found: {result}"))?
             .iter()
-            .filter_map(|ts| Some(NaiveDateTime::from_timestamp_opt(ts.as_i64()?, 0)?))
+            .map(|ts| {
+                let timestamp = ts.as_i64().unwrap();
+                let datetime = match interval {
+                    Interval::OneDay | Interval::FiveDays | Interval::OneWeek | Interval::OneMonth | Interval::ThreeMonths => {
+                        round_datetime_to_day(NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap())
+                    }
+                    Interval::SixtyMinutes | Interval::OneHour => {
+                        round_datetime_to_hour(NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap())
+                    },
+                    Interval::NinetyMinutes | Interval::ThirtyMinutes | Interval::FifteenMinutes | Interval::FiveMinutes | Interval::TwoMinutes => {
+                        round_datetime_to_minute(NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap())
+                    },
+                };
+                datetime
+            })
             .collect::<Vec<NaiveDateTime>>();
 
         let indicators = &value["indicators"]["quote"][0];
@@ -329,7 +355,7 @@ impl Ticker {
             .map(|c| c.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
 
-        let mut df = df!(
+        let df = df!(
         "timestamp" => &timestamp,
         "open" => &open,
         "high" => &high,
@@ -341,7 +367,16 @@ impl Ticker {
 
         // check if any adjclose values are 0.0
         let mask = df.column("adjclose")?.gt(0.0)?;
-        df = df.filter(&mask)?;
+        let df = df.filter(&mask)?;
+
+        // check id any returned dates greater than end date
+        let dt = to_datetime(end)?;
+        let mask = df["timestamp"]
+            .datetime()?
+            .as_datetime_iter()
+            .map(|x| x.unwrap() < dt)
+            .collect();
+        let df = df.filter(&mask)?;
         Ok(df)
     }
 
@@ -482,16 +517,23 @@ impl Ticker {
         let result = response.json::<Value>().await?;
         let data: Financials = serde_json::from_value(result).expect("Failed to parse JSON");
         let mut columns: Vec<Series> = vec![];
+        let mut temp_items: HashMap<String, Value> = HashMap::new();
+        let mut init = 0;
         for item in &data.timeseries.result{
             // convert to polars dataframe
             for (key, value) in item {
                 if _type_clone.contains(&key.as_str()){
                     let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
                         .expect("Failed to deserialize into Object");
-                    if columns.len() == 0{
+                    if init == 0 {
                         let date_vec = items.iter().map(|x| x.asOfDate.clone()).collect::<Vec<String>>();
+                        if date_vec.len() < 5 {
+                            temp_items.insert(key.clone(), value.clone());
+                            break;
+                        }
                         let date_series = Series::new("asOfDate", &date_vec);
                         columns.push(date_series);
+                        init = 1;
                     }
 
                     if items.len() == columns[0].len(){
@@ -499,8 +541,48 @@ impl Ticker {
                         let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
                         columns.push(vars_series);
                     }
+                    else {
+                        let mut vars_vec: Vec<f64> = vec![];
+                        for d in columns[0].iter(){
+                            let mut found = false;
+                            for i in 0..items.len(){
+                                if items[i].asOfDate == d.to_string(){
+                                    vars_vec.push(items[i].reportedValue.raw);
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if !found{
+                                vars_vec.push(0.0);
+                            }
+                        }
+                        let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
+                        columns.push(vars_series);
+                    }
 
                 }
+            }
+        }
+        if temp_items.len() > 0 {
+            for (key, value) in temp_items {
+                let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
+                    .expect("Failed to deserialize into Object");
+                let mut vars_vec: Vec<f64> = vec![];
+                for d in columns[0].iter(){
+                    let mut found = false;
+                    for i in 0..items.len(){
+                        if items[i].asOfDate == d.to_string(){
+                            vars_vec.push(items[i].reportedValue.raw);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found{
+                        vars_vec.push(0.0);
+                    }
+                }
+                let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
+                columns.push(vars_series);
             }
         }
         let df = DataFrame::new(columns).unwrap();
