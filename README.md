@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.2.5"
+finalytics = "0.2.6"
 ```
 
 ## Documentation
@@ -32,4 +32,14 @@ This sample application enables you to perform portfolio optimization based on t
 
 <h3><a href="https://t.me/finalytics_bot">Telegram Bot</a></h3>
 The Finalytics Telegram Bot allows you to perform security analysis, portfolio optimization and news sentiment analysis directly from Telegram.
+
+## Bindings
+
+![PyPI](https://img.shields.io/pypi/v/finalytics)
+
+The Finalytics Library is also available in python through the [finalytics](https://pypi.org/project/finalytics/) package
+
+It is developed with PyO3 and Maturin. You can check the git repo [here](https://github.com/Nnamdi-sys/finalytics-py)
+
+
 
