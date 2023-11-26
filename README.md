@@ -1,11 +1,11 @@
-## Finalytics
+![Finalytics](https://github.com/Nnamdi-sys/finalytics/raw/main/logo-color.png)
 
 [![Crates.io](https://img.shields.io/crates/v/finalytics)](https://crates.io/crates/finalytics)
 [![Docs.rs](https://docs.rs/finalytics/badge.svg)](https://docs.rs/finalytics/)
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 
-**Finalytics** is a Rust library designed for retrieving financial data and performing various financial analysis tasks, including fundamental analysis, technical analysis, sentiment analysis, options pricing, portfolio optimization, and displaying financial charts. The library fetches data from Yahoo Finance.
+**Finalytics** is a Rust library designed for retrieving financial data and performing various financial analysis tasks, including fundamental analysis, technical analysis, sentiment analysis, options pricing, portfolio optimization, and displaying financial charts.
 
 ## Installation
 
@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.2.6"
+finalytics = "0.2.7"
 ```
 
 ## Documentation
@@ -35,7 +35,10 @@ The Finalytics Telegram Bot allows you to perform security analysis, portfolio o
 
 ## Bindings
 
+<h3><a href="https://github.com/Nnamdi-sys/finalytics-py">Finalytics-py</a></h3>
+
 ![PyPI](https://img.shields.io/pypi/v/finalytics)
+![PePy](https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads)
 
 The Finalytics Library is also available in python through the [finalytics](https://pypi.org/project/finalytics/) package
 
