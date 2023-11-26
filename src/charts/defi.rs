@@ -75,7 +75,6 @@ impl DefiBalances {
         let mask = self.balances.column("category")?.utf8()?
             .into_iter().map(|x| x.expect("category") != "wallet").collect::<BooleanChunked>();
         let protocols_df = self.balances.clone().filter(&mask)?;
-        println!("{:?}", &protocols_df);
 
         let total_balance_mask = protocols_df.clone().column("category").unwrap().utf8().unwrap()
             .into_iter().map(|x| x.expect("category") != "borrow").collect::<BooleanChunked>();
@@ -97,7 +96,6 @@ impl DefiBalances {
             .agg([
                 col("balance_usd").sum().alias("protocol_balance"),
             ]).collect()?;
-        println!("{:?}", &protocols_df);
 
         let protocols_vec =  protocols_df.clone().column("protocol")?
             .utf8().unwrap().into_iter().map(|x| x.expect("protocol").to_string()).collect::<Vec<String>>();
