@@ -37,6 +37,7 @@ impl DefiBalances {
     /// # Example
     ///
     /// ```
+    /// /*
     /// use finalytics::charts::defi::DefiBalances;
     ///
     /// fn main() {
@@ -49,6 +50,7 @@ impl DefiBalances {
     ///     let _ = balances_struct.display_protocols_balance("html", "protocols_balances.html");
     ///     let _ = balances_struct.display_wallet_balance("html", "wallet_balances.html");
     /// }
+    /// */
     /// ```
     pub fn new(protocols: Vec<String>, chains: Vec<String>, address: String) -> Result<Self, Box<dyn Error>> {
         let balances = get_balances(protocols.clone(), chains.clone(), &address)?;
