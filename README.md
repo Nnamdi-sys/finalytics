@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = "0.2.7"
+finalytics = {version = "0.2.8", features = ["kaleido", "charming_ssr"]}
 ```
 
 ## Documentation

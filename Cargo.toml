@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -35,11 +35,12 @@ sentiment = "0.1.1"
 html-escape = "0.2.13"
 temp-dir = "0.1.11"
 regex = "1.1.9"
-charming = { version = "0.2.4", features = ["ssr"] }
+charming = "0.2.4"
 plotly = { version = "0.8.4", package = "plotly-fork"}
 
 [features]
 kaleido = ["plotly/kaleido"]
+charming_ssr = ["charming/ssr"]
 
 
 

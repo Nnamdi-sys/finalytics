@@ -1,7 +1,9 @@
 use std::error::Error;
 use crate::data::defi::{get_balances, get_pool_history, get_pools};
 use polars::prelude::*;
-use charming::{component::Legend, element::ItemStyle, series::{Pie, PieRoseType}, Chart, HtmlRenderer, ImageRenderer};
+use charming::{component::Legend, element::ItemStyle, series::{Pie, PieRoseType}, Chart, HtmlRenderer};
+#[cfg(feature = "charming_ssr")]
+use charming::renderer::ImageRenderer;
 use charming::component::{Axis, DataZoom, DataZoomType, Title};
 use charming::element::{AreaStyle, AxisType, Color, ColorStop, Label, LabelPosition, LineStyle, Symbol, Tooltip, Trigger};
 use charming::series::{Bar, Line};
@@ -138,6 +140,7 @@ impl DefiBalances {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1000, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
@@ -213,6 +216,7 @@ impl DefiBalances {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1200, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
@@ -378,6 +382,7 @@ impl DefiPools {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1600, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
@@ -449,6 +454,7 @@ impl DefiPools {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1600, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
@@ -537,6 +543,7 @@ impl DefiPools {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1600, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
@@ -568,7 +575,8 @@ impl DefiPools {
     /// #[tokio::main]
     /// async fn main() {
     /// let pools = DefiPools::new().await.unwrap();
-    /// let _ = pools.display_pool_apy_history("USDC-USDT", "solidly-v3", "Ethereum", "html", "pool_apy_history.html").await;
+    /// #[cfg(feature = "charming_ssr")]
+    /// let _ = pools.display_pool_apy_history("USDC-USDT", "solidly-v3", "Ethereum", "svg", "pool_apy_history.svg").await;
     /// }
     pub async fn display_pool_apy_history(&self, symbol: &str, protocol: &str, chain: &str, display_format: &str,
                                           file_path: &str) -> Result<(), Box<dyn Error>> {
@@ -605,6 +613,7 @@ impl DefiPools {
                 renderer.save(&chart, file_path).expect("failed to save chart");
                 println!("Chart saved to {}", file_path)
             },
+            #[cfg(feature = "charming_ssr")]
             "svg" => {
                 let mut renderer = ImageRenderer::new(1600, 800);
                 renderer.save(&chart, file_path).expect("failed to save chart");
