@@ -107,6 +107,8 @@ pub fn get_protocols() -> Result<HashMap<String, Vec<String>>, Box<dyn Error>> {
 ///
 /// ```
 /// /*
+/// use finalytics::charts::defi::DefiBalances;
+///
 /// let protocols = vec!["wallet".to_string(), "eigenlayer".to_string(), "gearbox".to_string(),
 ///                          "uniswap-v3".to_string(), "ether.fi".to_string(),];
 /// let chains = vec!["ethereum".to_string(), "arbitrum".to_string()];
@@ -228,13 +230,13 @@ pub fn get_balances(protocols: Vec<String>, chains: Vec<String>, address: &str) 
                 if !output.is_empty() && output.contains("Found")
                     && !output.contains("Found 0 non zero balances")
                     && !output.contains("Failed to run adapter") {
-                    println!("Found Output for {}-{}", protocol, chain);
+                    println!("Found Output for {}-{}", &protocol, &chain);
                     println!("{}", &output);
-                    let key = format!("{}-{}", protocol, chain);
+                    let key = format!("{}-{}", &protocol, &chain);
                     results_map.insert(key, extract_table_data(&output)?);
                 }
             } else {
-                eprintln!("Error for {}-{}", protocol, chain);
+                eprintln!("Error for {}-{}", &protocol, &chain);
             }
         }
     }
@@ -250,9 +252,6 @@ pub fn get_balances(protocols: Vec<String>, chains: Vec<String>, address: &str) 
     for (k, v) in results_map.iter(){
         let df = DataFrame::new(vec![
             Series::new("protocol", v.iter().map(|_| k.clone()).collect::<Vec<String>>()),
-            Series::new("chain", v.iter().map(|x|
-                x["chain"].clone().replace("'", "")
-            ).collect::<Vec<String>>()),
             Series::new("category", v.iter().map(|x|
                 x["category"].clone().replace("'", "")
             ).collect::<Vec<String>>()),
@@ -408,7 +407,7 @@ fn extract_table_data(input: &str) -> Result<Vec<HashMap<String, String>>, Box<d
     // Determine the position of the line containing "chain"
     let chain_position = data_lines
         .iter()
-        .position(|line| line.contains("chain"))
+        .position(|line| line.contains("balanceUSD"))
         .unwrap_or(0);
 
     // Extract headers dynamically based on the position of "chain"

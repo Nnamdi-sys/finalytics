@@ -210,6 +210,23 @@ impl Interval {
             _ => Interval::OneDay,
         }
     }
+
+    pub fn to_days(&self) -> f64 {
+        match self {
+            Interval::TwoMinutes => 2.0 / 24.0 * 60.0,
+            Interval::FiveMinutes => 5.0 / 24.0 * 60.0,
+            Interval::FifteenMinutes => 15.0 / 24.0 * 60.0,
+            Interval::ThirtyMinutes => 30.0 / 24.0 * 60.0,
+            Interval::SixtyMinutes => 60.0 / 24.0 * 60.0,
+            Interval::OneHour => 60.0 / 24.0 * 60.0,
+            Interval::NinetyMinutes => 90.0 / 24.0 * 60.0,
+            Interval::OneDay => 1.0,
+            Interval::FiveDays => 5.0,
+            Interval::OneWeek => 5.0,
+            Interval::OneMonth => 20.0,
+            Interval::ThreeMonths => 60.0,
+        }
+    }
 }
 
 impl Ticker {
@@ -525,15 +542,15 @@ impl Ticker {
                 if _type_clone.contains(&key.as_str()){
                     let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
                         .expect("Failed to deserialize into Object");
+                    let date_vec = items.iter().map(|x| x.asOfDate.clone()).collect::<Vec<String>>();
+                    if date_vec.len() < 4 {
+                        temp_items.insert(key.clone(), value.clone());
+                        break;
+                    }
                     if init == 0 {
-                        let date_vec = items.iter().map(|x| x.asOfDate.clone()).collect::<Vec<String>>();
-                        if date_vec.len() < 5 {
-                            temp_items.insert(key.clone(), value.clone());
-                            break;
-                        }
                         let date_series = Series::new("asOfDate", &date_vec);
                         columns.push(date_series);
-                        init = 1;
+                        init += 1;
                     }
 
                     if items.len() == columns[0].len(){
@@ -563,6 +580,7 @@ impl Ticker {
                 }
             }
         }
+
         if temp_items.len() > 0 {
             for (key, value) in temp_items {
                 let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
@@ -571,7 +589,7 @@ impl Ticker {
                 for d in columns[0].iter(){
                     let mut found = false;
                     for i in 0..items.len(){
-                        if items[i].asOfDate == d.to_string(){
+                        if format!("\"{}\"", items[i].asOfDate) == d.to_string(){
                             vars_vec.push(items[i].reportedValue.raw);
                             found = true;
                             break;

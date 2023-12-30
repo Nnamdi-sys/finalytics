@@ -39,12 +39,11 @@ impl DefiBalances {
     /// # Example
     ///
     /// ```
-    /// /*
     /// use finalytics::charts::defi::DefiBalances;
     ///
     /// fn main() {
-    ///     let protocols = vec!["wallet".to_string(), "eigenlayer".to_string(), "gearbox".to_string(),
-    ///                          "uniswap-v3".to_string(), "ether.fi".to_string(),];
+    ///     let protocols = vec!["wallet".to_string(), "eigenlayer".to_string(), "blast".to_string(),
+    ///                          "ether.fi".to_string(),];
     ///     let chains = vec!["ethereum".to_string(), "arbitrum".to_string()];
     ///     let address = "0x7ac34681f6aaeb691e150c43ee494177c0e2c183".to_string();
     ///     let balances_struct = DefiBalances::new(protocols, chains, address).unwrap();
@@ -52,7 +51,6 @@ impl DefiBalances {
     ///     let _ = balances_struct.display_protocols_balance("html", "protocols_balances.html");
     ///     let _ = balances_struct.display_wallet_balance("html", "wallet_balances.html");
     /// }
-    /// */
     /// ```
     pub fn new(protocols: Vec<String>, chains: Vec<String>, address: String) -> Result<Self, Box<dyn Error>> {
         let balances = get_balances(protocols.clone(), chains.clone(), &address)?;
@@ -170,8 +168,8 @@ impl DefiBalances {
 
         let symbols_vec =  wallet_df.clone().column("symbol")?
             .utf8()?.into_iter().map(|x| x.expect("symbol").to_string()).collect::<Vec<String>>();
-        let chains_vec =  wallet_df.clone().column("chain")?
-            .utf8()?.into_iter().map(|x| x.expect("chain").to_string()).collect::<Vec<String>>();
+        let chains_vec =  wallet_df.clone().column("protocol")?
+            .utf8()?.into_iter().map(|x| x.expect("protocol").replace("wallet-", "").to_string()).collect::<Vec<String>>();
         let balances_vec = wallet_df.clone().column("balance_usd")?
             .f64()?.into_iter().map(|x| x.expect("balance_usd")).collect::<Vec<f64>>();
 

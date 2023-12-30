@@ -73,20 +73,7 @@ impl PerformanceStats {
         interval: Interval,
     ) -> Result<PerformanceStats, Box<dyn Error>> {
         let _len = returns.len();
-        let days = match interval {
-            Interval::TwoMinutes => 2.0 / 24.0 * 60.0,
-            Interval::FiveMinutes => 5.0 / 24.0 * 60.0,
-            Interval::FifteenMinutes => 15.0 / 24.0 * 60.0,
-            Interval::ThirtyMinutes => 30.0 / 24.0 * 60.0,
-            Interval::SixtyMinutes => 60.0 / 24.0 * 60.0,
-            Interval::OneHour => 60.0 / 24.0 * 60.0,
-            Interval::NinetyMinutes => 90.0 / 24.0 * 60.0,
-            Interval::OneDay => 1.0,
-            Interval::FiveDays => 5.0,
-            Interval::OneWeek => 5.0,
-            Interval::OneMonth => 20.0,
-            Interval::ThreeMonths => 60.0,
-        };
+        let days = interval.to_days();
         let risk_free_rate = risk_free_rate * 100.0;
         let cumulative_return = cumulative_return(&returns);
         let daily_return = returns.mean().ok_or("Error calculating mean return")?/days;
@@ -398,7 +385,7 @@ pub fn cumulative_returns_list(returns: Vec<f64>) -> Vec<f64> {
 
     for return_value in returns {
         cumulative_return *= 1.0 + return_value/100.0;
-        cumulative_returns.push(cumulative_return);
+        cumulative_returns.push(cumulative_return - 1.0);
     }
 
     cumulative_returns

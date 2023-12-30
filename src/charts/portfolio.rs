@@ -82,19 +82,24 @@ impl PortfolioCharts {
     ///
     /// * `Plot` Plotly Chart struct
     pub fn optimization_chart(&self) -> Result<Plot, Box<dyn Error>> {
+        let days = self.performance_stats.interval.to_days();
+
         let ef_returns = self.performance_stats.efficient_frontier.clone().iter()
-            .map(|x| x[0]).collect::<Vec<f64>>();
+            .map(|x| ((1.0 + (x[0]/days)/100.0).powf(252.0) - 1.0)).collect::<Vec<f64>>();
 
         let ef_risk = self.performance_stats.efficient_frontier.clone().iter()
-            .map(|x| x[1]).collect::<Vec<f64>>();
+            .map(|x| (x[1]/100.0 * 252.0_f64.sqrt())).collect::<Vec<f64>>();
 
         let ef_trace = Scatter::new(ef_risk, ef_returns)
             .name("Efficient Frontier")
             .mode(Mode::Markers)
             .marker(Marker::new().size(10));
 
-        let optimal_point = Scatter::new(vec![self.performance_stats.performance_stats.daily_volatility],
-                                         vec![self.performance_stats.performance_stats.daily_return])
+        let opt_return = (1.0 + (self.performance_stats.performance_stats.daily_return/days)/100.0).powf(252.0) - 1.0;
+        let opt_risk = self.performance_stats.performance_stats.daily_volatility/100.0 * 252.0_f64.sqrt();
+
+        let optimal_point = Scatter::new(vec![opt_risk],
+                                         vec![opt_return])
             .name("Optimal Portfolio")
             .mode(Mode::Markers)
             .marker(Marker::new().size(12).color(NamedColor::Red).symbol(MarkerSymbol::Star));
@@ -126,9 +131,19 @@ impl PortfolioCharts {
                     .pattern(GridPattern::Independent)
                     .row_order(RowOrder::TopToBottom)
             )
+            .x_axis(
+                Axis::new()
+                    .title(Title::from("Annualized Risk"))
+                    .tick_format(".0%")
+            )
             .y_axis(
                 Axis::new()
-                    .title(Title::from("Efficient Frontier"))
+                    .title(Title::from("Annualized Returns"))
+                    .tick_format(".0%")
+            )
+            .x_axis2(
+                Axis::new()
+                    .title(Title::from("Portfolio Assets"))
             )
             .y_axis2(
                 Axis::new()
@@ -159,12 +174,12 @@ impl PortfolioCharts {
 
         let benchmark_cum_returns= cumulative_returns_list(benchmark_returns.clone());
 
-        let returns_trace = Scatter::new(dates.clone(), returns.clone())
+        let returns_trace = Scatter::new(dates.clone(), returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
             .name("Portfolio Returns")
             .mode(Mode::Markers)
             .fill(Fill::ToZeroY);
 
-        let returns_dist_trace = Histogram::new(returns.clone())
+        let returns_dist_trace = Histogram::new(returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
             .name("Portfolio Returns Distribution")
             .x_axis("x2")
             .y_axis("y2");
@@ -204,14 +219,20 @@ impl PortfolioCharts {
             .y_axis(
                 Axis::new()
                     .title(Title::from("Returns"))
+                    .tick_format(".0%")
             )
             .y_axis2(
                 Axis::new()
                     .title(Title::from("Returns Distribution"))
             )
+            .x_axis2(
+                Axis::new()
+                    .tick_format(".0%")
+            )
             .y_axis3(
                 Axis::new()
                     .title(Title::from("Cumulative Returns"))
+                    .tick_format(".0%")
             );
 
         plot.set_layout(layout);
@@ -243,7 +264,12 @@ impl PortfolioCharts {
         let layout = Layout::new()
             .height(800)
             .width(1200)
-            .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"));
+            .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"))
+            .y_axis(
+                Axis::new()
+                    .title(Title::from("Cumulative Returns"))
+                    .tick_format(".0%")
+            );
 
         plot.set_layout(layout);
         Ok(plot)

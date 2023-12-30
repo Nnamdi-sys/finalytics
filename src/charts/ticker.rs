@@ -227,12 +227,12 @@ impl TickerCharts {
 
         let benchmark_cum_returns= cumulative_returns_list(benchmark_returns.clone());
 
-        let returns_trace = Scatter::new(dates.clone(), returns.clone())
+        let returns_trace = Scatter::new(dates.clone(), returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
             .name(format!("{} Returns", self.symbol))
             .mode(Mode::Markers)
             .fill(Fill::ToZeroY);
 
-        let returns_dist_trace = Histogram::new(returns.clone())
+        let returns_dist_trace = Histogram::new(returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
             .name(format!("{} Returns Distribution", self.symbol))
             .x_axis("x2")
             .y_axis("y2");
@@ -273,14 +273,20 @@ impl TickerCharts {
             .y_axis(
                 Axis::new()
                     .title(Title::from("Returns"))
+                    .tick_format(".0%")
             )
             .y_axis2(
                 Axis::new()
                     .title(Title::from("Returns Distribution"))
             )
+            .x_axis2(
+                Axis::new()
+                    .tick_format(".0%")
+            )
             .y_axis3(
                 Axis::new()
                     .title(Title::from("Cumulative Returns"))
+                    .tick_format(".0%")
             );
 
         plot.set_layout(layout);
