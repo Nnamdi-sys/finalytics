@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -11,9 +11,10 @@ keywords = ["finance", "analytics"]
 
 
 [dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.105"
-reqwest = { version = "0.11.18", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11.18", features = ["json"] }
 tokio = { version = "1.32.0", features = ["full"] }
 scraper = "0.17.1"
 select = "0.6.0"
@@ -37,8 +38,6 @@ temp-dir = "0.1.11"
 regex = "1.1.9"
 charming = "0.2.4"
 plotly = { version = "0.8.4", package = "plotly-fork"}
-[target.'cfg(all(target_os = "linux", any(target_env = "musl", target_arch = "arm", target_arch = "aarch64")))'.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
 
 [features]
 kaleido = ["plotly/kaleido"]
