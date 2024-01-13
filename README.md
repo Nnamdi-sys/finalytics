@@ -4,6 +4,7 @@
 [![Docs.rs](https://docs.rs/finalytics/badge.svg)](https://docs.rs/finalytics/)
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
+[![CodeFactor](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics/badge)](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics)
 
 **Finalytics** is a Rust library designed for retrieving financial data and performing various financial analysis tasks, including fundamental analysis, technical analysis, sentiment analysis, options pricing, portfolio optimization, and displaying financial charts.
 
@@ -13,7 +14,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = {version = "0.3.3", features = ["kaleido", "charming_ssr"]}
+finalytics = {version = "0.3.4", features = ["kaleido", "charming_ssr"]}
 ```
 
 ## Documentation
