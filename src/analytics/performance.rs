@@ -141,12 +141,20 @@ impl PortfolioPerformanceStats {
         portfolio_returns = portfolio_returns.fill_null(FillNullStrategy::Backward(None))?;
 
         let benchmark_returns = TechnicalIndicators::new(benchmark_symbol, start_date, end_date, interval).await?.roc(1)?;
-        let benchmark_returns = benchmark_returns.join(
+        let benchmark_returns = if portfolio_returns.height() > benchmark_returns.height() {
+            benchmark_returns.join(
             &portfolio_returns,
             &["timestamp"],
             &["timestamp"],
+            JoinArgs::new(JoinType::Outer),
+        )?} else {
+            portfolio_returns.join(
+            &benchmark_returns,
+            &["timestamp"],
+            &["timestamp"],
             JoinArgs::new(JoinType::Inner),
-        )?;
+        )?};
+
         let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
