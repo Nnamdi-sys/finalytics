@@ -145,7 +145,7 @@ impl PortfolioPerformanceStats {
             &portfolio_returns,
             &["timestamp"],
             &["timestamp"],
-            JoinArgs::new(JoinType::Outer),
+            JoinArgs::new(JoinType::Inner),
         )?;
         let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
@@ -215,7 +215,6 @@ impl PortfolioPerformanceStats {
     }
 }
 
-
 impl TickerPerformanceStats {
     /// Creates a new TickerPerformanceStats struct
     ///
@@ -253,7 +252,7 @@ impl TickerPerformanceStats {
             &security_returns,
             &["timestamp"],
             &["timestamp"],
-            JoinArgs::new(JoinType::Outer),
+            JoinArgs::new(JoinType::Inner),
         )?;
         let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
