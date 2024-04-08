@@ -6,3 +6,4 @@ dist
 .DS_Store
 .ipynb_checkpoints
 temp_embedded.db
+

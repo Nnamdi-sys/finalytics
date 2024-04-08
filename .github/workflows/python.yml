@@ -116,7 +116,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"  #nb: asterisk this line to release to pypi
+    #if: "startsWith(github.ref, 'refs/tags/')"  #nb: asterisk this line to release to pypi
     needs: [linux, windows, macos, sdist]
     steps:
       - uses: actions/download-artifact@v3

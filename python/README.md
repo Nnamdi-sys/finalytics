@@ -37,7 +37,6 @@ print(get_symbols(query="SPY", asset_class="ETF"))
 ```
 
 ### Security Analysis
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Nnamdi-sys/finalytics-py/HEAD?labpath=examples%2Fsecurity_analysis.ipynb)
 
 ```python
 from finalytics import Ticker
@@ -61,7 +60,6 @@ ticker.display_options_chart(risk_free_rate=0.02, chart_type="surface", display_
 ```
 
 ### Portfolio Optimization
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Nnamdi-sys/finalytics-py/HEAD?labpath=examples%2Fportfolio_optimization.ipynb)
 
 ```python
 from finalytics import Portfolio
