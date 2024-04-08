@@ -52,13 +52,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let stats = ticker.get_ticker_stats().await?;
     let chart = ticker.get_chart().await?;
     let options = ticker.get_options().await?;
-    let fundamentals = ticker.get_fundamentals("income-statement", "annual").await?;
 
     println!("{:?}", quote);
     println!("{:?}", stats);
     println!("{:?}", chart);
     println!("{:?}", options);
-    println!("{:?}", fundamentals);
 
     // Fundamental Analysis
     let income_statement = ticker.income_statement().await?;

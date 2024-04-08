@@ -2,6 +2,7 @@
 name = "finalytics-py"
 version = "0.3.0"
 edition = "2021"
+readme = "README.md"
 
 [lib]
 name = "finalytics"
