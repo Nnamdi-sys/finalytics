@@ -7,7 +7,7 @@ homepage = "https://finalytics.rs/"
 repository = "https://github.com/Nnamdi-sys/finalytics"
 license = "MIT"
 description = "A rust library for financial data analysis"
-readme = "../../README.md"
+readme = "../README.md"
 keywords = ["finance", "analytics"]
 
 [lib]
