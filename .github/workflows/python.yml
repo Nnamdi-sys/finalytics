@@ -22,9 +22,6 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
     strategy:
       matrix:
         target: [x86_64,]
@@ -45,6 +42,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
+          working-directory: python
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -54,9 +52,6 @@ jobs:
 
   windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: python
     strategy:
       matrix:
         target: [x64, x86]
@@ -71,6 +66,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
+          working-directory: python
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -80,9 +76,6 @@ jobs:
 
   macos:
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: python
     strategy:
       matrix:
         target: [x86_64, aarch64]
@@ -96,6 +89,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
+          working-directory: python
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v3
@@ -105,9 +99,6 @@ jobs:
 
   sdist:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
     steps:
       - uses: actions/checkout@v3
       - name: Build sdist
@@ -115,6 +106,7 @@ jobs:
         with:
           command: sdist
           args: --out dist
+          working-directory: python
       - name: Upload sdist
         uses: actions/upload-artifact@v3
         with:
@@ -137,3 +129,4 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
+          working-directory: python

@@ -17,6 +17,12 @@ Add the following to your `Cargo.toml` file:
 finalytics = {version = "0.4.0", features = ["kaleido"]}
 ```
 
+Or run the following command:
+
+```bash
+cargo install finalytics --features kaleido
+```
+
 ## Documentation
 
 View the library documentation on [docs.rs](https://docs.rs/finalytics/) or visit the [homepage](https://finalytics.rs/)
