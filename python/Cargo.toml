@@ -1,0 +1,15 @@
+[package]
+name = "finalytics-py"
+version = "0.3.0"
+edition = "2021"
+
+[lib]
+name = "finalytics"
+crate-type = ["cdylib"]
+
+[dependencies]
+finalytics = { path = "../finalytics", features = ["kaleido"] }
+polars = "0.33.2"
+tokio = { version = "1.32.0", features = ["full"] }
+pyo3 = { version = "0.20.0", features = ["extension-module", "generate-import-lib"] }
+plotly = { version = "0.8.4", package = "plotly-fork"}

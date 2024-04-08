@@ -1,3 +1,8 @@
-/target
 .idea
+venv
+target
+dist
+*.iml
 .DS_Store
+.ipynb_checkpoints
+temp_embedded.db

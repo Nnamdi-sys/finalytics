@@ -1,50 +1,7 @@
-[package]
-name = "finalytics"
-version = "0.3.6"
-authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
-edition = "2021"
-homepage = "https://finalytics.rs/"
-repository = "https://github.com/Nnamdi-sys/finalytics"
-license = "MIT"
-description = "A rust library for financial data analysis"
-keywords = ["finance", "analytics"]
-
-
-[dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
-serde = { version = "1.0.183", features = ["derive"] }
-serde_json = "1.0.105"
-reqwest = { version = "0.11.18", features = ["json"] }
-tokio = { version = "1.32.0", features = ["full"] }
-scraper = "0.17.1"
-select = "0.6.0"
-chrono = "0.4"
-polars = { version = "0.33.0", features = ["lazy"] }
-ta = "0.5.0"
-num-format = "0.4.4"
-smartcore = "0.3.2"
-statrs = "0.16.0"
-rand = "0.8.5"
-ndarray = "0.15.6"
-rand_distr = "0.4.2"
-optimization = "0.2.0"
-rusqlite = { version = "0.29.0", features = ["bundled"] }
-lazy_static = "1.4.0"
-r2d2 = "0.8.10"
-r2d2_sqlite = "0.22.0"
-sentiment = "0.1.1"
-html-escape = "0.2.13"
-temp-dir = "0.1.11"
-regex = "1.1.9"
-charming = "0.2.4"
-plotly = { version = "0.8.4", package = "plotly-fork"}
-
-[features]
-kaleido = ["plotly/kaleido"]
-charming_ssr = ["charming/ssr"]
-
-
-
-
-
-
+[workspace]
+resolver = "2"
+members = [
+    "finalytics",
+    "python",
+    "apps",
+]
