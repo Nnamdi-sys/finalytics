@@ -22,6 +22,9 @@ jobs:
 
   linux:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     strategy:
       matrix:
         target: [x86_64,]
@@ -51,6 +54,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: python
     strategy:
       matrix:
         target: [x64, x86]
@@ -74,6 +80,9 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: python
     strategy:
       matrix:
         target: [x86_64, aarch64]
@@ -96,6 +105,9 @@ jobs:
 
   sdist:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
     steps:
       - uses: actions/checkout@v3
       - name: Build sdist
