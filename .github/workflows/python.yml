@@ -122,7 +122,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: wheels
-          working-directory: python
+          path: python
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
@@ -130,4 +130,5 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
+          working-directory: python
 
