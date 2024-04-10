@@ -21,7 +21,7 @@ pip install finalytics
 
 ## Documentation
 
-View Library documentation on readthedocs [here](https://finalytics-py.readthedocs.io/en/latest/)
+View Library documentation on readthedocs [here](https://finalytics.readthedocs.io/en/latest/)
 
 
 ### Symbol Search

@@ -88,7 +88,7 @@ pub fn Footer() -> Element {
                             },
                             li {
                                 a {
-                                    href: "https://finalytics-py.readthedocs.io/en/latest/",
+                                    href: "https://finalytics.readthedocs.io/en/latest/",
                                     target: "_blank", // Open link in a new tab
                                     i { class: "bi bi-file-text text-light me-2" }, // Add text-light class for proper icon color and spacing
                                     "ReadTheDocs"

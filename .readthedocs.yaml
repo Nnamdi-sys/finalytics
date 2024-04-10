@@ -14,4 +14,4 @@ build:
 python:
   install:
     - method: pip
-      path: .
+      path: python
