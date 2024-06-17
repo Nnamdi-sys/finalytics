@@ -189,17 +189,17 @@ pub fn get_code_examples(category: String) -> String {
 
         // Construct Ticker Object
         let ticker = TickerBuilder::new()
-                                   .ticker("AAPL")?
+                                   .ticker("AAPL")
                                    .start_date("2023-01-01")
                                    .end_date("2023-02-01")
                                    .interval(Interval::OneDay)
                                    .benchmark_symbol("^GSPC")
                                    .confidence_level(0.95)
                                    .risk_free_rate(0.02)
-                                   .build()?;
+                                   .build();
 
         // Display Ticker Performance Chart
-        let _ = tc.performance_chart().await?.show();
+        let _ = tc.performance_chart(800, 1200).await?.show();
 
         Ok(())
     }
@@ -209,18 +209,16 @@ pub fn get_code_examples(category: String) -> String {
     from finalytics import Ticker
 
     // Construct Ticker Object
-    ticker = Ticker(symbol="AAPL")
+    ticker = Ticker(symbol="AAPL",
+                    start_date="2019-01-01",
+                    end_date="2023-12-31",
+                    interval="1d",
+                    benchmark="^GSPC",
+                    confidence_level=0.95,
+                    risk_free_rate=0.02)
 
     // Display Ticker Performance Chart
-    ticker.display_performance_chart(
-                                    start="2019-01-01",
-                                    end="2023-12-31",
-                                    interval="1d",
-                                    benchmark="^GSPC",
-                                    confidence_level=0.95,
-                                    risk_free_rate=0.02,
-                                    display_format="html"
-                                    )
+    ticker.performance_chart(height=800, width=1200).show()
         "###.to_string();
 
 
@@ -245,7 +243,7 @@ pub fn get_code_examples(category: String) -> String {
                                         .build().await?;
 
         // Display Portfolio Optimization Chart
-        let _ = pc.optimization_chart()?.show();
+        let _ = pc.optimization_chart(800, 1200)?.show();
 
         Ok(())
     }
@@ -267,7 +265,7 @@ pub fn get_code_examples(category: String) -> String {
                             objective_function="max_sharpe")
 
     // Display Portfolio Optimization Chart
-    portfolio.display_optimization_chart(display_format="html")
+    portfolio.portfolio_chart(chart_type="optimization", height=800, width=1200).show()
         "###.to_string();
 
     let code = match category.as_str() {
