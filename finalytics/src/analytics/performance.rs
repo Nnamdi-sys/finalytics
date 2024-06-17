@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use std::error::Error;
 
-use crate::data::ticker::Interval;
+use crate::data::config::Interval;
 use crate::models::ticker::{Ticker, TickerBuilder};
 use crate::analytics::technicals::TechnicalIndicators;
 use crate::analytics::optimization::{ObjectiveFunction, portfolio_optimization};
@@ -38,15 +38,15 @@ impl TickerPerformance for Ticker {
         let security_prices = security_df.column("close")?.clone();
         let security_returns = DataFrame::new(vec![
             security_df.column("timestamp")?.clone(),
-            security_df.column("roc-1")?.clone().with_name(&*self.ticker.symbol)
+            security_df.column("roc-1")?.clone().with_name(&*self.ticker)
         ])?;
-        let benchmark_ticker = TickerBuilder::new().ticker(&self.benchmark_symbol.clone())?
+        let benchmark_ticker = TickerBuilder::new().ticker(&self.benchmark_symbol.clone())
             .start_date(&self.start_date.clone())
             .end_date(&self.end_date.clone())
             .interval(self.interval.clone())
             .confidence_level(self.confidence_level)
             .risk_free_rate(self.risk_free_rate)
-            .build()?;
+            .build();
         let benchmark_returns = benchmark_ticker.roc(1).await?;
         let benchmark_returns = benchmark_returns.join(
             &security_returns,
@@ -58,12 +58,12 @@ impl TickerPerformance for Ticker {
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
         let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
-        let security_returns = security_returns.column(&*self.ticker.symbol)?.clone();
+        let security_returns = security_returns.column(&*self.ticker)?.clone();
         let performance_stats = PerformanceStats::compute_stats(
             security_returns.clone(), benchmark_returns.clone(),
             self.risk_free_rate, self.confidence_level, self.interval)?;
         Ok(TickerPerformanceStats {
-            ticker_symbol: self.ticker.symbol.clone(),
+            ticker_symbol: self.ticker.clone(),
             benchmark_symbol: self.benchmark_symbol.clone(),
             start_date: self.start_date.clone(),
             end_date: self.end_date.clone(),
@@ -133,13 +133,13 @@ impl PortfolioPerformanceStats {
     ) -> Result<PortfolioPerformanceStats, Box<dyn Error>> {
         let mut dfs: Vec<DataFrame> = Vec::new();
         for ticker_symbol in ticker_symbols.iter() {
-            let ticker = TickerBuilder::new().ticker(ticker_symbol)?
+            let ticker = TickerBuilder::new().ticker(ticker_symbol)
                 .start_date(start_date)
                 .end_date(end_date)
                 .interval(interval)
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
-                .build()?;
+                .build();
             let security_df = ticker.roc(1).await?;
             let security_returns_df = DataFrame::new(vec![
                 security_df.column("timestamp")?.clone(),
@@ -163,13 +163,13 @@ impl PortfolioPerformanceStats {
         portfolio_returns = portfolio_returns.fill_null(FillNullStrategy::Forward(None))?;
         portfolio_returns = portfolio_returns.fill_null(FillNullStrategy::Backward(None))?;
 
-        let benchmark_ticker = TickerBuilder::new().ticker(benchmark_symbol)?
+        let benchmark_ticker = TickerBuilder::new().ticker(benchmark_symbol)
             .start_date(start_date)
             .end_date(end_date)
             .interval(interval)
             .confidence_level(confidence_level)
             .risk_free_rate(risk_free_rate)
-            .build()?;
+            .build();
         let benchmark_returns = benchmark_ticker.roc(1).await?;
         let benchmark_returns = if portfolio_returns.height() > benchmark_returns.height() {
             benchmark_returns.join(

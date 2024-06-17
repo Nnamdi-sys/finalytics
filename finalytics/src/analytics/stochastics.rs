@@ -272,14 +272,14 @@ impl VolatilitySurface for Ticker {
 
         let mut ivols_df = DataFrame::new(vec![Series::new("strike", &strikes)])?;
         for (i, ttm) in ttms.iter().enumerate() {
-            let ttm = *ttm as i64;
+            let ttm = format!("{:.2}", *ttm);
             let col = Series::new(&*format!("{}M", ttm), ivols[i].clone());
             ivols_df.hstack_mut(&[col])?;
         }
 
 
         Ok(VolatilitySurfaceData{
-            symbol: self.ticker.symbol.clone(),
+            symbol: self.ticker.clone(),
             risk_free_rate: self.risk_free_rate,
             ticker_price,
             expiration_dates,

@@ -6,8 +6,6 @@ use crate::web::server::{get_ticker_chart, ALL_SYMBOLS_DATALIST};
 #[component]
 pub fn Ticker() -> Element {
 
-    let all_symbols = ALL_SYMBOLS_DATALIST.lock().unwrap().clone();
-
     let mut symbol = use_signal(|| "MSFT".to_string());
     let mut benchmark_symbol = use_signal(|| "^GSPC".to_string());
     let mut start_date = use_signal(|| "2020-01-01".to_string());

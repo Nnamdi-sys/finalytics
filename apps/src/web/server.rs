@@ -44,10 +44,10 @@ pub async fn get_portfolio_chart(
         .objective_function(ObjectiveFunction::from_str(&objective_function))
         .build().await {
         Ok(pc) => match chart_num {
-            1 => pc.optimization_chart().map(|oc| oc.to_html()).unwrap_or("".to_string()),
-            2 => pc.performance_chart().map(|pc| pc.to_html()).unwrap_or("".to_string()),
-            3 => pc.performance_stats_table().map(|ps| ps.to_html()).unwrap_or("".to_string()),
-            4 => pc.asset_returns_chart().map(|arc| arc.to_html()).unwrap_or("".to_string()),
+            1 => pc.optimization_chart(800, 1200).map(|oc| oc.to_html()).unwrap_or("".to_string()),
+            2 => pc.performance_chart(800, 1200).map(|pc| pc.to_html()).unwrap_or("".to_string()),
+            3 => pc.performance_stats_table(800, 1200).map(|ps| ps.to_html()).unwrap_or("".to_string()),
+            4 => pc.asset_returns_chart(800, 1200).map(|arc| arc.to_html()).unwrap_or("".to_string()),
             _ => "".to_string(),
         },
         Err(_) => "".to_string(),
@@ -71,25 +71,25 @@ pub async fn get_ticker_chart(
     chart_num: usize,
 ) -> Result<String, ServerFnError> {
     let tc = TickerBuilder::new()
-        .ticker(&symbol).unwrap()
+        .ticker(&symbol)
         .start_date(&start_date)
         .end_date(&end_date)
         .interval(Interval::from_str(&interval))
         .benchmark_symbol(&benchmark_symbol)
         .confidence_level(confidence_level)
         .risk_free_rate(risk_free_rate)
-        .build().unwrap();
+        .build();
 
     let chart = match chart_num {
-            1 => tc.candlestick_chart().await.map(|cc| cc.to_html()).unwrap_or("".to_string()),
-            2 => tc.summary_stats_table().await.map(|ss| ss.to_html()).unwrap_or("".to_string()),
-            3 => tc.performance_chart().await.map(|pc| pc.to_html()).unwrap_or("".to_string()),
-            4 => tc.performance_stats_table().await.map(|ps| ps.to_html()).unwrap_or("".to_string()),
-            5 => tc.financials_tables().await.map(|ft| ft["Income Statement"].to_html()).unwrap_or("".to_string()),
-            6 => tc.financials_tables().await.map(|ft| ft["Balance Sheet"].to_html()).unwrap_or("".to_string()),
-            7 => tc.financials_tables().await.map(|ft| ft["Cashflow Statement"].to_html()).unwrap_or("".to_string()),
-            8 => tc.financials_tables().await.map(|ft| ft["Financial Ratios"].to_html()).unwrap_or("".to_string()),
-            9 => tc.volatility_charts().await.map(|vc| vc["Volatility Surface"].to_html()).unwrap_or("".to_string()),
+            1 => tc.candlestick_chart(800, 1200).await.map(|cc| cc.to_html()).unwrap_or("".to_string()),
+            2 => tc.summary_stats_table(800, 1200).await.map(|ss| ss.to_html()).unwrap_or("".to_string()),
+            3 => tc.performance_chart(800, 1200).await.map(|pc| pc.to_html()).unwrap_or("".to_string()),
+            4 => tc.performance_stats_table(800, 1200).await.map(|ps| ps.to_html()).unwrap_or("".to_string()),
+            5 => tc.financials_tables(800, 1200).await.map(|ft| ft["Income Statement"].to_html()).unwrap_or("".to_string()),
+            6 => tc.financials_tables(800, 1200).await.map(|ft| ft["Balance Sheet"].to_html()).unwrap_or("".to_string()),
+            7 => tc.financials_tables(800, 1200).await.map(|ft| ft["Cashflow Statement"].to_html()).unwrap_or("".to_string()),
+            8 => tc.financials_tables(800, 1200).await.map(|ft| ft["Financial Ratios"].to_html()).unwrap_or("".to_string()),
+            9 => tc.options_charts(800, 1200).await.map(|vc| vc["Volatility Surface"].to_html()).unwrap_or("".to_string()),
             _ => "".to_string(),
         };
 
@@ -113,14 +113,14 @@ pub async fn highlight_code(code: String, lang: String) -> Result<String, Server
 pub async fn save_code_images() -> Result<(), ServerFnError> {
 
     let _ = TickerBuilder::new()
-        .ticker("AAPL").unwrap()
+        .ticker("AAPL")
         .start_date("2019-01-01")
         .end_date("2023-12-31")
         .interval(Interval::OneDay)
         .benchmark_symbol("^GSPC")
         .confidence_level(0.95)
         .risk_free_rate(0.02)
-        .build().unwrap().candlestick_chart().await.unwrap()
+        .build().candlestick_chart(800, 1200).await.unwrap()
         .to_png("./public/images/candlestick_chart.png", 800, 600, 1.0);
 
 
@@ -134,7 +134,7 @@ pub async fn save_code_images() -> Result<(), ServerFnError> {
         .risk_free_rate(0.02)
         .max_iterations(1000)
         .objective_function(ObjectiveFunction::MaxSharpe)
-        .build().await.unwrap().optimization_chart().unwrap()
+        .build().await.unwrap().optimization_chart(800, 1200).unwrap()
         .to_png("./public/images/portfolio_chart.png", 800, 600, 1.0);
 
     Ok(())

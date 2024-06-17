@@ -17,22 +17,27 @@ use crate::utils::date_utils::{generate_dates, to_date};
 use crate::analytics::statistics::cumulative_returns_list;
 
 pub trait TickerCharts {
-    fn candlestick_chart(&self) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn performance_chart(&self) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn financials_tables(&self) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
-    fn volatility_charts(&self) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
+    fn candlestick_chart(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn performance_chart(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn summary_stats_table(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn performance_stats_table(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn financials_tables(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
+    fn options_charts(&self, height: usize, width: usize) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
 }
 
 impl TickerCharts for Ticker {
 
     /// Generates an OHLCV candlestick chart for the ticker with technical indicators
     ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn candlestick_chart(&self) -> Result<Plot, Box<dyn Error>> {
+    async fn candlestick_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let data = self.get_chart().await?;
         let x = data.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
             DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
@@ -79,10 +84,10 @@ impl TickerCharts for Ticker {
             .line(Line::new().shape(LineShape::Spline));
 
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::new(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>",
-                                        self.ticker.symbol)))
+                                        self.ticker)))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
@@ -156,10 +161,15 @@ impl TickerCharts for Ticker {
 
     /// Generates a performance chart for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn performance_chart(&self) -> Result<Plot, Box<dyn Error>> {
+    async fn performance_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let performance_stats = self.performance_stats().await?;
         let dates = generate_dates(&*performance_stats.start_date,
                                    &*performance_stats.end_date, 1);
@@ -175,17 +185,17 @@ impl TickerCharts for Ticker {
         let benchmark_cum_returns= cumulative_returns_list(benchmark_returns.clone());
 
         let returns_trace = Scatter::new(dates.clone(), returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
-            .name(format!("{} Returns", self.ticker.symbol))
+            .name(format!("{} Returns", self.ticker))
             .mode(Mode::Markers)
             .fill(Fill::ToZeroY);
 
         let returns_dist_trace = Histogram::new(returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
-            .name(format!("{} Returns Distribution", self.ticker.symbol))
+            .name(format!("{} Returns Distribution", self.ticker))
             .x_axis("x2")
             .y_axis("y2");
 
         let cum_returns_trace = Scatter::new(dates.clone(), cum_returns.clone())
-            .name(format!("{} Cumulative Returns", self.ticker.symbol))
+            .name(format!("{} Cumulative Returns", self.ticker))
             .mode(Mode::Lines)
             .fill(Fill::ToZeroY)
             .x_axis("x3")
@@ -206,10 +216,10 @@ impl TickerCharts for Ticker {
 
         // Set layout for the plot
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Chart</span>",
-                                         self.ticker.symbol)))
+                                         self.ticker)))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
@@ -243,10 +253,15 @@ impl TickerCharts for Ticker {
 
     /// Displays the Summary Statistics table for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn summary_stats_table(&self) -> Result<Plot, Box<dyn Error>> {
+    async fn summary_stats_table(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let stats = self.get_ticker_stats().await?;
 
         let fields = vec![
@@ -284,7 +299,7 @@ impl TickerCharts for Ticker {
 
         let values = vec![
             format!("{}", stats.symbol),
-            format!("{}", stats.display_name),
+            format!("{}", stats.long_name),
             format!("{}", stats.full_exchange_name),
             format!("{}", stats.currency),
             format!("{}", to_date(stats.regular_market_time)),
@@ -326,10 +341,10 @@ impl TickerCharts for Ticker {
         plot.add_trace(trace);
 
         let layout = Layout::new()
-            .height(1000)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Summary Stats</span>",
-                                         self.ticker.symbol)));
+                                         self.ticker)));
 
         plot.set_layout(layout);
 
@@ -338,10 +353,15 @@ impl TickerCharts for Ticker {
 
     /// Displays the Performance Statistics table for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn performance_stats_table(&self) -> Result<Plot, Box<dyn Error>> {
+    async fn performance_stats_table(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let stats = self.performance_stats().await?;
 
         let fields = vec![
@@ -394,10 +414,10 @@ impl TickerCharts for Ticker {
         plot.add_trace(trace);
 
         let layout = Layout::new()
-            .height(1000)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Stats</span>",
-                                         self.ticker.symbol)));
+                                         self.ticker)));
 
         plot.set_layout(layout);
 
@@ -406,10 +426,15 @@ impl TickerCharts for Ticker {
 
     /// Generates Table Plots for the Ticker's Financial Statements
     ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `HashMap<String, Plot>` - HashMap of Financial Statements Table Plots
-    async fn financials_tables(&self) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
+    async fn financials_tables(&self, height: usize, width: usize) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
         let dfs = vec![
             ("Income Statement", self.income_statement().await.unwrap()),
             ("Balance Sheet", self.balance_sheet().await.unwrap()),
@@ -446,10 +471,10 @@ impl TickerCharts for Ticker {
             plot.add_trace(trace);
 
             let layout = Layout::new()
-                .height(1000)
-                .width(1200)
+                .height(height)
+                .width(width)
                 .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} {}</span>",
-                                             self.ticker.symbol, name)));
+                                             self.ticker, name)));
 
             plot.set_layout(layout);
             plots.insert(name.to_string(), plot);
@@ -457,12 +482,17 @@ impl TickerCharts for Ticker {
         Ok(plots)
     }
 
-    /// Generates Charts of the Ticker's Option Volaatility Surface, Smile, and Term Structure
+    /// Generates Charts of the Ticker's Option Volatility Surface, Smile, and Term Structure
+    ///
+    /// # Arguments
+    ///
+    /// * `height` - `usize` - Height of the chart
+    /// * `width` - `usize` - Width of the chart
     ///
     /// # Returns
     ///
     /// * `HashMap<String, Plot>` - HashMap of Volatility Surface, Smile, and Term Structure Charts
-    async fn volatility_charts(&self) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
+    async fn options_charts(&self, height: usize, width: usize) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
         let vol_surface = self.volatility_surface().await?;
         let symbol = vol_surface.symbol;
         let ivols = vol_surface.ivols;
@@ -477,8 +507,8 @@ impl TickerCharts for Ticker {
         surface_plot.add_trace(trace);
 
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Surface</span>")))
             .scene(
                 LayoutScene::new()
@@ -511,8 +541,8 @@ impl TickerCharts for Ticker {
         }
 
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Smile</span>")))
             .x_axis(Axis::new().title(Title::from("Strike")))
             .y_axis(Axis::new().title(Title::from("Implied Volatility")));
@@ -549,8 +579,8 @@ impl TickerCharts for Ticker {
         }
 
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Term Structure</span>")))
             .x_axis(Axis::new().title(Title::from("Time to Maturity (Months)")))
             .y_axis(Axis::new().title(Title::from("Implied Volatility")));

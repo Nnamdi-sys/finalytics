@@ -12,9 +12,8 @@ pub mod prelude {
     pub use crate::models::portfolio::Portfolio;
 
     // Enums
-    pub use crate::data::ticker::Interval;
+    pub use crate::data::config::Interval;
     pub use crate::analytics::optimization::ObjectiveFunction;
-    pub use crate::data::keys::{AssetClass, Category, Exchange};
 
 
     // Builders
@@ -35,9 +34,6 @@ pub mod prelude {
     #[cfg(feature = "kaleido")]
     pub use crate::utils::chart_utils::PlotImage;
 
-    // Functions
-    pub use crate::data::db::{get_symbols, search_symbols, get_symbols_count};
-
 }
 
 
@@ -46,12 +42,17 @@ pub mod prelude {
 mod tests {
     use crate::prelude::*;
     #[tokio::test]
-    async fn check_symbols_count() {
-        // Database-related tests
-        let res1 = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
-        assert!(res1.len() >= 200000);
+    async fn get_quote() {
+        let ticker = TickerBuilder::new().ticker("AAPL")
+            .start_date("2023-01-01")
+            .end_date("2023-02-01")
+            .interval(Interval::OneDay)
+            .benchmark_symbol("^GSPC")
+            .confidence_level(0.95)
+            .risk_free_rate(0.02)
+            .build();
 
-        let res2 = get_symbols_count().unwrap() as usize;
-        assert_eq!(res1.len(), res2);
+        let quote = ticker.get_quote().await.unwrap();
+        dbg!(quote);
     }
 }

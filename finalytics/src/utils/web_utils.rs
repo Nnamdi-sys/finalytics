@@ -1,8 +1,22 @@
 use std::error::Error;
+use once_cell::sync::Lazy;
 use reqwest::Client;
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use select::document::Document;
 use select::predicate::Name;
 use sentiment::analyze;
+
+
+pub static REQUEST_CLIENT: Lazy<Client> = Lazy::new(|| {
+    let mut headers = HeaderMap::new();
+    headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"));
+    headers.insert("Accept", HeaderValue::from_static("application/json"));
+
+    Client::builder()
+        .default_headers(headers)
+        .build()
+        .unwrap()
+});
 
 
 #[derive(Debug)]
@@ -17,7 +31,7 @@ pub struct Article {
 
 pub async fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
     let client = Client::new();
-    let response = client.get(url).send().await?;
+    let response = REQUEST_CLIENT.get(url).send().await?;
     let body = response.text().await?;
 
     // Parse the HTML content of the article

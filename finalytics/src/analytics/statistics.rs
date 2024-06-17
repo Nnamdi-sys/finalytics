@@ -8,7 +8,7 @@ use smartcore::linalg::basic::matrix::DenseMatrix;
 use smartcore::linear::linear_regression::LinearRegression;
 use statrs::statistics::Statistics;
 use statrs::distribution::{ContinuousCDF, Normal};
-use crate::data::ticker::Interval;
+use crate::data::config::Interval;
 
 #[derive(Debug, Clone)]
 pub struct PerformanceStats {

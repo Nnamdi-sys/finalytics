@@ -1,4 +1,3 @@
-use std::error::Error;
 use plotly::Plot;
 use polars::export::arrow::ffi;
 use polars::prelude::*;
@@ -70,23 +69,27 @@ pub fn rust_series_to_py_series(series: &Series) -> PyResult<PyObject> {
     })
 }
 
-pub fn display_html_with_iframe(plot: Option<Plot>, chart_type: &str) -> Result<(), Box<dyn Error>> {
-    let file_path = format!("{}.html", chart_type);
-
-    if plot != None {
-        let mut plot = plot.clone().unwrap();
-        let layout = plot.layout().clone().width(1000).height(800);
-        plot.set_layout(layout);
-        let html = plot.to_html();
-        std::fs::write(&file_path, html)?;
-    }
+pub fn rust_plot_to_py_plot(plot: Plot) -> PyResult<PyObject> {
+    // Convert the Plotly object to a JSON string
+    let plot_json = plot.to_json();
 
     Python::with_gil(|py| {
-        let jupyter = py.import("IPython.display")?;
+        // Import the necessary Python libraries
+        let py_plotly = py.import("plotly.graph_objects")?;
+        let py_json = py.import("json")?;
 
-        let iframe = jupyter.call_method1("IFrame", (file_path, 1000, 800))?;
+        // Convert the JSON string to a Python dictionary
+        let plot_dict: PyObject = py_json.call_method1("loads", (plot_json,))?.extract()?;
 
-        jupyter.call_method1("display", (iframe,))?;
-        Ok(())
+        // Manually construct the Plotly figure from the dictionary
+        let figure_class = py_plotly.getattr("Figure")?;
+        let fig = figure_class.call1((plot_dict,))?;
+
+        Ok(fig.to_object(py))
     })
 }
+
+
+
+
+

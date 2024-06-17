@@ -1,5 +1,5 @@
 use std::error::Error;
-use crate::data::ticker::Interval;
+use crate::data::config::Interval;
 use crate::analytics::optimization::ObjectiveFunction;
 use crate::analytics::performance::PortfolioPerformanceStats;
 
@@ -121,10 +121,10 @@ impl PortfolioBuilder {
 ///     println!("{:?}", portfolio.performance_stats);
 ///
 ///    // Display Portfolio Analytics Charts
-///     portfolio.optimization_chart()?.show();
-///     portfolio.performance_chart()?.show();
-///     portfolio.asset_returns_chart()?.show();
-///     portfolio.performance_stats_table()?.show();
+///     portfolio.optimization_chart(800, 1200)?.show();
+///     portfolio.performance_chart(800, 1200)?.show();
+///     portfolio.asset_returns_chart(800, 1200)?.show();
+///     portfolio.performance_stats_table(800, 1200)?.show();
 ///
 ///     Ok(())
 /// }

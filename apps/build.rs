@@ -2,15 +2,11 @@ use bincode;
 use std::fs::File;
 use std::io::Write;
 use std::collections::HashMap;
-use finalytics::data::db::get_symbols;
-use finalytics::data::keys::{AssetClass, Category, Exchange};
+use yahoo_finance_symbols::keys::{AssetClass, Category, Exchange};
+use yahoo_finance_symbols::get_symbols;
 
 fn main() {
-    let tickers = get_symbols(
-        AssetClass::All,
-        Category::All,
-        Exchange::All
-    ).unwrap();
+    let tickers = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
 
     let mut map = HashMap::new();
     for ticker in tickers {

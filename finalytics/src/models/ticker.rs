@@ -1,9 +1,8 @@
-use std::error::Error;
-use crate::data::db::{get_symbol, Symbol};
-use crate::data::ticker::Interval;
+use crate::data::config::Interval;
+
 
 pub struct TickerBuilder {
-    ticker: Symbol,
+    ticker: String,
     start_date: String,
     end_date: String,
     interval: Interval,
@@ -15,7 +14,7 @@ pub struct TickerBuilder {
 impl TickerBuilder {
     pub fn new() -> TickerBuilder {
         TickerBuilder {
-            ticker: Symbol::new(),
+            ticker: String::new(),
             start_date: String::new(),
             end_date: String::new(),
             interval: Interval::OneDay,
@@ -25,9 +24,9 @@ impl TickerBuilder {
         }
     }
 
-    pub fn ticker(mut self, symbol: &str) -> Result<TickerBuilder, Box<dyn Error>> {
-        self.ticker = get_symbol(symbol)?;
-        Ok(self)
+    pub fn ticker(mut self, symbol: &str) -> TickerBuilder {
+        self.ticker = symbol.to_string();
+        self
     }
 
     pub fn start_date(mut self, start_date: &str) -> TickerBuilder {
@@ -60,8 +59,8 @@ impl TickerBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Ticker, Box<dyn Error>> {
-        Ok(Ticker {
+    pub fn build(self) -> Ticker {
+        Ticker {
             ticker: self.ticker,
             start_date: self.start_date,
             end_date: self.end_date,
@@ -69,7 +68,7 @@ impl TickerBuilder {
             benchmark_symbol: self.benchmark_symbol,
             confidence_level: self.confidence_level,
             risk_free_rate: self.risk_free_rate,
-        })
+        }
     }
 }
 
@@ -125,7 +124,7 @@ impl TickerBuilder {
 /// ### Ticker Chart Methods
 ///    - `candlestick_chart` - Returns Ticker Candlestick Chart
 ///    - `performance_chart` - Returns Ticker Performance Chart
-///    - `volatility_charts` - Returns Ticker Volatility Charts
+///    - `options_charts` - Returns Ticker Options Volatility Charts
 ///    - `summary_stats_table` - Returns Ticker Summary Stats Table plot
 ///    - `performance_stats_table` - Returns Ticker Performance Stats Table plot
 ///    - `financials_tables` - Returns Ticker Financials Table plots
@@ -143,14 +142,14 @@ impl TickerBuilder {
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///
 ///  // Instantiate the Ticker Object
-/// let ticker = TickerBuilder::new().ticker("AAPL")?
+/// let ticker = TickerBuilder::new().ticker("AAPL")
 ///                                     .start_date("2023-01-01")
 ///                                     .end_date("2023-02-01")
 ///                                     .interval(Interval::OneDay)
 ///                                     .benchmark_symbol("^GSPC")
 ///                                     .confidence_level(0.95)
 ///                                     .risk_free_rate(0.02)
-///                                     .build()?;
+///                                     .build();
 ///
 ///    // Fetch Ticker Data
 ///   let quote = ticker.get_quote().await?;
@@ -207,20 +206,20 @@ impl TickerBuilder {
 /// println!("{:?}", news_sentiment);
 ///
 ///  // Display Ticker Charts
-///  let candlestick_chart = ticker.candlestick_chart().await?;
-///  let performance_chart = ticker.performance_chart().await?;
-///  let volatility_charts = ticker.volatility_charts().await?;
-///  let summary_stats_table = ticker.summary_stats_table().await?;
-///  let performance_stats_table = ticker.performance_stats_table().await?;
-///  let financials_tables = ticker.financials_tables().await?;
+///  let candlestick_chart = ticker.candlestick_chart(800, 1200).await?;
+///  let performance_chart = ticker.performance_chart(800, 1200).await?;
+///  let options_charts = ticker.options_charts(800, 1200).await?;
+///  let summary_stats_table = ticker.summary_stats_table(800, 1200).await?;
+///  let performance_stats_table = ticker.performance_stats_table(800, 1200).await?;
+///  let financials_tables = ticker.financials_tables(800, 1200).await?;
 ///
 ///  candlestick_chart.show();
 ///  performance_chart.show();
 ///  summary_stats_table.show();
 ///  performance_stats_table.show();
-///  volatility_charts["Volatility Surface"].show();
-///  volatility_charts["Volatility Smile"].show();
-///  volatility_charts["Volatility Term Structure"].show();
+///  options_charts["Volatility Surface"].show();
+///  options_charts["Volatility Smile"].show();
+///  options_charts["Volatility Term Structure"].show();
 ///  financials_tables["Income Statement"].show();
 ///  financials_tables["Balance Sheet"].show();
 ///  financials_tables["Cashflow Statement"].show();
@@ -232,7 +231,7 @@ impl TickerBuilder {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Ticker {
-    pub ticker: Symbol,
+    pub ticker: String,
     pub start_date: String,
     pub end_date: String,
     pub interval: Interval,

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use finalytics::prelude::*;
+use yahoo_finance_symbols::keys::{AssetClass, Category, Exchange};
+use yahoo_finance_symbols::get_symbols;
 use teloxide::{prelude::*, utils::command::BotCommands, update_listeners::webhooks};
 use crate::telegram::utils::html_to_png;
 
@@ -211,58 +213,58 @@ async fn handle_ticker_command(symbol: String, start_date: String, end_date: Str
                                confidence_level: f64, risk_free_rate: f64, chart_type: String, bot: Arc<Bot>, msg: Arc<Message>) -> String {
 
     // Create TickerCharts and generate the appropriate chart based on the selected chart type
-    if let Ok(tc) = TickerBuilder::new().ticker(&symbol) {
-        let tc = tc.start_date(&start_date)
-            .end_date(&end_date)
-            .interval(Interval::from_str(&interval))
-            .benchmark_symbol(&benchmark_symbol)
-            .confidence_level(confidence_level)
-            .risk_free_rate(risk_free_rate)
-            .build().unwrap();
-        let charts = match chart_type.as_str() {
-            "price_charts" => vec![
-                if let Ok(cc) = tc.candlestick_chart().await {
-                    cc
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
-                },
-                if let Ok(ss) = tc.summary_stats_table().await {
-                    ss
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
-                }],
-            "performance_charts" => vec![
-                if let Ok(pc) = tc.performance_chart().await {
-                    pc
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
-                },
-                if let Ok(ps) = tc.performance_stats_table().await {
-                    ps
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
-                }],
-            "financials" => if let Ok(fs) = tc.financials_tables().await{
-                vec![fs["Income Statement"].clone(), fs["Balance Sheet"].clone(), fs["Cashflow Statement"].clone(), fs["Financial Ratios"].clone()]
+
+    let tc = TickerBuilder::new().ticker(&symbol).start_date(&start_date)
+        .end_date(&end_date)
+        .interval(Interval::from_str(&interval))
+        .benchmark_symbol(&benchmark_symbol)
+        .confidence_level(confidence_level)
+        .risk_free_rate(risk_free_rate)
+        .build();
+    let charts = match chart_type.as_str() {
+        "price_charts" => vec![
+            if let Ok(cc) = tc.candlestick_chart(800, 1200).await {
+                cc
             } else {
                 return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
-            } ,
-            "options_charts" => if let Ok(oc) = tc.volatility_charts().await{
-                vec![oc["Volatility Surface"].clone(), oc["Volatility Smile"].clone(), oc["Volatility Term Structure"].clone()]
+            },
+            if let Ok(ss) = tc.summary_stats_table(800, 1200).await {
+                ss
+            } else {
+                return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
+            }],
+        "performance_charts" => vec![
+            if let Ok(pc) = tc.performance_chart(800, 1200).await {
+                pc
+            } else {
+                return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
+            },
+            if let Ok(ps) = tc.performance_stats_table(800, 1200).await {
+                ps
+            } else {
+                return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
+            }],
+        "financials" => if let Ok(fs) = tc.financials_tables(800, 1200).await{
+            vec![fs["Income Statement"].clone(), fs["Balance Sheet"].clone(), fs["Cashflow Statement"].clone(), fs["Financial Ratios"].clone()]
+        } else {
+            return "Invalid Parameters for ticker command. Get example with `/help ticker` ".to_string();
+        } ,
+        "options_charts" => if let Ok(oc) = tc.options_charts(800, 1200).await{
+            vec![oc["Volatility Surface"].clone(), oc["Volatility Smile"].clone(), oc["Volatility Term Structure"].clone()]
+        } else {
+            return "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string();
+        },
+        _ => vec![
+            if let Ok(cc) = tc.candlestick_chart(800, 1200).await {
+                cc
             } else {
                 return "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string();
             },
-            _ => vec![
-                if let Ok(cc) = tc.candlestick_chart().await {
-                    cc
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string();
-                },
-                if let Ok(ss) = tc.summary_stats_table().await {
-                    ss
-                } else {
-                    return "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string();
-                }],
+            if let Ok(ss) = tc.summary_stats_table(800, 1200).await {
+                ss
+            } else {
+                return "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string();
+            }],
         };
 
         for chart in charts {
@@ -273,9 +275,7 @@ async fn handle_ticker_command(symbol: String, start_date: String, end_date: Str
             }
         }
         format!("{} Ticker {} generated successfully.", symbol, chart_type)
-    } else {
-        "Invalid Parameters for ticker command. Get example with `/ticker` ".to_string()
-    }
+
 }
 
 async fn handle_portfolio_command(symbols: String, benchmark_symbol: String, start_date: String, end_date: String, interval: String,
@@ -297,22 +297,22 @@ async fn handle_portfolio_command(symbols: String, benchmark_symbol: String, sta
 
     if let Ok(pc) = pc {
         let charts = vec![
-            if let Ok(pc) = pc.optimization_chart() {
+            if let Ok(pc) = pc.optimization_chart(800, 1200) {
                 pc
             } else {
                 return "Invalid Parameters for portfolio command. Get example with `/portfolio` ".to_string();
             },
-            if let Ok(pc) = pc.performance_chart() {
+            if let Ok(pc) = pc.performance_chart(800, 1200) {
                 pc
             } else {
                 return "Invalid Parameters for portfolio command. Get example with `/portfolio` ".to_string();
             },
-            if let Ok(pc) = pc.asset_returns_chart() {
+            if let Ok(pc) = pc.asset_returns_chart(800, 1200) {
                 pc
             } else {
                 return "Invalid Parameters for portfolio command. Get example with `/portfolio` ".to_string();
             },
-            if let Ok(pc) = pc.performance_stats_table() {
+            if let Ok(pc) = pc.performance_stats_table(800, 1200) {
                 pc
             } else {
                 return "Invalid Parameters for portfolio command. Get example with `/portfolio` ".to_string();
@@ -347,11 +347,7 @@ async fn handle_portfolio_command(symbols: String, benchmark_symbol: String, sta
 }
 
 async fn handle_news_command(symbol: String, max: usize, bot: Arc<Bot>, msg: Arc<Message>) -> String {
-    let tc = if let Ok(tc) = TickerBuilder::new().ticker(&symbol) {
-        tc.build().unwrap()
-    } else {
-        return "Invalid Symbol. Search for valid symbols with /symbols <query> ".to_string();
-    };
+    let tc = TickerBuilder::new().ticker(&symbol).build();
     let news = tc.get_news(false).await;
 
     if let Ok(news) = news {

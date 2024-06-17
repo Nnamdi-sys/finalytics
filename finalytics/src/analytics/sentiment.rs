@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use tokio::time::Duration;
 use tokio::time::timeout;
 use crate::models::ticker::Ticker;
-use crate::utils::web_utils::scrape_text;
+use crate::data::ticker::TickerData;
+use crate::utils::web_utils::{scrape_text, REQUEST_CLIENT};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,10 +39,11 @@ impl NewsSentiment for Ticker {
     /// * `Vec<News>` Vector of News struct
     async fn get_news(&self, compute_sentiment: bool) -> Result<Vec<News>, Box<dyn Error>> {
         let mut result = vec![];
-        let symbol = if self.ticker.asset_class == "CRYPTOCURRENCY" { self.ticker.symbol.replace("-USD", "") } else { self.ticker.symbol.clone() };
-        let token = format!("({} OR {})", &symbol, &self.ticker.name);
+        let quote = self.get_quote().await?;
+        let symbol = if quote.asset_class == "CRYPTOCURRENCY" { self.ticker.replace("-USD", "") } else { self.ticker.clone() };
+        let token = format!("({} OR {})", &symbol, &quote.name);
         let url = format!("https://news.google.com/rss/search?q=allintext:{token}+when:1d");
-        let response = reqwest::get(&url).await?;
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let body = response.text().await?;
         let document = Document::from_read(body.as_bytes()).unwrap();
 

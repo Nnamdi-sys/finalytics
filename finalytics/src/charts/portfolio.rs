@@ -9,19 +9,24 @@ use crate::models::portfolio::Portfolio;
 
 
 pub trait PortfolioCharts {
-    fn optimization_chart(&self) -> Result<Plot, Box<dyn Error>>;
-    fn performance_chart(&self) -> Result<Plot, Box<dyn Error>>;
-    fn asset_returns_chart(&self) -> Result<Plot, Box<dyn Error>>;
-    fn performance_stats_table(&self) -> Result<Plot, Box<dyn Error>>;
+    fn optimization_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>>;
+    fn performance_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>>;
+    fn asset_returns_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>>;
+    fn performance_stats_table(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>>;
 }
 
 impl PortfolioCharts for Portfolio {
     /// Generates Chart of the Portfolio Optimization Results
     ///
+    /// # Arguments
+    ///
+    /// * `height` - usize - Height of the chart
+    /// * `width` - usize - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    fn optimization_chart(&self) -> Result<Plot, Box<dyn Error>> {
+    fn optimization_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let days = self.performance_stats.interval.to_days();
 
         let ef_returns = self.performance_stats.efficient_frontier.clone().iter()
@@ -61,8 +66,8 @@ impl PortfolioCharts for Portfolio {
 
         // Set layout for the plot
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Optimization Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -97,10 +102,15 @@ impl PortfolioCharts for Portfolio {
 
     /// Generates Chart of the Portfolio Performance Results
     ///
+    /// # Arguments
+    ///
+    /// * `height` - usize - Height of the chart
+    /// * `width` - usize - Width of the chart
+    ///
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    fn performance_chart(&self) -> Result<Plot, Box<dyn Error>> {
+    fn performance_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let dates = generate_dates(&*self.performance_stats.start_date,
                                    &*self.performance_stats.end_date, 1);
 
@@ -146,8 +156,8 @@ impl PortfolioCharts for Portfolio {
 
         // Set layout for the plot
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Performance Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -185,7 +195,7 @@ impl PortfolioCharts for Portfolio {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    fn asset_returns_chart(&self) -> Result<Plot, Box<dyn Error>> {
+    fn asset_returns_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let symbols = self.performance_stats.ticker_symbols.clone();
         let asset_returns = self.performance_stats.portfolio_returns.clone();
         let dates = generate_dates(&*self.performance_stats.start_date, &*self.performance_stats.end_date, 1);
@@ -202,8 +212,8 @@ impl PortfolioCharts for Portfolio {
         }
 
         let layout = Layout::new()
-            .height(800)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"))
             .y_axis(
                 Axis::new()
@@ -220,7 +230,7 @@ impl PortfolioCharts for Portfolio {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    fn performance_stats_table(&self) -> Result<Plot, Box<dyn Error>> {
+    fn performance_stats_table(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let stats = &self.performance_stats.performance_stats;
 
         let fields = vec![
@@ -273,8 +283,8 @@ impl PortfolioCharts for Portfolio {
         plot.add_trace(trace);
 
         let layout = Layout::new()
-            .height(1000)
-            .width(1200)
+            .height(height)
+            .width(width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\"> Portfolio Performance Stats</span>"));
 
         plot.set_layout(layout);

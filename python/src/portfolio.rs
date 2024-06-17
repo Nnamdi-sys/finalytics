@@ -1,8 +1,9 @@
+use polars::export::chrono;
 use finalytics::prelude::*;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use tokio::task;
-use crate::ffi::{display_html_with_iframe, rust_df_to_py_df, rust_series_to_py_series};
+use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
 
 
 #[pyclass]
@@ -37,18 +38,36 @@ impl PyPortfolio {
     /// ```
     /// import finalytics
     ///
-    /// portfolio = finalytics.Portfolio(["AAPL", "GOOG", "MSFT", "ZN=F"], "^GSPC", "2020-01-01", "2021-01-01", "1d", 0.95, 0.02, 1000, "max_sharpe")
+    /// portfolio = finalytics.Portfolio(ticker_symbols = ["AAPL", "GOOG", "MSFT", "ZN=F"],
+    ///                                  benchmark_symbol = "^GSPC",
+    ///                                  start_date = "2020-01-01",
+    ///                                  end_date = "2021-01-01",
+    ///                                  interval = "1d",
+    ///                                  confidence_level = 0.95,
+    ///                                  risk_free_rate = 0.02,
+    ///                                  max_iterations = 1000,
+    ///                                  objective_function = "max_sharpe")
     /// ```
-    pub fn new(ticker_symbols: Vec<&str>, benchmark_symbol: String, start_date: String, end_date: String,
-               interval: String, confidence_level: f64, risk_free_rate: f64, max_iterations: u64, objective_function: String) -> Self {
+    pub fn new(ticker_symbols: Vec<&str>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
+               interval: Option<String>, confidence_level: Option<f64>, risk_free_rate: Option<f64>,
+               max_iterations: Option<u64>, objective_function: Option<String>) -> Self {
+        let default_start = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(365))
+            .unwrap().format("%Y-%m-%d").to_string();
+        let defualt_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let interval = Interval::from_str(&interval.unwrap_or("1d".to_string()));
+        let objective_function = ObjectiveFunction::from_str(&objective_function.unwrap_or("max_sharpe".to_string()));
         task::block_in_place(move || {
-            let interval = Interval::from_str(&interval);
-            let objective_function = ObjectiveFunction::from_str(&objective_function);
             let portfolio = tokio::runtime::Runtime::new().unwrap().block_on(
-                PortfolioBuilder::new().ticker_symbols(ticker_symbols).benchmark_symbol(&benchmark_symbol)
-                    .start_date(&start_date).end_date(&end_date).interval(interval)
-                    .confidence_level(confidence_level).risk_free_rate(risk_free_rate)
-                    .max_iterations(max_iterations).objective_function(objective_function)
+                PortfolioBuilder::new()
+                    .ticker_symbols(ticker_symbols)
+                    .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
+                    .start_date(&start_date.unwrap_or(default_start))
+                    .end_date(&end_date.unwrap_or(defualt_end))
+                    .interval(interval)
+                    .confidence_level(confidence_level.unwrap_or(0.95))
+                    .risk_free_rate(risk_free_rate.unwrap_or(0.02))
+                    .max_iterations(max_iterations.unwrap_or(1000))
+                    .objective_function(objective_function)
                     .build()).unwrap();
             PyPortfolio {
                 portfolio
@@ -61,15 +80,6 @@ impl PyPortfolio {
     /// # Returns
     ///
     /// `dict` - dictionary of optimization results
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// import finalytics
-    ///
-    /// portfolio = finalytics.Portfolio(["AAPL", "GOOG", "MSFT"], "SPY", "2020-01-01", "2021-01-01", "1d", 0.95, 0.02, 1000, "max_sharpe")
-    /// optimization_results = portfolio.get_optimization_results()
-    /// ```
     pub fn get_optimization_results(&self) -> PyObject {
         task::block_in_place(move || {
             Python::with_gil(|py| {
@@ -121,42 +131,25 @@ impl PyPortfolio {
     /// # Arguments
     ///
     /// * `chart_type` - `str` - The type of chart to display (optimization, performance, asset_returns)
-    /// * `display_format` - `str` - The format to display the charts in (html, png, notebook)
+    /// * `height` - `int` - The height of the chart in pixels
+    /// * `width` - `int` - The width of the chart in pixels
     ///
-    /// # Example
+    /// # Returns
     ///
-    /// ```
-    /// import finalytics
-    ///
-    /// portfolio = finalytics.Portfolio(["AAPL", "GOOG", "MSFT"], "^GSPC", "2020-01-01", "2021-01-01", "1d", 0.95, 0.02, 1000, "max_sharpe")
-    /// portfolio.display_portfolio_charts("performance", "html")
-    /// ```
-    pub fn display_portfolio_charts(&self, chart_type: String, display_format: String) {
+    /// `Plot` object
+    pub fn portfolio_chart(&self, chart_type: String, height: Option<usize>, width: Option<usize>) -> PyObject {
+        let height = height.unwrap_or(800);
+        let width = width.unwrap_or(1200);
         task::block_in_place(move || {
 
-            let chart = match chart_type.as_str() {
-                "optimization" => self.portfolio.optimization_chart().unwrap(),
-                "performance" => self.portfolio.performance_chart().unwrap(),
-                "asset_returns" => self.portfolio.asset_returns_chart().unwrap(),
+            let plot = match chart_type.as_str() {
+                "optimization" => self.portfolio.optimization_chart(height, width).unwrap(),
+                "performance" => self.portfolio.performance_chart(height, width).unwrap(),
+                "asset_returns" => self.portfolio.asset_returns_chart(height, width).unwrap(),
                 _ => panic!("chart_type must be one of: optimization, performance, asset_returns")
             };
 
-            match display_format.as_str() {
-                "html" => {
-                    chart.write_html(&format!("{}.html", chart_type));
-                    println!("chart written to {}.html", chart_type);
-                },
-                "png" => {
-                    chart.to_png(&format!("{}.html", chart_type),  1500, 1200, 1.0);
-                    println!("chart written to {}.png", chart_type);
-                },
-                "notebook" => {
-                    if let Err(err) = display_html_with_iframe(Some(chart), &chart_type) {
-                        eprintln!("Error displaying HTML with iframe: {:?}", err);
-                    }
-                },
-                _ => panic!("display_format must be one of: html, png, notebook or colab")
-            }
+           rust_plot_to_py_plot(plot).unwrap()
         })
     }
 }

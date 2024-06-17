@@ -1,218 +1,37 @@
-use std::collections::HashMap;
-use std::error::Error;
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use polars::prelude::*;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::error::Error;
+use std::collections::HashMap;
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use crate::utils::web_utils::REQUEST_CLIENT;
 use crate::models::ticker::Ticker;
 use crate::utils::date_utils::{round_datetime_to_day, round_datetime_to_hour, round_datetime_to_minute, time_to_maturity, to_date, to_datetime, to_timestamp};
-use crate::data::keys::Fundamentals;
+use crate::data::config::{Fundamentals, FundamentalsResponse, Interval, Object, OptionContract, Options, Quote, TickerSummaryStats};
 
 
 pub trait TickerData {
-    fn get_quote(&self) -> impl std::future::Future<Output = Result<f64, Box<dyn Error>>>;
+    fn get_quote(&self) -> impl std::future::Future<Output = Result<Quote, Box<dyn Error>>>;
     fn get_ticker_stats(&self) -> impl std::future::Future<Output = Result<TickerSummaryStats, Box<dyn Error>>>;
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output = Result<Options, Box<dyn Error>>>;
     fn get_fundamentals(&self, statement_type: &str, frequency: &str) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TickerSummaryStats {
-    pub symbol: String,
-    #[serde(default)]
-    pub display_name: String,
-    #[serde(default)]
-    pub full_exchange_name: String,
-    pub currency: String,
-    pub regular_market_time: i64,
-    pub regular_market_price: f64,
-    pub regular_market_change_percent: f64,
-    pub regular_market_volume: f64,
-    pub regular_market_open: f64,
-    pub regular_market_day_high: f64,
-    pub regular_market_day_low: f64,
-    pub regular_market_previous_close: f64,
-    pub fifty_two_week_high: f64,
-    pub fifty_two_week_low: f64,
-    #[serde(default)]
-    pub fifty_two_week_change_percent: f64,
-    pub fifty_day_average: f64,
-    pub two_hundred_day_average: f64,
-    #[serde(default)]
-    #[serde(rename = "epsTrailingTwelveMonths")]
-    pub trailing_eps: f64,
-    #[serde(default)]
-    #[serde(rename = "epsCurrentYear")]
-    pub current_eps: f64,
-    #[serde(default)]
-    pub eps_forward: f64,
-    #[serde(default)]
-    #[serde(rename = "trailingPE")]
-    pub trailing_pe: f64,
-    #[serde(default)]
-    #[serde(rename = "priceEpsCurrentYear")]
-    pub current_pe: f64,
-    #[serde(default)]
-    #[serde(rename = "forwardPE")]
-    pub forward_pe: f64,
-    #[serde(default)]
-    pub dividend_rate: f64,
-    #[serde(default)]
-    pub dividend_yield: f64,
-    #[serde(default)]
-    pub book_value: f64,
-    #[serde(default)]
-    pub price_to_book: f64,
-    #[serde(default)]
-    pub market_cap: f64,
-    #[serde(default)]
-    pub shares_outstanding: f64,
-    #[serde(default)]
-    pub average_analyst_rating: String,
-}
-
-#[allow(dead_code)]
-#[allow(non_snake_case)]
-#[derive(Debug, Deserialize)]
-pub struct OptionContract {
-    contractSymbol: String,
-    strike: f64,
-    currency: String,
-    lastPrice: f64,
-    #[serde(default)]
-    change: f64,
-    #[serde(default)]
-    percentChange: f64,
-    #[serde(default)]
-    openInterest: f64,
-    #[serde(default)]
-    bid: f64,
-    #[serde(default)]
-    ask: f64,
-    contractSize: String,
-    expiration: i64,
-    lastTradeDate: i64,
-    impliedVolatility: f64,
-    inTheMoney: bool,
-}
-
-#[derive(Debug)]
-pub struct Options {
-    pub ticker_price: f64,
-    pub expiration_dates: Vec<String>,
-    pub ttms: Vec<f64>,
-    pub strikes: Vec<f64>,
-    pub chain: DataFrame
-}
-
-#[derive(Debug, Deserialize)]
-struct FundamentalsResponse {
-    timeseries: TimeSeries,
-}
-
-#[derive(Debug, Deserialize)]
-struct TimeSeries {
-    result: Vec<HashMap<String, Value>>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Debug, Deserialize)]
-struct Object {
-    asOfDate: String,
-    reportedValue: Figure,
-}
-
-#[derive(Debug, Deserialize)]
-struct Figure {
-    raw: f64,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub enum Interval {
-    TwoMinutes,
-    FiveMinutes,
-    FifteenMinutes,
-    ThirtyMinutes,
-    SixtyMinutes,
-    NinetyMinutes,
-    OneHour,
-    OneDay,
-    FiveDays,
-    OneWeek,
-    OneMonth,
-    ThreeMonths,
-}
-
-impl Interval {
-    pub fn to_string(&self) -> String {
-        match self {
-            Interval::TwoMinutes => "2m".to_string(),
-            Interval::FiveMinutes => "5m".to_string(),
-            Interval::FifteenMinutes => "15m".to_string(),
-            Interval::ThirtyMinutes => "30m".to_string(),
-            Interval::SixtyMinutes => "60m".to_string(),
-            Interval::NinetyMinutes => "90m".to_string(),
-            Interval::OneHour => "1h".to_string(),
-            Interval::OneDay => "1d".to_string(),
-            Interval::FiveDays => "5d".to_string(),
-            Interval::OneWeek => "1wk".to_string(),
-            Interval::OneMonth => "1mo".to_string(),
-            Interval::ThreeMonths => "3mo".to_string(),
-        }
-    }
-
-    pub fn from_str(s: &str) -> Interval {
-        match s {
-            "2m" => Interval::TwoMinutes,
-            "5m" => Interval::FiveMinutes,
-            "15m" => Interval::FifteenMinutes,
-            "30m" => Interval::ThirtyMinutes,
-            "60m" => Interval::SixtyMinutes,
-            "90m" => Interval::NinetyMinutes,
-            "1h" => Interval::OneHour,
-            "1d" => Interval::OneDay,
-            "5d" => Interval::FiveDays,
-            "1wk" => Interval::OneWeek,
-            "1mo" => Interval::OneMonth,
-            "3mo" => Interval::ThreeMonths,
-            _ => Interval::OneDay,
-        }
-    }
-
-    pub fn to_days(&self) -> f64 {
-        match self {
-            Interval::TwoMinutes => 2.0 / 24.0 * 60.0,
-            Interval::FiveMinutes => 5.0 / 24.0 * 60.0,
-            Interval::FifteenMinutes => 15.0 / 24.0 * 60.0,
-            Interval::ThirtyMinutes => 30.0 / 24.0 * 60.0,
-            Interval::SixtyMinutes => 60.0 / 24.0 * 60.0,
-            Interval::OneHour => 60.0 / 24.0 * 60.0,
-            Interval::NinetyMinutes => 90.0 / 24.0 * 60.0,
-            Interval::OneDay => 1.0,
-            Interval::FiveDays => 5.0,
-            Interval::OneWeek => 5.0,
-            Interval::OneMonth => 20.0,
-            Interval::ThreeMonths => 60.0,
-        }
-    }
-}
-
 impl TickerData for Ticker {
     /// Fetches Current Ticker Price from Yahoo Finance
-    async fn get_quote(&self) -> Result<f64, Box<dyn Error>> {
-        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker.symbol);
-        let response = reqwest::get(&url).await?;
+    async fn get_quote(&self) -> Result<Quote, Box<dyn Error>> {
+        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker);
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let result= response.json::<Value>().await?;
-        let quote = result["optionChain"]["result"][0]["quote"]["regularMarketPrice"].as_f64().unwrap();
+        let value = &result["optionChain"]["result"][0]["quote"].to_string();
+        let quote: Quote = serde_json::from_value(value.parse()?).expect("Failed to deserialize into Quote");
         Ok(quote)
     }
 
     /// Fetches Ticker Current Summary Stats from Yahoo Finance
     async fn get_ticker_stats(&self) -> Result<TickerSummaryStats, Box<dyn Error>> {
-        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker.symbol);
-        let response = reqwest::get(&url).await?;
+        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker);
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
         let value = &result["optionChain"]["result"][0]["quote"].to_string();
         let stats: TickerSummaryStats = serde_json::from_value(value.parse()?).expect("Failed to deserialize into TickerSummaryStats");
@@ -226,9 +45,9 @@ impl TickerData for Ticker {
         let period2 = to_timestamp(&self.end_date)?;
         let url = format!(
             "https://query1.finance.yahoo.com/v8/finance/chart/{}?period1={}&period2={}&interval={}",
-            self.ticker.symbol, period1, period2, self.interval.to_string()
+            self.ticker, period1, period2, self.interval.to_string()
         );
-        let response = reqwest::get(&url).await?;
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let result= response.json::<Value>().await?;
 
         let value = &result["chart"]["result"][0];
@@ -333,8 +152,8 @@ impl TickerData for Ticker {
 
     /// Returns Ticker Option Chain Data from Yahoo Finance for all available expirations
     async fn get_options(&self) -> Result<Options, Box<dyn Error>> {
-        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker.symbol);
-        let response = reqwest::get(&url).await?;
+        let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker);
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
         let ticker_price = result["optionChain"]["result"][0]["quote"]["regularMarketPrice"].as_f64().unwrap();
         let expiration_dates = &result["optionChain"]["result"][0]["expirationDates"];
@@ -349,8 +168,8 @@ impl TickerData for Ticker {
             .collect::<Vec<String>>();
         let mut options_chain = DataFrame::default();
         for t in timestamps.iter() {
-            let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}?date={}", self.ticker.symbol, t);
-            let response = reqwest::get(&url).await?;
+            let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}?date={}", self.ticker, t);
+            let response = REQUEST_CLIENT.get(&url).send().await?;
             let result = response.json::<Value>().await?;
             let expiration = to_date(*t);
             let ttm = time_to_maturity(*t);
@@ -424,8 +243,7 @@ impl TickerData for Ticker {
         statement_type: &str,
         frequency: &str
     ) -> Result<DataFrame, Box<dyn Error>> {
-        if self.ticker.asset_class != "Stocks"{panic!("Asset class must be stocks")}
-        let symbol = self.ticker.symbol.clone();
+        let symbol = self.ticker.clone();
         let period1 = (Utc::now() - Duration::days(365 * 5)).timestamp();
         let period2 = Utc::now().timestamp();
         let _type = match statement_type {
@@ -437,7 +255,7 @@ impl TickerData for Ticker {
         let _type_clone = _type.clone();
         let url = format!("https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/\
         timeseries/{symbol}?symbol={symbol}&type={_type}&period1={period1}&period2={period2}");
-        let response = reqwest::get(&url).await?;
+        let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
         let data: FundamentalsResponse = serde_json::from_value(result).expect("Failed to parse JSON");
         let mut columns: Vec<Series> = vec![];

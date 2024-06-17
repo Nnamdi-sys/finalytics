@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 use std::collections::HashMap;
 use crate::web::footer::Footer;
 use crate::web::server::highlight_code;
-//se crate::server::server::save_code_images;
+//use crate::server::server::save_code_images;
 
 
 #[component]
