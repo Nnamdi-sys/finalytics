@@ -105,11 +105,11 @@ impl PortfolioBuilder {
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///    // Construct the Portfolio Object
-///     let ticker_symbols = Vec::from(["NVDA", "BRK-A", "AAPL", "ZN=F"]);
+///     let ticker_symbols = Vec::from(["NVDA", "BRK-A", "AAPL", "MSFT", "BTC-USD"]);
 ///     let portfolio = PortfolioBuilder::new().ticker_symbols(ticker_symbols)
 ///                                             .benchmark_symbol("^GSPC")
-///                                             .start_date("2017-01-01")
-///                                             .end_date("2023-01-01")
+///                                             .start_date("2023-01-01")
+///                                             .end_date("2023-12-31")
 ///                                             .interval(Interval::OneDay)
 ///                                             .confidence_level(0.95)
 ///                                             .risk_free_rate(0.02)

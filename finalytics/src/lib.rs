@@ -42,17 +42,38 @@ pub mod prelude {
 mod tests {
     use crate::prelude::*;
     #[tokio::test]
-    async fn get_quote() {
+    async fn ticker_performance() {
         let ticker = TickerBuilder::new().ticker("AAPL")
             .start_date("2023-01-01")
-            .end_date("2023-02-01")
+            .end_date("2023-12-31")
             .interval(Interval::OneDay)
             .benchmark_symbol("^GSPC")
             .confidence_level(0.95)
             .risk_free_rate(0.02)
             .build();
 
-        let quote = ticker.get_quote().await.unwrap();
-        dbg!(quote);
+        let performance = ticker.performance_stats().await.unwrap();
+
+        dbg!(performance);
     }
+
+    #[tokio::test]
+    async fn portfolio_performance() {
+        let ticker_symbols = Vec::from(["AAPL", "BRK-A", "NVDA", "MSFT", "BTC-USD"]);
+        let portfolio = PortfolioBuilder::new().ticker_symbols(ticker_symbols)
+            .benchmark_symbol("^GSPC")
+            .start_date("2023-01-01")
+            .end_date("2023-12-31")
+            .interval(Interval::OneDay)
+            .confidence_level(0.95)
+            .risk_free_rate(0.02)
+            .max_iterations(1000)
+            .objective_function(ObjectiveFunction::MaxSharpe)
+            .build().await.unwrap();
+
+        let performance = portfolio.performance_stats;
+
+        dbg!(performance);
+    }
+
 }

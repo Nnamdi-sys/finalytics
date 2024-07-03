@@ -144,7 +144,7 @@ impl TickerBuilder {
 ///  // Instantiate the Ticker Object
 /// let ticker = TickerBuilder::new().ticker("AAPL")
 ///                                     .start_date("2023-01-01")
-///                                     .end_date("2023-02-01")
+///                                     .end_date("2023-12-31")
 ///                                     .interval(Interval::OneDay)
 ///                                     .benchmark_symbol("^GSPC")
 ///                                     .confidence_level(0.95)

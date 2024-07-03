@@ -30,7 +30,6 @@ pub struct Article {
 }
 
 pub async fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Error>> {
-    let client = Client::new();
     let response = REQUEST_CLIENT.get(url).send().await?;
     let body = response.text().await?;
 
@@ -43,7 +42,7 @@ pub async fn scrape_text(url: &str, title: &str) -> Result<Article, Box<dyn Erro
 
     for node in document.find(Name("a")) {
         link.push_str(&node.text());
-        let response = client.get(&node.text()).send().await?;
+        let response = REQUEST_CLIENT.get(&node.text()).send().await?;
         let body = response.text().await?;
         let document = Document::from_read(body.as_bytes()).unwrap();
         for node in document.find(Name("p")) {

@@ -52,11 +52,20 @@ impl PortfolioCharts for Portfolio {
         let ticker_symbols = self.performance_stats.ticker_symbols.clone();
         let weights = self.performance_stats.optimal_weights.clone().iter()
             .map(|x| x * 100.0).collect::<Vec<f64>>();
-        let allocation_trace = Bar::new(ticker_symbols.clone(), weights.clone())
+
+        let filtered: Vec<_> = ticker_symbols.iter()
+            .zip(weights.iter())
+            .filter(|&(_, &weight)| weight > 0.0)
+            .collect();
+
+        let filtered_ticker_symbols: Vec<String> = filtered.iter().map(|&(ticker, _)| ticker.clone()).collect();
+        let filtered_weights: Vec<f64> = filtered.iter().map(|&(_, &weight)| weight).collect();
+
+        let allocation_trace = Bar::new(filtered_ticker_symbols.clone(), filtered_weights.clone())
             .name("Asset Allocation")
             .x_axis("x2")
             .y_axis("y2")
-            .text_array(weights.clone().iter().map(|w| format!("{:.2}%", w).to_string()).collect::<Vec<_>>());
+            .text_array(filtered_weights.clone().iter().map(|w| format!("{:.2}%", w).to_string()).collect::<Vec<_>>());
 
 
         let mut plot = Plot::new();
@@ -202,13 +211,20 @@ impl PortfolioCharts for Portfolio {
         let mut plot = Plot::new();
 
         for symbol in symbols {
-            let returns = asset_returns.column(&symbol).unwrap().f64().unwrap().to_vec()
-                .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-            let cum_returns = cumulative_returns_list(returns.clone());
-            let cum_returns_trace = Scatter::new(dates.clone(), cum_returns.clone())
-                .name(format!("{}", symbol))
-                .mode(Mode::Lines);
-            plot.add_trace(cum_returns_trace);
+            match asset_returns.column(&symbol) {
+                Ok(returns_series) => {
+                    let returns = returns_series.f64().unwrap().to_vec()
+                        .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+                    let cum_returns = cumulative_returns_list(returns.clone());
+                    let cum_returns_trace = Scatter::new(dates.clone(), cum_returns.clone())
+                        .name(format!("{}", symbol))
+                        .mode(Mode::Lines);
+                    plot.add_trace(cum_returns_trace);
+                }
+                Err(e) => {
+                    eprintln!("Unable to fetch returns for {}: {}", symbol, e);
+                }
+            }
         }
 
         let layout = Layout::new()

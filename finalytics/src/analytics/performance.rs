@@ -1,5 +1,6 @@
 use polars::prelude::*;
 use std::error::Error;
+use futures::future::join_all;
 
 use crate::data::config::Interval;
 use crate::models::ticker::{Ticker, TickerBuilder};
@@ -131,21 +132,55 @@ impl PortfolioPerformanceStats {
         max_iterations: u64,
         objective_function: ObjectiveFunction
     ) -> Result<PortfolioPerformanceStats, Box<dyn Error>> {
-        let mut dfs: Vec<DataFrame> = Vec::new();
-        for ticker_symbol in ticker_symbols.iter() {
-            let ticker = TickerBuilder::new().ticker(ticker_symbol)
+        let mut futures = Vec::new();
+
+        for ticker_symbol in ticker_symbols.clone().into_iter() {
+            let ticker = TickerBuilder::new().ticker(&ticker_symbol)
                 .start_date(start_date)
                 .end_date(end_date)
                 .interval(interval)
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
                 .build();
-            let security_df = ticker.roc(1).await?;
-            let security_returns_df = DataFrame::new(vec![
-                security_df.column("timestamp")?.clone(),
-                security_df.column("roc-1")?.clone().with_name(ticker_symbol)
-            ])?;
-            dfs.push(security_returns_df);
+
+            let fut = tokio::task::spawn(async move {
+                match ticker.roc(1).await {
+                    Ok(security_df) => {
+                        match DataFrame::new(vec![
+                            security_df.column("timestamp").map_err(|e| e.to_string())?.clone(),
+                            security_df.column("roc-1").map_err(|e| e.to_string())?.clone().with_name(&ticker_symbol)
+                        ]) {
+                            Ok(security_returns_df) => Ok(security_returns_df),
+                            Err(e) => {
+                                eprintln!("Error creating DataFrame for {}: {}", ticker_symbol, e);
+                                Err(format!("Error creating DataFrame for {}: {}", ticker_symbol, e))
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error Fetching Price Data for {}: {}", ticker_symbol, e);
+                        Err(format!("Error Fetching Price Data for {}: {}", ticker_symbol, e))
+                    }
+                }
+            });
+
+            futures.push(fut);
+        }
+
+        let results = join_all(futures).await;
+        let mut fetched_symbols: Vec<String> = Vec::new();
+        let mut dfs: Vec<DataFrame> = Vec::new();
+
+        for result in results {
+            match result {
+                Ok(Ok(df)) => {
+                    let symbol = df.get_column_names()[1].to_string();
+                    fetched_symbols.push(symbol);
+                    dfs.push(df);
+                }
+                Ok(Err(_)) => continue,
+                Err(e) => eprintln!("Error in task: {}", e),
+            }
         }
 
         let mut portfolio_returns = dfs[0].clone();
@@ -193,7 +228,7 @@ impl PortfolioPerformanceStats {
         let _ = portfolio_returns.drop_in_place("timestamp")?;
 
         Ok(PortfolioPerformanceStats {
-            ticker_symbols: ticker_symbols.clone(),
+            ticker_symbols: fetched_symbols.clone(),
             benchmark_symbol: benchmark_symbol.to_string(),
             start_date: start_date.to_string(),
             end_date: end_date.to_string(),

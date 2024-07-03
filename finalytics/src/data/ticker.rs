@@ -24,7 +24,8 @@ impl TickerData for Ticker {
         let response = REQUEST_CLIENT.get(&url).send().await?;
         let result= response.json::<Value>().await?;
         let value = &result["optionChain"]["result"][0]["quote"].to_string();
-        let quote: Quote = serde_json::from_value(value.parse()?).expect("Failed to deserialize into Quote");
+        let quote: Quote = serde_json::from_value(value.parse()?)
+            .map_err(|e| format!("Failed to deserialize into Quote: {}", e))?;
         Ok(quote)
     }
 
@@ -34,7 +35,8 @@ impl TickerData for Ticker {
         let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
         let value = &result["optionChain"]["result"][0]["quote"].to_string();
-        let stats: TickerSummaryStats = serde_json::from_value(value.parse()?).expect("Failed to deserialize into TickerSummaryStats");
+        let stats: TickerSummaryStats = serde_json::from_value(value.parse()?)
+            .map_err(|e| format!("Failed to deserialize into TickerSummaryStats: {}", e))?;
         Ok(stats)
     }
 
@@ -53,7 +55,7 @@ impl TickerData for Ticker {
         let value = &result["chart"]["result"][0];
         let timestamp = &value["timestamp"]
             .as_array()
-            .ok_or(format!("timestamp array not found: {result}"))?
+            .ok_or(format!("timestamp array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|ts| {
                 let timestamp = ts.as_i64().unwrap();
@@ -76,35 +78,35 @@ impl TickerData for Ticker {
 
         let open = indicators["open"]
             .as_array()
-            .ok_or("open array not found")?
+            .ok_or(format!("open array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|o| o.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
 
         let high = indicators["high"]
             .as_array()
-            .ok_or("high array not found")?
+            .ok_or(format!("high array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|h| h.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
 
         let low = indicators["low"]
             .as_array()
-            .ok_or("low array not found")?
+            .ok_or(format!("low array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|l| l.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
 
         let close = indicators["close"]
             .as_array()
-            .ok_or("close array not found")?
+            .ok_or(format!("close array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|c| c.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
 
         let volume = indicators["volume"]
             .as_array()
-            .ok_or("volume array not found")?
+            .ok_or(format!("volume array not found for {}: {}", self.ticker, result))?
             .iter()
             .map(|v| v.as_f64().unwrap_or(0.0))
             .collect::<Vec<f64>>();
@@ -114,7 +116,7 @@ impl TickerData for Ticker {
             .unwrap_or_else(|| {
                 indicators["close"]
                     .as_array()
-                    .ok_or("close array not found")
+                    .ok_or(format!("close array not found for {}: {}", self.ticker, result))
                     .unwrap_or_else(|_| {
                         indicators["close"]
                             .as_array()
@@ -150,71 +152,103 @@ impl TickerData for Ticker {
         Ok(df)
     }
 
+
     /// Returns Ticker Option Chain Data from Yahoo Finance for all available expirations
     async fn get_options(&self) -> Result<Options, Box<dyn Error>> {
         let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}", self.ticker);
         let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
-        let ticker_price = result["optionChain"]["result"][0]["quote"]["regularMarketPrice"].as_f64().unwrap();
-        let expiration_dates = &result["optionChain"]["result"][0]["expirationDates"];
-        let strike_values = &result["optionChain"]["result"][0]["strikes"];
-        let strikes = strike_values.as_array().unwrap()
-            .iter().map(|x| x.as_f64().unwrap()).collect::<Vec<f64>>();
-        let timestamps = expiration_dates.as_array().unwrap().iter()
-            .map(|x| x.as_i64().unwrap()).collect::<Vec<i64>>();
-        let ttms = timestamps.clone().iter().map(|x| time_to_maturity(*x))
+
+        let ticker_price = result["optionChain"]["result"][0]["quote"]["regularMarketPrice"]
+            .as_f64()
+            .ok_or("Failed to parse regularMarketPrice as f64")?;
+
+        let expiration_dates = result["optionChain"]["result"][0]["expirationDates"]
+            .as_array()
+            .ok_or("Failed to parse expirationDates as array")?;
+
+        let strike_values = result["optionChain"]["result"][0]["strikes"]
+            .as_array()
+            .ok_or("Failed to parse strikes as array")?;
+
+        let strikes = strike_values
+            .iter()
+            .map(|x| x.as_f64().ok_or("Failed to parse strike as f64"))
+            .collect::<Result<Vec<f64>, _>>()?;
+
+        let timestamps = expiration_dates
+            .iter()
+            .map(|x| x.as_i64().ok_or("Failed to parse expiration date as i64"))
+            .collect::<Result<Vec<i64>, _>>()?;
+
+        let ttms = timestamps
+            .iter()
+            .map(|x| time_to_maturity(*x))
             .collect::<Vec<f64>>();
-        let expiration_dates = timestamps.iter().map(|x| to_date(*x))
+
+        let expiration_dates = timestamps
+            .iter()
+            .map(|x| to_date(*x))
             .collect::<Vec<String>>();
+
         let mut options_chain = DataFrame::default();
-        for t in timestamps.iter() {
-            let url = format!("https://query2.finance.yahoo.com/v6/finance/options/{}?date={}", self.ticker, t);
+
+        for t in &timestamps {
+            let url = format!(
+                "https://query2.finance.yahoo.com/v6/finance/options/{}?date={}",
+                self.ticker, t
+            );
             let response = REQUEST_CLIENT.get(&url).send().await?;
             let result = response.json::<Value>().await?;
             let expiration = to_date(*t);
             let ttm = time_to_maturity(*t);
+
             let calls = &result["optionChain"]["result"][0]["options"][0]["calls"];
-            let calls_vec: Vec<OptionContract> = serde_json::from_value(calls.to_string().parse()?)
-                .expect("Failed to deserialize into Option Chain");
+            let calls_vec: Vec<OptionContract> = serde_json::from_value(calls.clone())
+                .map_err(|e| format!("Failed to deserialize calls into OptionContract: {}", e))?;
+
             let calls_df = df!(
-                "expiration" => calls_vec.iter().map(|_| &*expiration).collect::<Vec<&str>>(),
-                "ttm" => calls_vec.iter().map(|_| ttm).collect::<Vec<f64>>(),
-                "type" => calls_vec.iter().map(|_| "call").collect::<Vec<&str>>(),
-                "contractSymbol" => calls_vec.iter().map(|x| x.contractSymbol.as_str()).collect::<Vec<&str>>(),
-                "strike" => calls_vec.iter().map(|x| x.strike).collect::<Vec<f64>>(),
-                "currency" => calls_vec.iter().map(|x| x.currency.as_str()).collect::<Vec<&str>>(),
-                "lastPrice" => calls_vec.iter().map(|x| x.lastPrice).collect::<Vec<f64>>(),
-                "change" => calls_vec.iter().map(|x| x.change).collect::<Vec<f64>>(),
-                "percentChange" => calls_vec.iter().map(|x| x.percentChange).collect::<Vec<f64>>(),
-                "openInterest" => calls_vec.iter().map(|x| x.openInterest).collect::<Vec<f64>>(),
-                "bid" => calls_vec.iter().map(|x| x.bid).collect::<Vec<f64>>(),
-                "ask" => calls_vec.iter().map(|x| x.ask).collect::<Vec<f64>>(),
-                "contractSize" => calls_vec.iter().map(|x| x.contractSize.as_str()).collect::<Vec<&str>>(),
-                "lastTradeDate" => calls_vec.iter().map(|x| DateTime::from_timestamp(x.lastTradeDate, 0).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>(),
-                "impliedVolatility" => calls_vec.iter().map(|x| x.impliedVolatility).collect::<Vec<f64>>(),
-                "inTheMoney" => calls_vec.iter().map(|x| x.inTheMoney).collect::<Vec<bool>>(),
-            )?;
+            "expiration" => calls_vec.iter().map(|_| &*expiration).collect::<Vec<&str>>(),
+            "ttm" => calls_vec.iter().map(|_| ttm).collect::<Vec<f64>>(),
+            "type" => calls_vec.iter().map(|_| "call").collect::<Vec<&str>>(),
+            "contractSymbol" => calls_vec.iter().map(|x| x.contractSymbol.as_str()).collect::<Vec<&str>>(),
+            "strike" => calls_vec.iter().map(|x| x.strike).collect::<Vec<f64>>(),
+            "currency" => calls_vec.iter().map(|x| x.currency.as_str()).collect::<Vec<&str>>(),
+            "lastPrice" => calls_vec.iter().map(|x| x.lastPrice).collect::<Vec<f64>>(),
+            "change" => calls_vec.iter().map(|x| x.change).collect::<Vec<f64>>(),
+            "percentChange" => calls_vec.iter().map(|x| x.percentChange).collect::<Vec<f64>>(),
+            "openInterest" => calls_vec.iter().map(|x| x.openInterest).collect::<Vec<f64>>(),
+            "bid" => calls_vec.iter().map(|x| x.bid).collect::<Vec<f64>>(),
+            "ask" => calls_vec.iter().map(|x| x.ask).collect::<Vec<f64>>(),
+            "contractSize" => calls_vec.iter().map(|x| x.contractSize.as_str()).collect::<Vec<&str>>(),
+            "lastTradeDate" => calls_vec.iter().map(|x| DateTime::from_timestamp(x.lastTradeDate, 0).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>(),
+            "impliedVolatility" => calls_vec.iter().map(|x| x.impliedVolatility).collect::<Vec<f64>>(),
+            "inTheMoney" => calls_vec.iter().map(|x| x.inTheMoney).collect::<Vec<bool>>(),
+        )?;
+
             let puts = &result["optionChain"]["result"][0]["options"][0]["puts"];
-            let puts_vec: Vec<OptionContract> = serde_json::from_value(puts.to_string().parse()?)
-                .expect("Failed to deserialize into Option Chain");
+            let puts_vec: Vec<OptionContract> = serde_json::from_value(puts.clone())
+                .map_err(|e| format!("Failed to deserialize puts into OptionContract: {}", e))?;
+
             let puts_df = df!(
-                "expiration" => puts_vec.iter().map(|_| &*expiration).collect::<Vec<&str>>(),
-                "ttm" => puts_vec.iter().map(|_| ttm).collect::<Vec<f64>>(),
-                "type" => puts_vec.iter().map(|_| "put").collect::<Vec<&str>>(),
-                "contractSymbol" => puts_vec.iter().map(|x| x.contractSymbol.as_str()).collect::<Vec<&str>>(),
-                "strike" => puts_vec.iter().map(|x| x.strike).collect::<Vec<f64>>(),
-                "currency" => puts_vec.iter().map(|x| x.currency.as_str()).collect::<Vec<&str>>(),
-                "lastPrice" => puts_vec.iter().map(|x| x.lastPrice).collect::<Vec<f64>>(),
-                "change" => puts_vec.iter().map(|x| x.change).collect::<Vec<f64>>(),
-                "percentChange" => puts_vec.iter().map(|x| x.percentChange).collect::<Vec<f64>>(),
-                "openInterest" => puts_vec.iter().map(|x| x.openInterest).collect::<Vec<f64>>(),
-                "bid" => puts_vec.iter().map(|x| x.bid).collect::<Vec<f64>>(),
-                "ask" => puts_vec.iter().map(|x| x.ask).collect::<Vec<f64>>(),
-                "contractSize" => puts_vec.iter().map(|x| x.contractSize.as_str()).collect::<Vec<&str>>(),
-                "lastTradeDate" => puts_vec.iter().map(|x| DateTime::from_timestamp(x.lastTradeDate, 0).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>(),
-                "impliedVolatility" => puts_vec.iter().map(|x| x.impliedVolatility).collect::<Vec<f64>>(),
-                "inTheMoney" => puts_vec.iter().map(|x| x.inTheMoney).collect::<Vec<bool>>(),
-            )?;
+            "expiration" => puts_vec.iter().map(|_| &*expiration).collect::<Vec<&str>>(),
+            "ttm" => puts_vec.iter().map(|_| ttm).collect::<Vec<f64>>(),
+            "type" => puts_vec.iter().map(|_| "put").collect::<Vec<&str>>(),
+            "contractSymbol" => puts_vec.iter().map(|x| x.contractSymbol.as_str()).collect::<Vec<&str>>(),
+            "strike" => puts_vec.iter().map(|x| x.strike).collect::<Vec<f64>>(),
+            "currency" => puts_vec.iter().map(|x| x.currency.as_str()).collect::<Vec<&str>>(),
+            "lastPrice" => puts_vec.iter().map(|x| x.lastPrice).collect::<Vec<f64>>(),
+            "change" => puts_vec.iter().map(|x| x.change).collect::<Vec<f64>>(),
+            "percentChange" => puts_vec.iter().map(|x| x.percentChange).collect::<Vec<f64>>(),
+            "openInterest" => puts_vec.iter().map(|x| x.openInterest).collect::<Vec<f64>>(),
+            "bid" => puts_vec.iter().map(|x| x.bid).collect::<Vec<f64>>(),
+            "ask" => puts_vec.iter().map(|x| x.ask).collect::<Vec<f64>>(),
+            "contractSize" => puts_vec.iter().map(|x| x.contractSize.as_str()).collect::<Vec<&str>>(),
+            "lastTradeDate" => puts_vec.iter().map(|x| DateTime::from_timestamp(x.lastTradeDate, 0).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>(),
+            "impliedVolatility" => puts_vec.iter().map(|x| x.impliedVolatility).collect::<Vec<f64>>(),
+            "inTheMoney" => puts_vec.iter().map(|x| x.inTheMoney).collect::<Vec<bool>>(),
+        )?;
+
             let df = calls_df.vstack(&puts_df)?;
             options_chain.vstack_mut(&df)?;
         }
@@ -224,9 +258,10 @@ impl TickerData for Ticker {
             expiration_dates,
             ttms,
             strikes,
-            chain: options_chain
+            chain: options_chain,
         })
     }
+
 
     /// Returns Ticker Fundamental Data from Yahoo Finance for a given statement type and frequency
     ///
@@ -257,7 +292,8 @@ impl TickerData for Ticker {
         timeseries/{symbol}?symbol={symbol}&type={_type}&period1={period1}&period2={period2}");
         let response = REQUEST_CLIENT.get(&url).send().await?;
         let result = response.json::<Value>().await?;
-        let data: FundamentalsResponse = serde_json::from_value(result).expect("Failed to parse JSON");
+        let data: FundamentalsResponse = serde_json::from_value(result)
+            .map_err(|e| format!("Failed to deserialize into FundamentalsResponse: {}", e))?;
         let mut columns: Vec<Series> = vec![];
         let mut temp_items: HashMap<String, Value> = HashMap::new();
         let mut init = 0;
@@ -266,7 +302,7 @@ impl TickerData for Ticker {
             for (key, value) in item {
                 if _type_clone.contains(&key.as_str()){
                     let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
-                        .expect("Failed to deserialize into Object");
+                        .map_err(|e| format!("Failed to deserialize into Object: {}", e))?;
                     let date_vec = items.iter().map(|x| x.asOfDate.clone()).collect::<Vec<String>>();
                     if date_vec.len() < 4 {
                         temp_items.insert(key.clone(), value.clone());
@@ -309,7 +345,7 @@ impl TickerData for Ticker {
         if temp_items.len() > 0 {
             for (key, value) in temp_items {
                 let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
-                    .expect("Failed to deserialize into Object");
+                    .map_err(|e| format!("Failed to deserialize into Object: {}", e))?;
                 let mut vars_vec: Vec<f64> = vec![];
                 for d in columns[0].iter(){
                     let mut found = false;
@@ -328,7 +364,7 @@ impl TickerData for Ticker {
                 columns.push(vars_series);
             }
         }
-        let df = DataFrame::new(columns).unwrap();
+        let df = DataFrame::new(columns)?;
         Ok(df)
     }
 

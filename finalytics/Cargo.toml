@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -24,11 +24,11 @@ chrono = "0.4.37"
 select = "0.6.0"
 scraper = "0.19.0"
 sentiment = "0.1.1"
-polars = { version = "0.33.2", default-features = false, features = ["lazy", "dtype-datetime", "rows"] }
+polars = { version = "0.33.2", default-features = false, features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty"] }
 ta = "0.5.0"
 num-format = "0.4.4"
 smartcore = "0.3.2"
-statrs = "0.16.0"
+statrs = "0.17.1"
 rand = "0.8.5"
 ndarray = "0.15.6"
 rand_distr = "0.4.3"
@@ -36,6 +36,7 @@ optimization = "0.2.0"
 html-escape = "0.2.13"
 plotly = { version = "0.8.4", package = "plotly-fork"}
 once_cell = "1.19.0"
+futures = "0.3.30"
 
 [features]
 kaleido = ["plotly/kaleido"]
