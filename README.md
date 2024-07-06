@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let ticker = TickerBuilder::new()
         .ticker("AAPL")
         .start_date("2023-01-01")
-        .end_date("2023-12-31")
+        .end_date("2024-01-01")
         .interval(Interval::OneDay)
         .benchmark_symbol("^GSPC")
         .confidence_level(0.95)
@@ -133,7 +133,7 @@ from finalytics import Ticker
 
 ticker = Ticker(symbol="AAPL",
                 start="2023-01-01",
-                end="2023-12-31",
+                end="2024-01-01",
                 interval="1d",
                 confidence_level=0.95,
                 risk_free_rate=0.02)
