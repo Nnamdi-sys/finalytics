@@ -14,7 +14,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = {version = "0.5.2", features = ["kaleido"]}
+finalytics = {version = "0.5.3", features = ["kaleido"]}
 ```
 
 Or run the following command:

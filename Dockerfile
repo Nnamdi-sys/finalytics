@@ -10,6 +10,9 @@ COPY finalytics finalytics
 # Copy the local apps directory into the Docker image
 COPY apps apps
 
+# Copy the pre-generated symbols.db file into the apps directory
+COPY apps/symbols.db apps/symbols.db
+
 # Install necessary dependencies for SQLite3 and OpenSSL
 RUN apt-get update && apt-get install -y pkg-config libssl-dev libsqlite3-dev
 
