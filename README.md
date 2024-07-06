@@ -14,7 +14,7 @@ Add the following to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-finalytics = {version = "0.5.0", features = ["kaleido"]}
+finalytics = {version = "0.5.2", features = ["kaleido"]}
 ```
 
 Or run the following command:
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let ticker = TickerBuilder::new()
         .ticker("AAPL")
         .start_date("2023-01-01")
-        .end_date("2023-02-01")
+        .end_date("2023-12-31")
         .interval(Interval::OneDay)
         .benchmark_symbol("^GSPC")
         .confidence_level(0.95)
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let ticker_symbols = Vec::from(["NVDA", "BRK-A", "AAPL", "ZN=F"]);
     let portfolio = PortfolioBuilder::new().ticker_symbols(ticker_symbols)
                                             .benchmark_symbol("^GSPC")
-                                            .start_date("2017-01-01")
+                                            .start_date("2020-01-01")
                                             .end_date("2023-01-01")
                                             .interval(Interval::OneDay)
                                             .confidence_level(0.95)
@@ -133,7 +133,7 @@ from finalytics import Ticker
 
 ticker = Ticker(symbol="AAPL",
                 start="2023-01-01",
-                end="2023-10-31",
+                end="2023-12-31",
                 interval="1d",
                 confidence_level=0.95,
                 risk_free_rate=0.02)
@@ -148,7 +148,7 @@ ticker.performance_chart().show()
 from finalytics import Portfolio
 
 portfolio = Portfolio(ticker_symbols=["AAPL", "GOOG", "MSFT", "BTC-USD"], 
-                      benchmark_symbol="^GSPC", start_date="2020-01-01", end_date="2022-01-01", interval="1d", 
+                      benchmark_symbol="^GSPC", start_date="2020-01-01", end_date="2023-01-01", interval="1d", 
                       confidence_level=0.95, risk_free_rate=0.02, max_iterations=1000, 
                       objective_function="max_sharpe")
 

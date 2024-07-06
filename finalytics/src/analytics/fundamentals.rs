@@ -21,40 +21,41 @@ impl Financials for Ticker {
         let income_statement = self.get_fundamentals("income-statement", "quarterly").await?;
         let balance_sheet = self.get_fundamentals("balance-sheet", "quarterly").await?;
         let cash_flow = self.get_fundamentals("cash-flow", "quarterly").await?;
+        let ratios = vec![
+            Series::new("date", income_statement.column("asOfDate")?),
+            Series::new("Gross Profit Margin", (income_statement.column("GrossProfit")? / income_statement.column("TotalRevenue")?)?),
+            Series::new("Operating Profit Margin", (income_statement.column("EBIT")? / income_statement.column("TotalRevenue")?)?),
+            Series::new("Net Profit Margin", (income_statement.column("NetIncome")? / income_statement.column("TotalRevenue")?)?),
+            Series::new("Return on Assets", (income_statement.column("NetIncome")? / balance_sheet.column("TotalAssets")?)?),
+            Series::new("Return on Equity", (income_statement.column("NetIncome")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
+            Series::new("Quick Ratio", (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?),
+            Series::new("Current Ratio", (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?),
+            Series::new("Debt to Equity", (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
+            Series::new("Debt to Assets", (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalAssets")?)?),
+            Series::new("Interest Coverage", (income_statement.column("EBIT")? / income_statement.column("InterestExpense")?)?),
+            Series::new("Asset Turnover", (income_statement.column("TotalRevenue")? / balance_sheet.column("TotalAssets")?)?),
+            Series::new("Inventory Turnover", (income_statement.column("CostOfRevenue")? / balance_sheet.column("Inventory")?)?),
+            Series::new("Days Receivable", (balance_sheet.column("AccountsReceivable")? / income_statement.column("TotalRevenue")?)? * 365.0),
+            Series::new("Days Inventory", (balance_sheet.column("Inventory")? / income_statement.column("CostOfRevenue")?)? * 365.0),
+            Series::new("Days Payable", (balance_sheet.column("AccountsPayable")? / income_statement.column("CostOfRevenue")?)? * 365.0),
+            Series::new("Earnings per Share", income_statement.column("DilutedEPS")?),
+            Series::new("Price to Earnings", (balance_sheet.column("TotalCapitalization")? / income_statement.column("NetIncome")?)?),
+            Series::new("Price to Book", (balance_sheet.column("TotalCapitalization")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
+            Series::new("Price to Sales", (balance_sheet.column("TotalCapitalization")? / income_statement.column("TotalRevenue")?)?),
+            Series::new("Price to Cashflow", (balance_sheet.column("TotalCapitalization")? / cash_flow.column("OperatingCashFlow")?)?),
+            Series::new("Price to Free Cashflow", (balance_sheet.column("TotalCapitalization")? / cash_flow.column("FreeCashFlow")?)?),
+        ];
         
-        let df = df!(
-            "date" => *&income_statement.column("asOfDate")?,
-            "Gross Profit Margin" => *&income_statement.column("GrossProfit")? / *&income_statement.column("TotalRevenue")?,
-            "Operating Profit Margin" => *&income_statement.column("EBIT")? / *&income_statement.column("TotalRevenue")?,
-            "Net Profit Margin" => *&income_statement.column("NetIncome")? / *&income_statement.column("TotalRevenue")?,
-            "Return on Assets" => *&income_statement.column("NetIncome")? / *&balance_sheet.column("TotalAssets")?,
-            "Return on Equity" => *&income_statement.column("NetIncome")? / *&balance_sheet.column("TotalEquityGrossMinorityInterest")?,
-            "Quick Ratio" => *&balance_sheet.column("CurrentAssets")? / *&balance_sheet.column("CurrentLiabilities")?,
-            "Current Ratio" => *&balance_sheet.column("CurrentAssets")? / *&balance_sheet.column("CurrentLiabilities")?,
-            "Debt to Equity" => *&balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / *&balance_sheet.column("TotalEquityGrossMinorityInterest")?,
-            "Debt to Assets" => *&balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / *&balance_sheet.column("TotalAssets")?,
-            "Interest Coverage" => *&income_statement.column("EBIT")? / *&income_statement.column("InterestExpense")?,
-            "Asset Turnover" => *&income_statement.column("TotalRevenue")? / *&balance_sheet.column("TotalAssets")?,
-            "Inventory Turnover" => *&income_statement.column("CostOfRevenue")? / *&balance_sheet.column("Inventory")?,
-            "Days Receivable" => *&balance_sheet.column("AccountsReceivable")? / *&income_statement.column("TotalRevenue")? * 365.0,
-            "Days Inventory" => *&balance_sheet.column("Inventory")? / *&income_statement.column("CostOfRevenue")? * 365.0,
-            "Days Payable" => *&balance_sheet.column("AccountsPayable")? / *&income_statement.column("CostOfRevenue")? * 365.0,
-            "Earnings per Share" => *&income_statement.column("DilutedEPS")?,
-            "Price to Earnings" => *&balance_sheet.column("TotalCapitalization")? / *&income_statement.column("NetIncome")?,
-            "Price to Book" => *&balance_sheet.column("TotalCapitalization")? / *&balance_sheet.column("TotalEquityGrossMinorityInterest")?,
-            "Price to Sales" => *&balance_sheet.column("TotalCapitalization")? / *&income_statement.column("TotalRevenue")?,
-            "Price to Cashflow" => *&balance_sheet.column("TotalCapitalization")? / *&cash_flow.column("OperatingCashFlow")?,
-            "Price to Free Cashflow" => *&balance_sheet.column("TotalCapitalization")? / *&cash_flow.column("FreeCashFlow")?,
-        )?;
+        let df = DataFrame::new(ratios)?;
 
         // Transpose the DataFrame
-        let dates = df.column("date")?.utf8()?.into_iter()
-            .map(|x| x.unwrap()).collect::<Vec<&str>>();
-        let df = df.drop("date").unwrap();
+        let dates = df.column("date")?.str()?.into_no_null_iter()
+            .collect::<Vec<&str>>();
+        let mut df = df.drop("date").unwrap();
         let items = Series::new("Items", df.get_column_names());
         let mut transposed_df = df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
-        let _ = transposed_df.insert_at_idx(0, items)?;
+        let _ = transposed_df.insert_column(0, items)?;
         Ok(transposed_df)
     }
 
@@ -102,15 +103,15 @@ impl Financials for Ticker {
             .collect();
 
         // Select and alias columns using the expressions
-        let renamed_df = df.lazy().select(expressions).collect()?;
+        let mut renamed_df = df.lazy().select(expressions).collect()?;
 
         // Transpose the DataFrame
-        let dates = income_statement.column("asOfDate")?.utf8()?.into_iter()
-            .map(|x| x.unwrap()).collect::<Vec<&str>>();
+        let dates = income_statement.column("asOfDate")?.str()?.into_no_null_iter()
+            .collect::<Vec<&str>>();
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
-        let _ = transposed_df.insert_at_idx(0, items)?;
+        let _ = transposed_df.insert_column(0, items)?;
         Ok(transposed_df)
     }
 
@@ -161,7 +162,7 @@ impl Financials for Ticker {
             "CommonStock", "RetainedEarnings", "CommonStockEquity", "TotalEquityGrossMinorityInterest",
         ];
 
-        // remove item from cols if it doesnt exist in the balance sheet dataframe
+        // remove item from cols if it doesn't exist in the balance sheet dataframe
         cols.retain(|x| balance_sheet.column(*x).is_ok());
 
 
@@ -177,15 +178,15 @@ impl Financials for Ticker {
             .collect();
 
         // Select and alias columns using the expressions
-        let renamed_df = df.lazy().select(expressions).collect()?;
+        let mut renamed_df = df.lazy().select(expressions).collect()?;
 
         // Transpose the DataFrame
-        let dates = balance_sheet.column("asOfDate")?.utf8()?.into_iter()
-            .map(|x| x.unwrap()).collect::<Vec<&str>>();
+        let dates = balance_sheet.column("asOfDate")?.str()?.into_no_null_iter()
+            .collect::<Vec<&str>>();
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
-        let _ = transposed_df.insert_at_idx(0, items)?;
+        let _ = transposed_df.insert_column(0, items)?;
 
         Ok(transposed_df)
 
@@ -267,15 +268,15 @@ impl Financials for Ticker {
             .collect();
 
         // Select and alias columns using the expressions
-        let renamed_df = df.lazy().select(expressions).collect()?;
+        let mut renamed_df = df.lazy().select(expressions).collect()?;
 
         // Transpose the DataFrame
-        let dates = cash_flow.column("asOfDate")?.utf8()?.into_iter()
-            .map(|x| x.unwrap()).collect::<Vec<&str>>();
+        let dates = cash_flow.column("asOfDate")?.str()?.into_no_null_iter()
+            .collect::<Vec<&str>>();
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
-        let _ = transposed_df.insert_at_idx(0, items)?;
+        let _ = transposed_df.insert_column(0, items)?;
 
         Ok(transposed_df)
     }

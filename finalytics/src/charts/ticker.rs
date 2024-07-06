@@ -6,6 +6,7 @@ use num_format::{Locale, ToFormattedString};
 use plotly::common::{Fill, Line, LineShape, Mode, Title};
 use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface, Table};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
+use plotly::traces::table::{Cells, Header};
 
 use crate::models::ticker::Ticker;
 use crate::data::ticker::TickerData;
@@ -13,7 +14,7 @@ use crate::prelude::TechnicalIndicators;
 use crate::analytics::fundamentals::Financials;
 use crate::analytics::performance::TickerPerformance;
 use crate::analytics::stochastics::VolatilitySurface;
-use crate::utils::date_utils::{generate_dates, to_date};
+use crate::utils::date_utils::to_date;
 use crate::analytics::statistics::cumulative_returns_list;
 
 pub trait TickerCharts {
@@ -86,8 +87,7 @@ impl TickerCharts for Ticker {
         let layout = Layout::new()
             .height(height)
             .width(width)
-            .title(Title::new(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>",
-                                        self.ticker)))
+            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
@@ -171,9 +171,7 @@ impl TickerCharts for Ticker {
     /// * `Plot` Plotly Chart struct
     async fn performance_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let performance_stats = self.performance_stats().await?;
-        let dates = generate_dates(&*performance_stats.start_date,
-                                   &*performance_stats.end_date, 1);
-
+        let dates = performance_stats.dates_array;
         let returns = performance_stats.security_returns.f64().unwrap().to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
 
@@ -331,11 +329,11 @@ impl TickerCharts for Ticker {
         ];
 
         let trace = Table::new(
-            vec![
+            Header::new(vec![
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Summary Stats"),
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
-            ],
-            vec![fields, values],
+            ]),
+            Cells::new(vec![fields, values]),
         );
         let mut plot = Plot::new();
         plot.add_trace(trace);
@@ -404,11 +402,11 @@ impl TickerCharts for Ticker {
 
 
         let trace = Table::new(
-            vec![
+            Header::new(vec![
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Performance Stats"),
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
-            ],
-            vec![fields, values],
+            ]),
+            Cells::new(vec![fields, values]),
         );
         let mut plot = Plot::new();
         plot.add_trace(trace);
@@ -453,7 +451,7 @@ impl TickerCharts for Ticker {
                     x.iter()
                         .map(|y| match y {
                             AnyValue::Null => "".to_string(),
-                            AnyValue::Utf8(str_val) => str_val.to_string(),
+                            AnyValue::String(str_val) => str_val.to_string(),
                             AnyValue::Float64(val) => if name == &"Financial Ratios" {format!("{:.2}", val)}
                             else if val > -999.0 && val < 999.0 {format!("${:.2}", val)}
                             else{format!("${}", (val as i64).to_formatted_string(&Locale::en))
@@ -464,8 +462,8 @@ impl TickerCharts for Ticker {
                 })
                 .collect::<Vec<Vec<String>>>();
             let trace = Table::new(
-                fields,
-                values,
+                Header::new(fields),
+                Cells::new(values),
             );
             let mut plot = Plot::new();
             plot.add_trace(trace);

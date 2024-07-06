@@ -3,8 +3,8 @@ use plotly::{Bar, Histogram, Layout, Plot, Scatter, Table};
 use plotly::color::NamedColor;
 use plotly::common::{Fill, Marker, MarkerSymbol, Mode, Title};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, RowOrder};
+use plotly::traces::table::{Cells, Header};
 use crate::analytics::statistics::cumulative_returns_list;
-use crate::utils::date_utils::generate_dates;
 use crate::models::portfolio::Portfolio;
 
 
@@ -120,8 +120,7 @@ impl PortfolioCharts for Portfolio {
     ///
     /// * `Plot` Plotly Chart struct
     fn performance_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
-        let dates = generate_dates(&*self.performance_stats.start_date,
-                                   &*self.performance_stats.end_date, 1);
+        let dates = self.performance_stats.dates_array.clone();
 
         let returns = self.performance_stats.optimal_portfolio_returns.f64().unwrap().to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
@@ -207,7 +206,7 @@ impl PortfolioCharts for Portfolio {
     fn asset_returns_chart(&self, height: usize, width: usize) -> Result<Plot, Box<dyn Error>> {
         let symbols = self.performance_stats.ticker_symbols.clone();
         let asset_returns = self.performance_stats.portfolio_returns.clone();
-        let dates = generate_dates(&*self.performance_stats.start_date, &*self.performance_stats.end_date, 1);
+        let dates = self.performance_stats.dates_array.clone();
         let mut plot = Plot::new();
 
         for symbol in symbols {
@@ -289,11 +288,11 @@ impl PortfolioCharts for Portfolio {
 
 
         let trace = Table::new(
-            vec![
+            Header::new(vec![
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Performance Stats"),
                 format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
-            ],
-            vec![fields, values],
+            ]),
+            Cells::new(vec![fields, values]),
         );
         let mut plot = Plot::new();
         plot.add_trace(trace);

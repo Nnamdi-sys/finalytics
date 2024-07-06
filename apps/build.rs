@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use yahoo_finance_symbols::keys::{AssetClass, Category, Exchange};
 use yahoo_finance_symbols::get_symbols;
 
-fn main() {
-    let tickers = get_symbols(AssetClass::All, Category::All, Exchange::All).unwrap();
+#[tokio::main]
+async fn main() {
+    let tickers = get_symbols(AssetClass::All, Category::All, Exchange::All).await.unwrap();
 
     let mut map = HashMap::new();
     for ticker in tickers {

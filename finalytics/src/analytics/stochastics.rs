@@ -253,7 +253,7 @@ impl VolatilitySurface for Ticker {
                 let vol_df = df.filter(&mask)?;
                 if vol_df.height() > 0 {
                     let option_price = vol_df.column("lastPrice")?.f64()?.get(0).unwrap();
-                    let option_type = vol_df.column("type")?.utf8()?.get(0).unwrap();
+                    let option_type = vol_df.column("type")?.str()?.get(0).unwrap();
                     let option_type = match option_type {
                         "call" => OptionType::Call,
                         "put" => OptionType::Put,

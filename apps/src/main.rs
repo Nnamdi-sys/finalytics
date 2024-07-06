@@ -12,10 +12,8 @@ fn main() {
 
     #[cfg(feature = "server")]
     {
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(telegram_bot());
-        });
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.spawn( async move { telegram_bot().await } );
     }
 
     #[cfg(feature = "web")]

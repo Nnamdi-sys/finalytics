@@ -1,5 +1,6 @@
 use polars::prelude::*;
 use std::error::Error;
+use chrono::{DateTime, NaiveDateTime};
 use futures::future::join_all;
 
 use crate::data::config::Interval;
@@ -15,6 +16,7 @@ pub struct TickerPerformanceStats {
     pub benchmark_symbol: String,
     pub start_date: String,
     pub end_date: String,
+    pub dates_array: Vec<String>,
     pub interval: Interval,
     pub confidence_level: f64,
     pub risk_free_rate: f64,
@@ -49,17 +51,22 @@ impl TickerPerformance for Ticker {
             .risk_free_rate(self.risk_free_rate)
             .build();
         let benchmark_returns = benchmark_ticker.roc(1).await?;
-        let benchmark_returns = benchmark_returns.join(
-            &security_returns,
+        let benchmark_returns = security_returns.join(
+            &benchmark_returns,
             &["timestamp"],
             &["timestamp"],
-            JoinArgs::new(JoinType::Inner),
+            JoinArgs::new(JoinType::Left),
         )?;
-        let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
+        let benchmark_returns = benchmark_returns.sort(&["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
+        let dates_array = benchmark_returns.column("timestamp")?.datetime()?
+            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
+            .naive_local()).collect::<Vec<NaiveDateTime>>();
+        let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        let security_returns = benchmark_returns.column(&*self.ticker)?.clone();
         let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
-        let security_returns = security_returns.column(&*self.ticker)?.clone();
+
         let performance_stats = PerformanceStats::compute_stats(
             security_returns.clone(), benchmark_returns.clone(),
             self.risk_free_rate, self.confidence_level, self.interval)?;
@@ -68,6 +75,7 @@ impl TickerPerformance for Ticker {
             benchmark_symbol: self.benchmark_symbol.clone(),
             start_date: self.start_date.clone(),
             end_date: self.end_date.clone(),
+            dates_array,
             interval: self.interval.clone(),
             confidence_level: self.confidence_level,
             risk_free_rate: self.risk_free_rate,
@@ -89,6 +97,7 @@ pub struct PortfolioPerformanceStats {
     pub start_date: String,
     pub end_date: String,
     pub interval: Interval,
+    pub dates_array: Vec<String>,
     pub confidence_level: f64,
     pub risk_free_rate: f64,
     pub portfolio_returns: DataFrame,
@@ -191,10 +200,11 @@ impl PortfolioPerformanceStats {
                     df,
                     &["timestamp"],
                     &["timestamp"],
-                    JoinArgs::new(JoinType::Outer),
+                    JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
                 )?;
         }
-        portfolio_returns = portfolio_returns.sort(&["timestamp"], false, false)?;
+
+        portfolio_returns = portfolio_returns.sort(&["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         portfolio_returns = portfolio_returns.fill_null(FillNullStrategy::Forward(None))?;
         portfolio_returns = portfolio_returns.fill_null(FillNullStrategy::Backward(None))?;
 
@@ -206,23 +216,20 @@ impl PortfolioPerformanceStats {
             .risk_free_rate(risk_free_rate)
             .build();
         let benchmark_returns = benchmark_ticker.roc(1).await?;
-        let benchmark_returns = if portfolio_returns.height() > benchmark_returns.height() {
-            benchmark_returns.join(
-            &portfolio_returns,
-            &["timestamp"],
-            &["timestamp"],
-            JoinArgs::new(JoinType::Outer),
-        )?} else {
-            portfolio_returns.join(
+        let benchmark_returns =  portfolio_returns.join(
             &benchmark_returns,
             &["timestamp"],
             &["timestamp"],
-            JoinArgs::new(JoinType::Inner),
-        )?};
+            JoinArgs::new(JoinType::Left),
+        )?;
 
-        let benchmark_returns = benchmark_returns.sort(&["timestamp"], false, false)?;
+        let benchmark_returns = benchmark_returns.sort(&["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
+        let dates_array = benchmark_returns.column("timestamp")?.datetime()?
+            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
+            .naive_local()).collect::<Vec<NaiveDateTime>>();
+        let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
         let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
 
         let _ = portfolio_returns.drop_in_place("timestamp")?;
@@ -233,6 +240,7 @@ impl PortfolioPerformanceStats {
             start_date: start_date.to_string(),
             end_date: end_date.to_string(),
             interval,
+            dates_array,
             confidence_level,
             risk_free_rate,
             portfolio_returns: portfolio_returns.clone(),
@@ -253,8 +261,16 @@ impl PortfolioPerformanceStats {
     ///
     /// * `PortfolioPerformanceStats` struct
     pub fn compute_stats(&self) -> Result<PortfolioPerformanceStats, Box<dyn Error>> {
-        let mean_returns = self.portfolio_returns.mean().iter().map(|x| x.f64().unwrap()
-            .get(0).unwrap()).collect::<Vec<f64>>();
+        let mean_returns = self.portfolio_returns
+            .get_columns()
+            .iter()
+            .map(|col| {
+                col.f64()
+                    .unwrap()
+                    .mean()
+                    .unwrap()
+            })
+            .collect::<Vec<f64>>();
         let cov_matrix = covariance_matrix(&self.portfolio_returns)?;
 
         let opt_result = portfolio_optimization(&mean_returns, &cov_matrix, &self.portfolio_returns, self.risk_free_rate,
@@ -273,6 +289,7 @@ impl PortfolioPerformanceStats {
             start_date: self.start_date.clone(),
             end_date: self.end_date.clone(),
             interval: self.interval.clone(),
+            dates_array: self.dates_array.clone(),
             confidence_level: self.confidence_level,
             risk_free_rate: self.risk_free_rate,
             portfolio_returns: self.portfolio_returns.clone(),

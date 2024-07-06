@@ -85,7 +85,7 @@ impl PerformanceStats {
         let downside_mask = &returns.lt_eq(0.0).unwrap();
         let downside_returns = returns.filter(downside_mask).unwrap();
         let sortino_ratio = (annualized_return - risk_free_rate) / (std_dev( &downside_returns) * 252.0_f64.sqrt());
-        let excess_returns = returns.clone() - benchmark_returns.clone();
+        let excess_returns = (returns.clone() - benchmark_returns.clone())?;
         let active_return = excess_returns.mean().ok_or("Error calculating active return")?;
         let active_return = ((1.0 + active_return/100.0).powf(252.0) - 1.0) * 100.0;
         let active_risk = std_dev(&excess_returns) * 252.0_f64.sqrt();
@@ -309,7 +309,7 @@ pub fn rand_weights(num_assets: usize) -> Vec<f64> {
 pub fn mean_portfolio_return(weights: &Vec<f64>, mean_returns: &Vec<f64>) -> f64 {
     let weights = Series::new("Weights", weights);
     let mean_returns = Series::new("Mean Returns", mean_returns);
-    let weighted_returns = mean_returns.mul(weights);
+    let weighted_returns = mean_returns.mul(weights).unwrap();
     let mean_portfolio_return = weighted_returns.sum().unwrap();
     mean_portfolio_return
 }
@@ -348,7 +348,7 @@ pub fn daily_portfolio_returns(weights: &Vec<f64>, returns: &DataFrame) -> Serie
         let col_str = returns.get_column_names()[i];
         let security_returns = returns.column(col_str).unwrap().f64().unwrap().to_vec();
         let weighted_returns = security_returns.iter().map(|x| x.unwrap() * weight).collect::<Vec<f64>>();
-        portfolio_returns = portfolio_returns + Series::new("Portfolio Returns", weighted_returns);
+        portfolio_returns = (portfolio_returns + Series::new("Portfolio Returns", weighted_returns)).unwrap();
     }
     portfolio_returns
 }

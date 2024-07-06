@@ -130,9 +130,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         }
 
         Command::Symbols {asset_class, query} => {
-            let message = handle_symbols_command(asset_class, query);
+            let message = std::thread::spawn( move || {
+                handle.block_on(handle_symbols_command(asset_class, query))
+            }).join().unwrap_or("Failed to fetch symbols. Please try again later or get example with `/help symbols`".to_string());
             bot.send_message(msg.chat.id, message).await?
-
         }
 
         Command::Ticker {symbol, start_date, end_date, interval, benchmark_symbol,
@@ -142,7 +143,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             let message =  std::thread::spawn(move || {
                 handle.block_on(handle_ticker_command(symbol, start_date, end_date, interval, benchmark_symbol,
                     confidence_level, risk_free_rate, chart_type, bot_clone, msg_clone))
-            }).join().unwrap();
+            }).join().unwrap_or("Failed to fetch ticker data. Please try again later or get example with `/help ticker`".to_string());
             bot.send_message(msg.chat.id, message.to_string()).await?
         }
 
@@ -153,7 +154,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             let message = std::thread::spawn(move || {
                 handle.block_on(handle_portfolio_command(symbols, benchmark_symbol, start_date, end_date, interval,
                     confidence_level, risk_free_rate, max_iterations, objective_function, bot_clone, msg_clone))
-            }).join().unwrap();
+            }).join().unwrap_or("Failed to fetch portfolio data. Please try again later or get example with `/help portfolio`".to_string());
             bot.send_message(msg.chat.id, message.to_string()).await?
         }
 
@@ -162,7 +163,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
             let msg_clone = Arc::clone(&msg);
             let message = std::thread::spawn(move || {
                 handle.block_on(handle_news_command(symbol, max, bot_clone, msg_clone))
-            }).join().unwrap();
+            }).join().unwrap_or("Failed to fetch news data. Please try again later or get example with `/help news`".to_string());
             bot.send_message(msg.chat.id, message.to_string()).await?
         }
         
@@ -172,7 +173,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 }
 
 
-fn handle_symbols_command(asset_class: String, query: String) -> String {
+async fn handle_symbols_command(asset_class: String, query: String) -> String {
     let asset_class_enum = match asset_class.as_str() {
         "equity" => AssetClass::Stocks,
         "etf" => AssetClass::ETFs,
@@ -184,7 +185,7 @@ fn handle_symbols_command(asset_class: String, query: String) -> String {
     };
 
     // Fetch symbols based on the asset class and query
-    let tickers = get_symbols(asset_class_enum, Category::All, Exchange::All);
+    let tickers = get_symbols(asset_class_enum, Category::All, Exchange::All).await;
 
     if let Ok(tickers) = tickers {
         // Filter symbols based on the query
