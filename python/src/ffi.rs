@@ -9,7 +9,7 @@ use pyo3::types:: PyDict;
 
 pub fn rust_df_to_py_df(df: &DataFrame) -> PyResult<PyObject> {
     Python::with_gil(|py| {
-        let py_polars = py.import("polars")?;
+        let py_polars = py.import_bound("polars")?;
         let py_dict = PyDict::new(py);
 
         // Convert each series into a Python Polars Series
@@ -31,7 +31,7 @@ pub fn rust_df_to_py_df(df: &DataFrame) -> PyResult<PyObject> {
 
 
 /// Arrow array to Python.
-pub fn to_py_array(py: Python, pyarrow: &PyModule, array: ArrayRef) -> PyResult<PyObject> {
+pub fn to_py_array(py: Python, pyarrow: Bound<PyModule>, array: ArrayRef) -> PyResult<PyObject> {
     let schema = Box::new(ffi::export_field_to_c(&ArrowField::new(
         "",
         array.data_type().clone(),
@@ -57,13 +57,13 @@ pub fn rust_series_to_py_series(series: &Series) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         // import pyarrow
-        let pyarrow = py.import("pyarrow")?;
+        let pyarrow = py.import_bound("pyarrow")?;
 
         // pyarrow array
         let pyarrow_array = to_py_array(py, pyarrow, array)?;
 
         // import polars
-        let polars = py.import("polars")?;
+        let polars = py.import_bound("polars")?;
         let out = polars.call_method1("from_arrow", (pyarrow_array,))?;
         Ok(out.to_object(py))
     })
@@ -75,8 +75,8 @@ pub fn rust_plot_to_py_plot(plot: Plot) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         // Import the necessary Python libraries
-        let py_plotly = py.import("plotly.graph_objects")?;
-        let py_json = py.import("json")?;
+        let py_plotly = py.import_bound("plotly.graph_objects")?;
+        let py_json = py.import_bound("json")?;
 
         // Convert the JSON string to a Python dictionary
         let plot_dict: PyObject = py_json.call_method1("loads", (plot_json,))?.extract()?;

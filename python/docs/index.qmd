@@ -1,26 +1,32 @@
-![Finalytics](https://github.com/Nnamdi-sys/finalytics/raw/main/logo-color.png)
+![](https://github.com/Nnamdi-sys/finalytics/raw/main/logo-color.png)
 
 [![pypi](https://img.shields.io/pypi/v/finalytics)](https://pypi.org/project/finalytics/)
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
-[![Documentation Status](https://readthedocs.org/projects/finalytics/badge/?version=latest)](https://finalytics.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://img.shields.io/badge/docs-quarto-blue)](https://nnamdi.quarto.pub/finalytics/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
 ![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 ![PePy](https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads)
 
 
+# Welcome to the Finalytics Documentation
 
 This is a python binding for [Finalytics Rust Library](https://github.com/Nnamdi-sys/finalytics) designed for retrieving financial data and performing security analysis and portfolio optimization.
 
-## Installation
+### Installation
 
 ```bash
 pip install finalytics
 ```
 
-## Example
+### Documentation
 
-View the [documentation](https://nnamdi.quarto.pub/finalytics/) for more information.
+- [Ticker Module](ticker.qmd)
+- [Tickers Module](tickers.qmd)
+- [Portfolio Module](portfolio.qmd)
+
+
+### Example
 
 ```python
 from finalytics import Tickers
@@ -51,7 +57,5 @@ portfolio.asset_returns_chart().show()
 portfolio.performance_stats_table().show()
 
 ```
-
-
 
 

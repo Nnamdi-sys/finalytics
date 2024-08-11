@@ -1,0 +1,4 @@
+- source: project
+  quarto-pub:
+    - id: 3ea6053c-0f8d-4a25-9a80-21b7d5365b23
+      url: 'https://nnamdi.quarto.pub/finalytics'

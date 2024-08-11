@@ -1,0 +1,21 @@
+project:
+  type: website
+
+website:
+  title: "Finalytics"
+  sidebar:
+    tools:
+      - icon: github
+        href: https://github.com/Nnamdi-sys/finalytics/tree/main
+    style: "docked"
+    search: true
+    contents:
+      - text: "Introduction"
+        href: index.qmd
+      - text: "Ticker Module"
+        href: ticker.qmd
+      - text: "Tickers Module"
+        href: tickers.qmd
+      - text: "Portfolio Module"
+        href: portfolio.qmd
+

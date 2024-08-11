@@ -1,0 +1,291 @@
+---
+title: Tickers Module Documentation
+format:
+  html:
+    page-layout: full
+---
+
+### Tickers
+
+A class representing a Tickers object.
+
+<details>
+<summary>`__new__`</summary>
+
+Create a new Tickers object.
+
+**Parameters:**
+
+- `symbols` (List[str]): A list of ticker symbols.
+- `start_date` (str): The start date of the time period in the format YYYY-MM-DD.
+- `end_date` (str): The end date of the time period in the format YYYY-MM-DD.
+- `interval` (str): The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo).
+- `benchmark_symbol` (str): The ticker symbol of the benchmark to compare against.
+- `confidence_level` (float): The confidence level for the VaR and ES calculations.
+- `risk_free_rate` (float): The risk free rate to use in the calculations.
+
+**Returns:**
+
+- `Tickers`: A Tickers object.
+
+**Example:**
+
+```{python}
+from finalytics import Tickers
+
+tickers = Tickers(symbols=["AAPL", "GOOG", "MSFT", "NVDA", "BTC-USD"],
+                  start_date="2020-01-01",
+                  end_date="2024-01-01",
+                  interval="1d",
+                  benchmark_symbol="^GSPC",
+                  confidence_level=0.95,
+                  risk_free_rate=0.02)
+```
+</details>
+
+<details>
+<summary>`get_summary_stats`</summary>
+
+Fetch the Ticker Summary Stats Data for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing summary statistics.
+
+**Example:**
+
+```{python}
+summary_stats = tickers.get_summary_stats()
+print(summary_stats)
+```
+</details>
+
+<details>
+<summary>`get_price_history`</summary>
+
+Fetch the OHLCV Data for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing OHLCV data.
+
+**Example:**
+
+```{python}
+price_history = tickers.get_price_history()
+print(price_history)
+```
+</details>
+
+<details>
+<summary>`get_options_chain`</summary>
+
+Fetch the Options Chain Data for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the options chain.
+
+**Example:**
+
+```{python}
+options_chain = tickers.get_options_chain()
+print(options_chain)
+```
+</details>
+
+<details>
+<summary>`get_news`</summary>
+
+Fetch the Historical News Headlines for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing news headlines.
+
+**Example:**
+
+```python
+news = tickers.get_news()
+print(news)
+```
+</details>
+
+<details>
+<summary>`get_income_statement`</summary>
+
+Fetch the income statement for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the income statement.
+
+**Example:**
+
+```{python}
+income_statement = tickers.get_income_statement()
+print(income_statement)
+```
+</details>
+
+<details>
+<summary>`get_balance_sheet`</summary>
+
+Fetch the balance sheet for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the balance sheet.
+
+**Example:**
+
+```{python}
+balance_sheet = tickers.get_balance_sheet()
+print(balance_sheet)
+```
+</details>
+
+<details>
+<summary>`get_cashflow_statement`</summary>
+
+Fetch the cash flow statement for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the cash flow statement.
+
+**Example:**
+
+```{python}
+cashflow_statement = tickers.get_cashflow_statement()
+print(cashflow_statement)
+```
+</details>
+
+<details>
+<summary>`get_financial_ratios`</summary>
+
+Fetch the financial ratios for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the financial ratios.
+
+**Example:**
+
+```{python}
+financial_ratios = tickers.get_financial_ratios()
+print(financial_ratios)
+```
+</details>
+
+<details>
+<summary>`returns`</summary>
+
+Compute the returns for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the returns.
+
+**Example:**
+
+```{python}
+returns = tickers.returns()
+print(returns)
+```
+</details>
+
+<details>
+<summary>`performance_stats`</summary>
+
+Compute the performance stats for all tickers.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the performance stats.
+
+**Example:**
+
+```{python}
+performance_stats = tickers.performance_stats()
+print(performance_stats)
+```
+</details>
+
+<details>
+<summary>`returns_chart`</summary>
+
+Display the cumulative returns chart for all tickers.
+
+**Returns:**
+
+- `Plot`: Plot object containing the returns chart.
+
+**Example:**
+
+```{python}
+returns_chart = tickers.returns_chart()
+returns_chart.show()
+```
+</details>
+
+<details>
+<summary>`returns_matrix`</summary>
+
+Display the returns correlation matrix for all tickers.
+
+**Returns:**
+
+- `Plot`: Plot object containing the returns chart.
+
+**Example:**
+
+```{python}
+returns_matrix = tickers.returns_matrix(height=600, width=800)
+returns_matrix.show()
+```
+</details>
+
+<details>
+<summary>`get_ticker`</summary>
+
+Fetch the Ticker object for a specific ticker symbol.
+
+**Parameters:**
+
+- `symbol` (str): The ticker symbol.
+
+**Returns:**
+
+- `Ticker`: A Ticker object.
+
+**Example:**
+
+```{python}
+ticker = tickers.get_ticker(symbol="AAPL")
+ticker.performance_chart().show()
+```
+</details>
+
+<details>
+<summary>`optimize`</summary>
+
+Optimizes the tickers given the objective function and constraints.
+
+**Parameters:**
+
+- `objective_function` (Optional[str]): The objective function for optimization.
+- `constraints` (Optional[List[Tuple[float, float]]]): List of constraints for optimization.
+
+**Returns:**
+
+- `Portfolio`: A Portfolio object.
+
+**Example:**
+
+```{python}
+portfolio = tickers.optimize(objective_function="max_sharpe", constraints=[(0, 1), (0, 1), (0, 1), (0, 1), (0,1)])
+portfolio.performance_chart().show()
+```
+</details>
