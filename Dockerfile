@@ -5,13 +5,10 @@ FROM rust:slim-buster AS builder
 WORKDIR /src
 
 # Copy the local finalytics directory into the Docker image
-COPY finalytics finalytics
+COPY rust rust
 
 # Copy the local web directory into the Docker image
 COPY web web
-
-# Copy the pre-generated symbols.db file into the web directory
-COPY web/symbols.db web/symbols.db
 
 # Install necessary dependencies for SQLite3 and OpenSSL
 RUN apt-get update && apt-get install -y pkg-config libssl-dev libsqlite3-dev

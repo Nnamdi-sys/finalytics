@@ -3,7 +3,7 @@
 [![pypi](https://img.shields.io/pypi/v/finalytics)](https://pypi.org/project/finalytics/)
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
-[![Documentation Status](https://readthedocs.org/projects/finalytics/badge/?version=latest)](https://finalytics.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://img.shields.io/badge/docs-quarto-blue)](https://nnamdi.quarto.pub/finalytics/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
 ![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
 ![PePy](https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads)
