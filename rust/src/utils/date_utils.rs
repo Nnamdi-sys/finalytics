@@ -56,3 +56,11 @@ pub fn convert_to_quarter(dates: Vec<&str>) -> Vec<String> {
         format!("{}Q{}", year, quarter)
     }).collect()
 }
+
+pub fn convert_to_year(dates: Vec<&str>) -> Vec<String> {
+    dates.into_iter().map(|date_str| {
+        let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d").unwrap();
+        let year = if date.month() <= 4 { date.year() - 1 } else { date.year() };
+        year.to_string()
+    }).collect()
+}

@@ -1,33 +1,29 @@
 [package]
 name = "finalytics-web"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+default-run = "finalytics-server"
 
 [dependencies]
-
-# Common dependancies
-dioxus = { version = "0.5.0", features = ["fullstack", "router"] }
-serde = { version = "1.0.159", features = ["derive"] }
-log  = "0.4.20"
-wasm-logger = "0.2.0"
-once_cell = "1.19.0"
-bincode = "1.3.3"
-
-# Server dependancies
-finalytics = { path = "../rust", features = ["kaleido"], optional = true }
-yahoo-finance-symbols = { version = "0.1.2" , optional = true }
-syntect = { version = "5.2.0", optional = true }
-tokio = { version = "1.36.0", features=["macros", "rt-multi-thread"], optional = true }
-
-
-[features]
-default = []
-server = ["dioxus/axum", "tokio", "finalytics", "syntect"]
-web = ["dioxus/web"]
+actix-web = "4.9.0"
+actix-files = "0.6.6"
+env_logger = "0.11.6"
+log = "0.4.22"
+chrono = "0.4.39"
+reqwest = { version = "0.12.12", features = ["multipart"] }
+tokio = { version = "1.42.0", features = ["full"] }
+tera = "1.20.0"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_urlencoded = "0.7.1"
+syntect = "5.2.0"
+yahoo-finance-symbols = "0.1.4"
+finalytics = { path = "../rust", features = ["kaleido"] }
 
 
-[build-dependencies]
-tokio = { version = "1.36.0", features=["macros", "rt-multi-thread"] }
-bincode = "1.3.3"
-yahoo-finance-symbols = "0.1.0"
-finalytics = { path = "../rust" }
+[[bin]]
+name = "finalytics-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "save-images"
+path = "src/images/image.rs"

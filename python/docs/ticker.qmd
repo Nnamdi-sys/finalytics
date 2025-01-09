@@ -133,6 +133,10 @@ print(news)
 
 Get the Income Statement for the ticker.
 
+**Parameters:**
+
+- `frequency` (str): frequency of the Income Statement (annual, quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the Income Statement.
@@ -140,7 +144,7 @@ Get the Income Statement for the ticker.
 **Example:**
 
 ```{python}
-income_statement = ticker.get_income_statement()
+income_statement = ticker.get_income_statement(frequency="quarterly")
 print(income_statement)
 ```
 </details>
@@ -150,6 +154,10 @@ print(income_statement)
 
 Get the Balance Sheet for the ticker.
 
+**Parameters:**
+
+- `frequency` (str): frequency of the Balance Sheet (annual, quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the Balance Sheet.
@@ -157,7 +165,7 @@ Get the Balance Sheet for the ticker.
 **Example:**
 
 ```{python}
-balance_sheet = ticker.get_balance_sheet()
+balance_sheet = ticker.get_balance_sheet(frequency="quarterly")
 print(balance_sheet)
 ```
 </details>
@@ -167,6 +175,10 @@ print(balance_sheet)
 
 Get the Cashflow Statement for the ticker.
 
+**Parameters:**
+
+- `frequency` (str): frequency of the Cashflow Statement (annual, quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the Cashflow Statement.
@@ -174,7 +186,7 @@ Get the Cashflow Statement for the ticker.
 **Example:**
 
 ```{python}
-cashflow_statement = ticker.get_cashflow_statement()
+cashflow_statement = ticker.get_cashflow_statement(frequency="quarterly")
 print(cashflow_statement)
 ```
 </details>
@@ -184,6 +196,10 @@ print(cashflow_statement)
 
 Get the Financial Ratios for the ticker.
 
+**Parameters:**
+
+- `frequency` (str): frequency of the Financial Ratios (annual, quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the Financial Ratios.
@@ -191,7 +207,7 @@ Get the Financial Ratios for the ticker.
 **Example:**
 
 ```{python}
-financial_ratios = ticker.get_financial_ratios()
+financial_ratios = ticker.get_financial_ratios(frequency="quarterly")
 print(financial_ratios)
 ```
 </details>
@@ -314,7 +330,24 @@ Display the options volatility surface, smile and term structure charts for the 
 **Example:**
 
 ```{python}
-options_chart = ticker.options_chart(chart_type="surface", )
+options_chart = ticker.options_chart(chart_type="surface")
 options_chart.show()
+```
+</details>
+
+
+<details>
+<summary>`report`</summary>
+
+Generate a report for the ticker.
+
+**Parameters:**
+
+- `report_type` (str): Type of report to generate (performance, financials, options, news_sentiment).
+
+**Example:**
+
+```{python}
+ticker.report(report_type="performance")
 ```
 </details>

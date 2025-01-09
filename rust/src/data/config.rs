@@ -231,10 +231,62 @@ impl Interval {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum StatementType {
+    IncomeStatement,
+    BalanceSheet,
+    CashFlowStatement,
+    FinancialRatios,
+}
+
+impl StatementType {
+    pub fn to_string(&self) -> String {
+        match self {
+            StatementType::IncomeStatement => "income-statement".to_string(),
+            StatementType::BalanceSheet => "balance-sheet".to_string(),
+            StatementType::CashFlowStatement => "cash-flow".to_string(),
+            StatementType::FinancialRatios => "financial-ratios".to_string(),
+        }
+    }
+
+    pub fn from_str(s: &str) -> StatementType {
+        match s {
+            "income-statement" => StatementType::IncomeStatement,
+            "balance-sheet" => StatementType::BalanceSheet,
+            "cash-flow" => StatementType::CashFlowStatement,
+            "financial-ratios" => StatementType::FinancialRatios,
+            _ => unimplemented!("Statement Type not implemented"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum StatementFrequency {
+    Annual,
+    Quarterly
+}
+
+impl StatementFrequency {
+    pub fn to_string(&self) -> String {
+        match self {
+            StatementFrequency::Annual => "annual".to_string(),
+            StatementFrequency::Quarterly => "quarterly".to_string(),
+        }
+    }
+
+    pub fn from_str(s: &str) -> StatementFrequency {
+        match s {
+            "annual" => StatementFrequency::Annual,
+            "quarterly" => StatementFrequency::Quarterly,
+            _ => StatementFrequency::Annual,
+        }
+    }
+}
+
 pub struct Fundamentals;
 
 impl Fundamentals {
-    pub fn get_income_statement_items(&self, frequency: &str) -> String {
+    pub fn get_income_statement_items(&self, frequency: StatementFrequency) -> String {
         let income_vec =  vec![
             "TotalRevenue", "ExciseTaxes", "OperatingRevenue", "GrossProfit", "CostOfRevenue",
             "SalariesAndWages", "RentAndLandingFees", "InsuranceAndClaims", "OtherGandA",
@@ -263,24 +315,13 @@ impl Fundamentals {
             "TotalUnusualItemsExcludingGoodwill", "TotalUnusualItems", "NormalizedBasicEPS", "NormalizedDilutedEPS",
             "NormalizedEBITDA", "TaxRateForCalcs", "TaxEffectOfUnusualItems",
         ];
-        let result = match frequency {
-            "annual" => {
-                let out_str = income_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            "quarterly" => {
-                let out_str = income_vec.iter().map(|x| format!("{}{}", "quarterly", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            _ => {
-                let out_str = income_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-        };
-        result
+
+        let out_str = income_vec.iter().map(|x| format!("{}{}", frequency.to_string(), x)).collect::<Vec<String>>();
+        out_str.join(",")
+
     }
 
-    pub fn get_balance_sheet_items(&self, frequency: &str) -> String {
+    pub fn get_balance_sheet_items(&self, frequency: StatementFrequency) -> String {
         let balance_vec = vec![
             "TreasurySharesNumber", "PreferredSharesNumber", "OrdinarySharesNumber", "ShareIssued", "NetDebt",
             "TotalDebt", "TangibleBookValue", "InvestedCapital", "WorkingCapital", "NetTangibleAssets",
@@ -327,24 +368,13 @@ impl Fundamentals {
             "GrossAccountsReceivable", "CashCashEquivalentsAndShortTermInvestments",
             "OtherShortTermInvestments", "CashAndCashEquivalents", "CashEquivalents", "CashFinancial",
         ];
-        let result = match frequency {
-            "annual" => {
-                let out_str = balance_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            "quarterly" => {
-                let out_str = balance_vec.iter().map(|x| format!("{}{}", "quarterly", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            _ => {
-                let out_str = balance_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-        };
-        result
+
+        let out_str = balance_vec.iter().map(|x| format!("{}{}", frequency.to_string(), x)).collect::<Vec<String>>();
+        out_str.join(",")
+
     }
 
-    pub fn get_cash_flow_items(&self, frequency: &str) -> String {
+    pub fn get_cash_flow_items(&self, frequency: StatementFrequency) -> String {
         let cash_vec = vec![
             "ForeignSales", "DomesticSales", "AdjustedGeographySegmentData", "FreeCashFlow",
             "RepurchaseOfCapitalStock", "RepaymentOfDebt", "IssuanceOfDebt", "IssuanceOfCapitalStock",
@@ -386,21 +416,10 @@ impl Fundamentals {
             "PaymentstoSuppliersforGoodsandServices", "ClassesofCashReceiptsfromOperatingActivities",
             "OtherCashReceiptsfromOperatingActivities", "ReceiptsfromGovernmentGrants", "ReceiptsfromCustomers",
         ];
-        let result = match frequency {
-            "annual" => {
-                let out_str = cash_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            "quarterly" => {
-                let out_str = cash_vec.iter().map(|x| format!("{}{}", "quarterly", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-            _ => {
-                let out_str = cash_vec.iter().map(|x| format!("{}{}", "annual", x)).collect::<Vec<String>>();
-                out_str.join(",")
-            }
-        };
-        result
+
+        let out_str = cash_vec.iter().map(|x| format!("{}{}", frequency.to_string(), x)).collect::<Vec<String>>();
+        out_str.join(",")
+
     }
 }
 

@@ -94,7 +94,7 @@ pub fn portfolio_optimization(
             },
             ObjectiveFunction::MinDrawdown => {
                 let returns = daily_portfolio_returns(&weights, portfolio_returns);
-                let drawdown = maximum_drawdown(&returns);
+                let (_, drawdown) = maximum_drawdown(&returns);
                 drawdown
             },
             ObjectiveFunction::MinVar => {

@@ -1,36 +1,67 @@
-use std::collections::HashMap;
 use std::error::Error;
-use chrono::{DateTime, NaiveDateTime};
 use polars::prelude::*;
+use chrono::{DateTime, NaiveDateTime};
 use num_format::{Locale, ToFormattedString};
 use plotly::common::{AxisSide, Fill, Line, LineShape, Mode, Title};
-use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface, Table};
+use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
-use plotly::traces::table::{Cells, Header};
 
 use crate::models::ticker::Ticker;
 use crate::data::ticker::TickerData;
+use crate::prelude::StatementFrequency;
 use crate::prelude::TechnicalIndicators;
 use crate::analytics::fundamentals::Financials;
 use crate::analytics::performance::TickerPerformance;
 use crate::analytics::stochastics::VolatilitySurface;
+use crate::analytics::statistics::{cumulative_returns_list, maximum_drawdown};
 use crate::utils::date_utils::to_date;
-use crate::analytics::statistics::cumulative_returns_list;
+use crate::reports::table::{DataTable, TableType};
+use crate::charts::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
 
-const DEFAULT_HEIGHT: usize = 800;
-const DEFAULT_WIDTH: usize = 1200;
+
+pub struct FinancialsTables {
+    pub income_statement: DataTable,
+    pub balance_sheet: DataTable,
+    pub cashflow_statement: DataTable,
+    pub financial_ratios: DataTable,
+}
+
+pub struct OptionsCharts {
+    pub volatility_surface: Plot,
+    pub volatility_smile: Plot,
+    pub volatility_term_structure: Plot,
+}
+
+pub struct OptionsTables {
+    pub options_chain: DataTable,
+    pub volatility_surface: DataTable,
+}
 
 pub trait TickerCharts {
+    fn ohlcv_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn summary_stats_table(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn performance_stats_table(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn financials_tables(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
-    fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<HashMap<String, Plot>, Box<dyn Error>>>;
+    fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn financials_tables(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<FinancialsTables, Box<dyn Error>>>;
+    fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<OptionsCharts, Box<dyn Error>>>;
+    fn options_tables(&self) -> impl std::future::Future<Output = Result<OptionsTables, Box<dyn Error>>>;
     fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
 }
 
 impl TickerCharts for Ticker {
+    /// Displays the OHLCV Table for the ticker
+    ///
+    /// # Returns
+    ///
+    /// * `DataTable` - Interactive Table Chart struct
+    fn ohlcv_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>> {
+        async move {
+            let data = self.get_chart().await?;
+            let table_chart = DataTable::new(data, TableType::OHLCV);
+            Ok(table_chart)
+        }
+    }
 
     /// Generates an OHLCV candlestick chart for the ticker with technical indicators
     ///
@@ -176,7 +207,7 @@ impl TickerCharts for Ticker {
     async fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let performance_stats = self.performance_stats().await?;
         let dates = performance_stats.dates_array;
-        let returns = performance_stats.security_returns.f64().unwrap().to_vec()
+        let returns = performance_stats.security_returns.clone().f64().unwrap().to_vec()
             .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
 
         let benchmark_returns = performance_stats.benchmark_returns.f64().unwrap().to_vec()
@@ -185,6 +216,9 @@ impl TickerCharts for Ticker {
         let cum_returns= cumulative_returns_list(returns.clone());
 
         let benchmark_cum_returns= cumulative_returns_list(benchmark_returns.clone());
+
+        let (drawdowns, _) = maximum_drawdown(&performance_stats.security_returns);
+        let drawdowns = drawdowns.iter().map(|x| x/100.0).collect::<Vec<f64>>();
 
         let returns_trace = Scatter::new(dates.clone(), returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
             .name(format!("{} Returns", self.ticker))
@@ -210,11 +244,19 @@ impl TickerCharts for Ticker {
             .x_axis("x3")
             .y_axis("y3");
 
+        let drawdown_trace = Scatter::new(dates.clone(), drawdowns.clone())
+            .name(format!("{} Drawdown", self.ticker))
+            .mode(Mode::Lines)
+            .fill(Fill::ToZeroY)
+            .x_axis("x4")
+            .y_axis("y4");
+
         let mut plot = Plot::new();
         plot.add_trace(returns_trace);
         plot.add_trace(returns_dist_trace);
         plot.add_trace(cum_returns_trace);
         plot.add_trace(benchmark_cum_returns_trace);
+        plot.add_trace(drawdown_trace);
 
         // Set layout for the plot
         let layout = Layout::new()
@@ -224,7 +266,7 @@ impl TickerCharts for Ticker {
                                          self.ticker)))
             .grid(
                 LayoutGrid::new()
-                    .rows(3)
+                    .rows(4)
                     .columns(1)
                     .pattern(GridPattern::Independent)
                     .row_order(RowOrder::TopToBottom)
@@ -246,6 +288,11 @@ impl TickerCharts for Ticker {
                 Axis::new()
                     .title(Title::from("Cumulative Returns"))
                     .tick_format(".0%")
+            )
+            .y_axis4(
+                Axis::new()
+                    .title(Title::from("Drawdown"))
+                    .tick_format(".0%")
             );
 
         plot.set_layout(layout);
@@ -255,15 +302,10 @@ impl TickerCharts for Ticker {
 
     /// Displays the Summary Statistics table for the ticker
     ///
-    /// # Arguments
-    ///
-    /// * `height` - `usize` - Height of the chart
-    /// * `width` - `usize` - Width of the chart
-    ///
     /// # Returns
     ///
-    /// * `Plot` Plotly Chart struct
-    async fn summary_stats_table(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+    /// * `DataTable` - Table Chart struct
+    async fn summary_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let stats = self.get_ticker_stats().await?;
 
         let fields = vec![
@@ -332,38 +374,22 @@ impl TickerCharts for Ticker {
             format!("{}", stats.average_analyst_rating),
         ];
 
-        let trace = Table::new(
-            Header::new(vec![
-                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Summary Stats"),
-                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
-            ]),
-            Cells::new(vec![fields, values]),
-        );
-        let mut plot = Plot::new();
-        plot.add_trace(trace);
+        let df = DataFrame::new(vec![
+            Series::new("Items", fields),
+            Series::new("Values", values),
+        ])?;
 
-        let layout = Layout::new()
-            .height(height.unwrap_or(DEFAULT_HEIGHT))
-            .width(width.unwrap_or(DEFAULT_WIDTH))
-            .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Summary Stats</span>",
-                                         self.ticker)));
+        let data_table = DataTable::new(df, TableType::SummaryStats);
 
-        plot.set_layout(layout);
-
-        Ok(plot)
+        Ok(data_table)
     }
 
     /// Displays the Performance Statistics table for the ticker
     ///
-    /// # Arguments
-    ///
-    /// * `height` - `usize` - Height of the chart
-    /// * `width` - `usize` - Width of the chart
-    ///
     /// # Returns
     ///
-    /// * `Plot` Plotly Chart struct
-    async fn performance_stats_table(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+    /// * `DataTable` - Table Chart struct
+    async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let stats = self.performance_stats().await?;
 
         let fields = vec![
@@ -404,84 +430,59 @@ impl TickerCharts for Ticker {
             format!("{:.2}%",stats.performance_stats.expected_shortfall),
         ];
 
+        let df = DataFrame::new(vec![
+            Series::new("Items", fields),
+            Series::new("Values", values),
+        ])?;
 
-        let trace = Table::new(
-            Header::new(vec![
-                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Performance Stats"),
-                format!("<span style=\"font-weight:bold; color:darkgreen;\">{}</span>", "Values"),
-            ]),
-            Cells::new(vec![fields, values]),
-        );
-        let mut plot = Plot::new();
-        plot.add_trace(trace);
+        let data_table = DataTable::new(df, TableType::PerformanceStats);
 
-        let layout = Layout::new()
-            .height(height.unwrap_or(DEFAULT_HEIGHT))
-            .width(width.unwrap_or(DEFAULT_WIDTH))
-            .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Stats</span>",
-                                         self.ticker)));
-
-        plot.set_layout(layout);
-
-        Ok(plot)
+        Ok(data_table)
     }
 
     /// Generates Table Plots for the Ticker's Financial Statements
     ///
     /// # Arguments
-    ///
-    /// * `height` - `usize` - Height of the chart
-    /// * `width` - `usize` - Width of the chart
+    /// * `frequency` - `StatementFrequency` - Frequency of the Financial Statements
     ///
     /// # Returns
     ///
-    /// * `HashMap<String, Plot>` - HashMap of Financial Statements Table Plots
-    async fn financials_tables(&self, height: Option<usize>, width: Option<usize>) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
-        let dfs = vec![
-            ("Income Statement", self.income_statement().await.unwrap()),
-            ("Balance Sheet", self.balance_sheet().await.unwrap()),
-            ("Cashflow Statement", self.cashflow_statement().await.unwrap()),
-            ("Financial Ratios", self.financial_ratios().await.unwrap())
-        ];
-        let mut plots = HashMap::new();
-
-        for (name, df) in dfs.iter() {
-            let fields = df.get_column_names();
-            let fields= fields.iter().map(|x| x.to_string())
-                .collect::<Vec<String>>();
-            let values = df
-                .iter()
-                .map(|x| {
-                    x.iter()
-                        .map(|y| match y {
-                            AnyValue::Null => "".to_string(),
-                            AnyValue::String(str_val) => str_val.to_string(),
-                            AnyValue::Float64(val) => if name == &"Financial Ratios" {format!("{:.2}", val)}
-                            else if val > -999.0 && val < 999.0 {format!("${:.2}", val)}
-                            else{format!("${}", (val as i64).to_formatted_string(&Locale::en))
-                            },
-                            _ => format!("{}", y),
-                        })
-                        .collect::<Vec<String>>()
-                })
-                .collect::<Vec<Vec<String>>>();
-            let trace = Table::new(
-                Header::new(fields),
-                Cells::new(values),
-            );
-            let mut plot = Plot::new();
-            plot.add_trace(trace);
-
-            let layout = Layout::new()
-                .height(height.unwrap_or(DEFAULT_HEIGHT))
-                .width(width.unwrap_or(DEFAULT_WIDTH))
-                .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} {}</span>",
-                                             self.ticker, name)));
-
-            plot.set_layout(layout);
-            plots.insert(name.to_string(), plot);
+    /// * `FinancialsTables` - Financials Tables struct
+    async fn financials_tables(&self, frequency: StatementFrequency) -> Result<FinancialsTables, Box<dyn Error>> {
+        let data = self.income_statement(frequency).await?;
+        let table_type = match frequency {
+            StatementFrequency::Annual => TableType::AnnualIncomeStatement,
+            StatementFrequency::Quarterly => TableType::QuarterlyIncomeStatement,
         };
-        Ok(plots)
+        let income_statement = DataTable::new(data, table_type);
+
+        let data = self.balance_sheet(frequency).await?;
+        let table_type = match frequency {
+            StatementFrequency::Annual => TableType::AnnualBalanceSheet,
+            StatementFrequency::Quarterly => TableType::QuarterlyBalanceSheet,
+        };
+        let balance_sheet = DataTable::new(data, table_type);
+
+        let data = self.cashflow_statement(frequency).await?;
+        let table_type = match frequency {
+            StatementFrequency::Annual => TableType::AnnualCashflowStatement,
+            StatementFrequency::Quarterly => TableType::QuarterlyCashflowStatement,
+        };
+        let cashflow_statement = DataTable::new(data, table_type);
+
+        let data = self.financial_ratios(frequency).await?;
+        let table_type = match frequency {
+            StatementFrequency::Annual => TableType::AnnualFinancialRatios,
+            StatementFrequency::Quarterly => TableType::QuarterlyFinancialRatios,
+        };
+        let financial_ratios = DataTable::new(data, table_type);
+
+        Ok(FinancialsTables {
+            income_statement,
+            balance_sheet,
+            cashflow_statement,
+            financial_ratios,
+        })
     }
 
     /// Generates Charts of the Ticker's Option Volatility Surface, Smile, and Term Structure
@@ -493,15 +494,13 @@ impl TickerCharts for Ticker {
     ///
     /// # Returns
     ///
-    /// * `HashMap<String, Plot>` - HashMap of Volatility Surface, Smile, and Term Structure Charts
-    async fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> Result<HashMap<String, Plot>, Box<dyn Error>> {
+    /// * `OptionsCharts` - Options Charts struct
+    async fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> Result<OptionsCharts, Box<dyn Error>> {
         let vol_surface = self.volatility_surface().await?;
         let symbol = vol_surface.symbol;
         let ivols = vol_surface.ivols;
         let strikes = vol_surface.strikes;
         let ttms = vol_surface.ttms;
-        let mut plots: HashMap<String, Plot> = HashMap::new();
-
 
         // Volatility Surface
         let trace = Surface::new(ivols.clone()).x(strikes.clone()).y(ttms.clone());
@@ -527,7 +526,6 @@ impl TickerCharts for Ticker {
 
             );
         surface_plot.set_layout(layout);
-        plots.insert("Volatility Surface".to_string(), surface_plot);
 
         // Volatility Smile
         let mut traces = Vec::new();
@@ -554,7 +552,6 @@ impl TickerCharts for Ticker {
             smile_plot.add_trace(trace);
         }
         smile_plot.set_layout(layout);
-        plots.insert("Volatility Smile".to_string(), smile_plot);
 
 
         // Volatility Term Structure
@@ -592,20 +589,59 @@ impl TickerCharts for Ticker {
             term_plot.add_trace(trace);
         }
         term_plot.set_layout(layout);
-        plots.insert("Volatility Term Structure".to_string(), term_plot);
 
 
-        Ok(plots)
+        Ok(OptionsCharts {
+            volatility_surface: surface_plot,
+            volatility_smile: smile_plot,
+            volatility_term_structure: term_plot,
+        })
     }
 
+    /// Generates Tables of the Ticker's Options Chain and Volatility Surface Data
+    ///
+    /// # Returns
+    ///
+    /// * `OptionsTables` - Options Tables struct
+    async fn options_tables(&self) -> Result<OptionsTables, Box<dyn Error>> {
+        // Options Chain
+        let data = self.get_options().await?.chain;
+        let options_chain = DataTable::new(data, TableType::OptionsChain);
+
+        // Volatility Surface
+        let data = self.volatility_surface().await?.ivols_df;
+        let volatility_surface = DataTable::new(data, TableType::VolatilitySurface);
+
+        Ok(OptionsTables {
+            options_chain,
+            volatility_surface,
+        })
+    }
+
+    /// Generates a News Sentiment Chart for the Ticker
+    ///
+    /// # Arguments
+    ///
+    /// * `height` - `Option<usize>` - Height of the chart
+    /// * `width` - `Option<usize>` - Width of the chart
+    ///
+    /// # Returns
+    ///
+    /// * `Plot` - Plotly Chart struct
     async fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let data = self.get_news().await?;
+        let data = data.lazy()
+            .with_column(col("Published Date").dt().date().alias("Published Date"));
         let grouped = data.clone().lazy().group_by_stable([col("Published Date")])
             .agg([
                 col("Sentiment Score").mean().alias("Average Sentiment Score"),
                 col("Sentiment Score").count().alias("Number of Articles"),
             ]).collect()?;
-        let grouped = grouped.sort(&["Published Date"], SortMultipleOptions::new().with_order_descending(false))?;
+        let grouped = grouped.sort(&["Published Date"], SortMultipleOptions::new().with_order_descending(false))?
+            .lazy()
+            .with_column(col("Published Date").cast(DataType::Datetime(TimeUnit::Milliseconds, None)).alias("Published Date"))
+            .collect()?;
+
 
         // Convert to Vec for plotting
         let dates = grouped.column("Published Date")?.datetime()?

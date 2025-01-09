@@ -1,33 +1,31 @@
-mod server;
-mod components;
+use actix_web::{App, HttpServer};
+use env_logger::Env;
+use crate::router::index::index_html;
+use crate::router::portfolio::{portfolio, portfolio_report};
+use crate::router::symbols::get_all_symbols;
+use crate::router::ticker::{ticker, ticker_report};
+use crate::router::code::{get_code_examples};
 
-use dioxus::prelude::*;
-use crate::components::navbar::Route;
+mod router;
 
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
 
-fn main() {
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    #[cfg(feature = "web")]
-    wasm_logger::init(wasm_logger::Config::default());
-
-    let mut config = dioxus::fullstack::Config::new();
-
-    #[cfg(feature = "server")]
-    {
-        let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
-        config = config.addr(addr);
-    }
-
-    LaunchBuilder::new().with_cfg(config).launch(App)
-
-}
-
-
-#[component]
-fn App() -> Element {
-    rsx! {
-        div {
-            Router::<Route> {}
-        }
-    }
+    HttpServer::new( || {
+        App::new()
+            .service(actix_files::Files::new("/components", "src/components").show_files_listing())
+            .service(actix_files::Files::new("/images", "src/images").show_files_listing())
+            .service(index_html)
+            .service(ticker)
+            .service(ticker_report)
+            .service(portfolio)
+            .service(portfolio_report)
+            .service(get_all_symbols)
+            .service(get_code_examples)
+    })
+        .bind("0.0.0.0:8080")?
+        .run()
+        .await
 }

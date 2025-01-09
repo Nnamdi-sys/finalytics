@@ -1,6 +1,5 @@
 use plotly::{Plot, ImageFormat};
 
-
 pub trait PlotImage {
     fn to_png(&self, filename: &str, width: usize, height: usize, scale: f64);
     fn to_svg(&self, filename: &str, width: usize, height: usize, scale: f64);
@@ -35,3 +34,4 @@ impl PlotImage for Plot {
         self.write_image(filename, ImageFormat::EPS, width, height, scale);
     }
 }
+

@@ -5,7 +5,6 @@ use pyo3::types::PyDict;
 use tokio::task;
 use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
 
-
 #[pyclass]
 #[pyo3(name = "Portfolio")]
 pub struct PyPortfolio {
@@ -49,9 +48,12 @@ impl PyPortfolio {
     ///                                  objective_function = "max_sharpe"
     ///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5)]
     /// ```
-    pub fn new(ticker_symbols: Vec<&str>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
+    #[pyo3(signature = (ticker_symbols, benchmark_symbol=None, start_date=None, end_date=None, interval=None,
+    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None))]
+    pub fn new(ticker_symbols: Vec<String>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
                interval: Option<String>, confidence_level: Option<f64>, risk_free_rate: Option<f64>,
                objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>) -> Self {
+        let ticker_symbols = ticker_symbols.iter().map(|x| x.as_str()).collect();
         let default_start = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(365))
             .unwrap().format("%Y-%m-%d").to_string();
         let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -137,6 +139,7 @@ impl PyPortfolio {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn optimization_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         task::block_in_place(move || {
             let plot = self.portfolio.optimization_chart(height, width).unwrap();
@@ -154,26 +157,10 @@ impl PyPortfolio {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         task::block_in_place(move || {
             let plot = self.portfolio.performance_chart(height, width).unwrap();
-            rust_plot_to_py_plot(plot).unwrap()
-        })
-    }
-
-    /// display the portfolio performance stats table
-    ///
-    /// # Arguments
-    ///
-    /// * `height` - `optional int` - The height of the chart in pixels
-    /// * `width` - `optional int` - The width of the chart in pixels
-    ///
-    /// # Returns
-    ///
-    /// `Plot` object
-    pub fn performance_stats_table(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
-        task::block_in_place(move || {
-            let plot = self.portfolio.performance_stats_table(height, width).unwrap();
             rust_plot_to_py_plot(plot).unwrap()
         })
     }
@@ -188,10 +175,47 @@ impl PyPortfolio {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn asset_returns_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         task::block_in_place(move || {
-            let plot = self.portfolio.asset_returns_chart(height, width).unwrap();
+            let plot = self.portfolio.returns_chart(height, width).unwrap();
             rust_plot_to_py_plot(plot).unwrap()
         })
+    }
+
+    /// Display the portfolio assets returns matrix
+    ///
+    /// # Arguments
+    ///
+    /// * `height` - `int` - The height of the chart in pixels
+    /// * `width` - `int` - The width of the chart in pixels
+    ///
+    /// # Returns
+    ///
+    /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
+    pub fn returns_matrix(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
+        task::block_in_place(move || {
+            let plot = self.portfolio.returns_matrix(height, width).unwrap();
+            rust_plot_to_py_plot(plot).unwrap()
+        })
+    }
+
+    /// Displays the analytics report for the portfolio
+    ///
+    /// # Arguments
+    ///
+    /// * `report_type` - `optional str` - The type of report to display (performance)
+    #[pyo3(signature = (report_type=None))]
+    pub fn report(&self, report_type: Option<String>) {
+        task::block_in_place(move || {
+            let report_type = match report_type {
+                Some(report_type) => ReportType::from_str(&report_type),
+                None => ReportType::Performance
+            };
+            let report = tokio::runtime::Runtime::new().unwrap().block_on(
+                self.portfolio.report(Some(report_type))).unwrap();
+            report.show().unwrap();
+        });
     }
 }

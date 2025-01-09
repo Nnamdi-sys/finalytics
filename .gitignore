@@ -1,9 +1,7 @@
 .idea
 .venv
 target
-dist
-*.iml
+venv
 .DS_Store
-.ipynb_checkpoints
-temp_embedded.db
+
 

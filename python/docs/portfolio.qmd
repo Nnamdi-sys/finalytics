@@ -68,29 +68,6 @@ print(optimization_results)
 
 
 <details>
-<summary>`performance_stats_table`</summary>
-
-Display the performance stats table plot for the portfolio.
-
-**Parameters:**
-
-- `height` (Optional[int]): Optional height of the plot in pixels, defaults to None.
-- `width` (Optional[int]): Optional width of the plot in pixels, defaults to None.
-
-**Returns:**
-
-- `Plot`: Plot object containing the performance stats table.
-
-**Example:**
-
-```{python}
-performance_stats = portfolio.performance_stats_table()
-performance_stats.show()
-```
-</details>
-
-
-<details>
 <summary>`optimization_chart`</summary>
 
 Display the efficient frontier and allocation chart for the portfolio.
@@ -132,5 +109,68 @@ Display the performance chart for the portfolio.
 ```{python}
 performance_chart = portfolio.performance_chart()
 performance_chart.show()
+```
+</details>
+
+
+<details>
+<summary>`asset_returns_chart`</summary>
+
+Display the individual asset returns chart for the portfolio.
+
+**Parameters:**
+
+- `height` (Optional[int]): Optional height of the plot in pixels, defaults to None.
+- `width` (Optional[int]): Optional width of the plot in pixels, defaults to None.
+
+**Returns:**
+
+- `Plot`: Plot object containing the asset returns chart.
+
+**Example:**
+
+```{python}
+asset_returns_chart = portfolio.asset_returns_chart()
+asset_returns_chart.show()
+```
+</details>
+
+
+<details>
+<summary>`returns_matrix`</summary>
+
+Display the returns correlation matrix for the portfolio.
+
+**Parameters:**
+
+- `height` (Optional[int]): Optional height of the plot in pixels, defaults to None.
+- `width` (Optional[int]): Optional width of the plot in pixels, defaults to None.
+
+**Returns:**
+
+- `Plot`: Plot object containing the returns correlation matrix.
+
+**Example:**
+
+```{python}
+returns_matrix = portfolio.returns_matrix()
+returns_matrix.show()
+```
+</details>
+
+
+<details>
+<summary>`report`</summary>
+
+Generate a report for the portfolio.
+
+**Parameters:**
+
+- `report_type` (Optional[str]): The type of report to generate. Options are "performance".
+
+**Example:**
+
+```{python}
+portfolio.report("performance")
 ```
 </details>

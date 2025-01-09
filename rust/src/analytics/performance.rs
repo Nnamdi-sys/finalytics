@@ -7,7 +7,7 @@ use crate::models::ticker::{Ticker, TickerBuilder};
 use crate::analytics::technicals::TechnicalIndicators;
 use crate::analytics::optimization::{ObjectiveFunction, portfolio_optimization};
 use crate::analytics::statistics::{PerformanceStats, covariance_matrix, daily_portfolio_returns};
-use crate::prelude::{Column, TickersBuilder};
+use crate::prelude::{Column, TickersBuilder, TickersData};
 
 
 #[derive(Debug, Clone)]
@@ -173,8 +173,7 @@ impl PortfolioPerformanceStats {
         )?;
 
         let benchmark_returns = benchmark_returns.sort(&["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
-        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
-        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Backward(None))?;
+        let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Zero)?;
         let dates_array = benchmark_returns.column("timestamp")?.datetime()?
             .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
             .naive_local()).collect::<Vec<NaiveDateTime>>();

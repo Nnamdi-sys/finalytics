@@ -4,7 +4,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use finalytics::prelude::*;
 use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
-use crate::technicals::IndicatorType;
 
 #[pyclass]
 #[pyo3(name = "Ticker")]
@@ -40,6 +39,7 @@ impl PyTicker {
     /// ticker = finalytics.Ticker(symbol="AAPL", start_date="2020-01-01", end_date="2021-01-01", interval="1d",
     /// benchmark_symbol="^GSPC", confidence_level=0.95, risk_free_rate=0.02)
     /// ```
+    #[pyo3(signature = (symbol, start_date=None, end_date=None, interval=None, benchmark_symbol=None, confidence_level=None, risk_free_rate=None))]
     pub fn new(symbol: &str, start_date: Option<String>, end_date: Option<String>, interval: Option<String>, benchmark_symbol: Option<String>,
     confidence_level: Option<f64>, risk_free_rate: Option<f64>) -> Self {
         let default_start = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(365))
@@ -185,13 +185,18 @@ impl PyTicker {
 
     /// Get the Income Statement for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `frequency` - `str` - The frequency of the statement (annual or quarterly)
+    ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Income Statement
-    pub fn get_income_statement(&self) -> PyObject {
+    pub fn get_income_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let income_statement = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.income_statement()).unwrap();
+                self.ticker.income_statement(frequency)).unwrap();
             let df = rust_df_to_py_df(&income_statement).unwrap();
             df
         })
@@ -199,13 +204,18 @@ impl PyTicker {
 
     /// Get the Balance Sheet for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `frequency` - `str` - The frequency of the statement (annual or quarterly)
+    ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Balance Sheet
-    pub fn get_balance_sheet(&self) -> PyObject {
+    pub fn get_balance_sheet(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let balance_sheet = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.balance_sheet()).unwrap();
+                self.ticker.balance_sheet(frequency)).unwrap();
             let df = rust_df_to_py_df(&balance_sheet).unwrap();
             df
         })
@@ -213,13 +223,18 @@ impl PyTicker {
 
     /// Get the Cashflow Statement for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `frequency` - `str` - The frequency of the statement (annual or quarterly)
+    ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Cashflow Statement
-    pub fn get_cashflow_statement(&self) -> PyObject {
+    pub fn get_cashflow_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let cashflow_statement = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.cashflow_statement()).unwrap();
+                self.ticker.cashflow_statement(frequency)).unwrap();
             let df = rust_df_to_py_df(&cashflow_statement).unwrap();
             df
         })
@@ -227,13 +242,18 @@ impl PyTicker {
 
     /// Get the Financial Ratios for the ticker
     ///
+    /// # Arguments
+    ///
+    /// * `frequency` - `str` - The frequency of the statement (annual or quarterly)
+    ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Financial Ratios
-    pub fn get_financial_ratios(&self) -> PyObject {
+    pub fn get_financial_ratios(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let ratios = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.financial_ratios()).unwrap();
+                self.ticker.financial_ratios(frequency)).unwrap();
             let df = rust_df_to_py_df(&ratios).unwrap();
             df
         })
@@ -306,6 +326,7 @@ impl PyTicker {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         let plot = task::block_in_place(move || {
             let performance_chart = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -326,6 +347,7 @@ impl PyTicker {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject  {
         let plot = task::block_in_place(move || {
             let candlestick_chart = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -347,6 +369,7 @@ impl PyTicker {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (chart_type, height=None, width=None))]
     pub fn options_chart(&self, chart_type: String, height: Option<usize>, width: Option<usize>) -> PyObject {
         let plot = task::block_in_place(move || {
 
@@ -354,80 +377,14 @@ impl PyTicker {
                 self.ticker.options_charts(height, width)).unwrap();
 
             match chart_type.as_str() {
-                "surface" => options_chart.get("Volatility Surface").unwrap().clone(),
-                "smile" => options_chart.get("Volatility Smile").unwrap().clone(),
-                "term_structure" => options_chart.get("Volatility Term Structure").unwrap().clone(),
+                "surface" => options_chart.volatility_surface,
+                "smile" => options_chart.volatility_smile,
+                "term_structure" => options_chart.volatility_term_structure,
                 _ => panic!("Invalid chart type. Please choose either 'surface', 'smile' or 'term_structure'"),
             }
 
         });
 
-        rust_plot_to_py_plot(plot).unwrap()
-    }
-
-    /// Display the performance stats table for the ticker
-    ///
-    /// # Arguments
-    ///
-    /// * `height` - `optional int` - The height of the table
-    /// * `width` - `optional int` - The width of the table
-    ///
-    /// # Returns
-    ///
-    /// `Plot` object
-    pub fn performance_stats_table(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
-        let plot = task::block_in_place(move || {
-            let performance_stats_table = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.performance_stats_table(height, width)).unwrap();
-            performance_stats_table
-        });
-
-        rust_plot_to_py_plot(plot).unwrap()
-    }
-
-    /// Display the summary stats table for the ticker
-    ///
-    /// # Arguments
-    ///
-    /// * `height` - `optional int` - The height of the table
-    /// * `width` - `optional int` - The width of the table
-    ///
-    /// # Returns
-    ///
-    /// `Plot` object
-    pub fn summary_stats_table(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
-        let plot = task::block_in_place(move || {
-            let summary_stats_table = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.summary_stats_table(height, width)).unwrap();
-            summary_stats_table
-        });
-
-        rust_plot_to_py_plot(plot).unwrap()
-    }
-
-    /// Display the Financial Statement Table Chart for the ticker
-    ///
-    /// # Arguments
-    ///
-    /// * `chart_type` - `str` - The type of chart to display (Income Statement, Balance Sheet, Cashflow Statement, Financial Ratios)
-    /// * `height` - `optional int` - The height of the chart
-    /// * `width` - `optional int` - The width of the chart
-    ///
-    /// # Returns
-    ///
-    /// `Plot` object
-    pub fn financials_tables(&self, chart_type: &str, height: Option<usize>, width: Option<usize>) -> PyObject {
-        let plot = task::block_in_place(move || {
-            let financials_tables = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.financials_tables(height, width)).unwrap();
-            match chart_type {
-                "Income Statement" => financials_tables.get("Income Statement").unwrap().clone(),
-                "Balance Sheet" => financials_tables.get("Balance Sheet").unwrap().clone(),
-                "Cashflow Statement" => financials_tables.get("Cashflow Statement").unwrap().clone(),
-                "Financial Ratios" => financials_tables.get("Financial Ratios").unwrap().clone(),
-                _ => panic!("Invalid chart type. Please choose either 'Income Statement', 'Balance Sheet', 'Cashflow Statement' or 'Financial Ratios'"),
-            }
-        });
         rust_plot_to_py_plot(plot).unwrap()
     }
 
@@ -441,6 +398,7 @@ impl PyTicker {
     /// # Returns
     ///
     /// `Plot` object
+    #[pyo3(signature = (height=None, width=None))]
     pub fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         let plot = task::block_in_place(move || {
             let news_sentiment_chart = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -451,43 +409,22 @@ impl PyTicker {
         rust_plot_to_py_plot(plot).unwrap()
     }
 
-    /// Compute a technical indicator for the ticker
+    /// Displays the analytics report for the ticker
     ///
     /// # Arguments
     ///
-    /// * `indicator` - `IndicatorType` - The type of technical indicator to compute
-    ///
-    /// # Returns
-    ///
-    /// `DataFrame` - A Polars DataFrame containing the technical indicator data
-    pub fn technicals(&self, indicator: IndicatorType) -> PyObject {
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(async move {
-            let get_col = |col: Option<String>| {
-                match col {
-                    Some(c) => Some(Column::from_str(c.as_str())),
-                    None => Some(Column::from_str("close"))
-                }
+    /// * `report_type` - `optional str` - The type of report to display (performance, financials, options, news)
+    #[pyo3(signature = (report_type=None))]
+    pub fn report(&self, report_type: Option<String>) {
+        task::block_in_place(move || {
+            let report_type = match report_type {
+                Some(report_type) => ReportType::from_str(&report_type),
+                None => ReportType::Performance
             };
-            match indicator {
-                IndicatorType::SMA(period, col) => self.ticker.sma(period, get_col(col)).await,
-                IndicatorType::EMA(period, col) => self.ticker.ema(period, get_col(col)).await,
-                IndicatorType::RSI(period, col) => self.ticker.rsi(period, get_col(col)).await,
-                IndicatorType::MACD(fast_period, slow_period, signal_period, col) => self.ticker.macd(fast_period, slow_period, signal_period, get_col(col)).await,
-                IndicatorType::PPO(fast_period, slow_period, signal_period, col) => self.ticker.ppo(fast_period, slow_period, signal_period, get_col(col)).await,
-                IndicatorType::MFI(period) => self.ticker.mfi(period).await,
-                IndicatorType::BB(period, std_dev, col) => self.ticker.bb(period, std_dev, get_col(col)).await,
-                IndicatorType::FS(period, col) => self.ticker.fs(period, get_col(col)).await,
-                IndicatorType::SS(stochastic_period, ema_period, col) => self.ticker.ss(stochastic_period, ema_period, get_col(col)).await,
-                IndicatorType::SD(period, col) => self.ticker.sd(period, get_col(col)).await,
-                IndicatorType::MAD(period, col) => self.ticker.mad(period, get_col(col)).await,
-                IndicatorType::MAX(period, col) => self.ticker.max(period, get_col(col)).await,
-                IndicatorType::MIN(period, col) => self.ticker.min(period, get_col(col)).await,
-                IndicatorType::ATR(period) => self.ticker.atr(period).await,
-                IndicatorType::ROC(period, col) => self.ticker.roc(period, get_col(col)).await,
-                IndicatorType::OBV() => self.ticker.obv().await,
-            }
-        }).unwrap();
-        rust_df_to_py_df(&result).unwrap()
+            let report = tokio::runtime::Runtime::new().unwrap().block_on(
+                self.ticker.report(Some(report_type))).unwrap();
+            report.show().unwrap();
+        });
     }
 
 }

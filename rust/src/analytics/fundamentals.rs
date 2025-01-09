@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::error::Error;
 use polars::prelude::*;
+use crate::data::config::{StatementFrequency, StatementType};
 use crate::data::ticker::TickerData;
 use crate::models::ticker::Ticker;
-use crate::utils::date_utils::convert_to_quarter;
+use crate::utils::date_utils::{convert_to_quarter, convert_to_year};
 
 pub trait Financials {
-    fn financial_ratios(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
-    fn income_statement(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
-    fn balance_sheet(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
-    fn cashflow_statement(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn financial_ratios(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn income_statement(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn balance_sheet(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn cashflow_statement(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
 
 impl Financials for Ticker {
@@ -18,10 +19,10 @@ impl Financials for Ticker {
     /// # Returns
     ///
     /// * `Financials` struct
-    async fn financial_ratios(&self) -> Result<DataFrame, Box<dyn Error>>{
-        let income_statement = self.get_fundamentals("income-statement", "quarterly").await?;
-        let balance_sheet = self.get_fundamentals("balance-sheet", "quarterly").await?;
-        let cash_flow = self.get_fundamentals("cash-flow", "quarterly").await?;
+    async fn financial_ratios(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>>{
+        let income_statement = self.get_fundamentals(StatementType::IncomeStatement, frequency).await?;
+        let balance_sheet = self.get_fundamentals(StatementType::BalanceSheet, frequency).await?;
+        let cash_flow = self.get_fundamentals(StatementType::CashFlowStatement, frequency).await?;
         let ratios = vec![
             Series::new("date", income_statement.column("asOfDate")?),
             Series::new("Gross Profit Margin", (income_statement.column("GrossProfit")? / income_statement.column("TotalRevenue")?)?),
@@ -52,7 +53,10 @@ impl Financials for Ticker {
         // Transpose the DataFrame
         let dates = df.column("date")?.str()?.into_no_null_iter()
             .collect::<Vec<&str>>();
-        let dates= convert_to_quarter(dates);
+        let dates= match frequency {
+            StatementFrequency::Quarterly => convert_to_quarter(dates),
+            StatementFrequency::Annual => convert_to_year(dates),
+        };
         let mut df = df.drop("date").unwrap();
         let items = Series::new("Items", df.get_column_names());
         let mut transposed_df = df.transpose(None, None)?;
@@ -66,8 +70,8 @@ impl Financials for Ticker {
     /// # Returns
     ///
     /// * `DataFrame` - Formatted income statement
-    async fn income_statement(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let income_statement = self.get_fundamentals("income-statement", "quarterly").await?;
+    async fn income_statement(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+        let income_statement = self.get_fundamentals(StatementType::IncomeStatement, frequency).await?;
         
         let mut ifrs_mapping = HashMap::new();
         ifrs_mapping.insert("TotalRevenue", "Revenue");
@@ -90,7 +94,7 @@ impl Financials for Ticker {
             "TaxProvision", "NetIncome", "BasicEPS", "DilutedEPS",
         ];
 
-        // remove item from cols if it doesnt exist in the income statement dataframe
+        // remove item from cols if it doesn't exist in the income statement dataframe
         cols.retain(|x| income_statement.column(*x).is_ok());
 
         let df = income_statement.clone().select(&cols)?;
@@ -110,7 +114,10 @@ impl Financials for Ticker {
         // Transpose the DataFrame
         let dates = income_statement.column("asOfDate")?.str()?.into_no_null_iter()
             .collect::<Vec<&str>>();
-        let dates= convert_to_quarter(dates);
+        let dates= match frequency {
+            StatementFrequency::Quarterly => convert_to_quarter(dates),
+            StatementFrequency::Annual => convert_to_year(dates),
+        };
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
@@ -123,8 +130,8 @@ impl Financials for Ticker {
     /// # Returns
     ///
     /// * `DataFrame` - Formatted balance sheet
-    async fn balance_sheet(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let balance_sheet = self.get_fundamentals("balance-sheet", "quarterly").await?;
+    async fn balance_sheet(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+        let balance_sheet = self.get_fundamentals(StatementType::BalanceSheet, frequency).await?;
         
         let mut ifrs_mapping = HashMap::new();
 
@@ -186,7 +193,10 @@ impl Financials for Ticker {
         // Transpose the DataFrame
         let dates = balance_sheet.column("asOfDate")?.str()?.into_no_null_iter()
             .collect::<Vec<&str>>();
-        let dates= convert_to_quarter(dates);
+        let dates= match frequency {
+            StatementFrequency::Quarterly => convert_to_quarter(dates),
+            StatementFrequency::Annual => convert_to_year(dates),
+        };
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;
@@ -201,8 +211,8 @@ impl Financials for Ticker {
     /// # Returns
     ///
     /// * `DataFrame` - Formatted cash flow statement
-    async fn cashflow_statement(&self) -> Result<DataFrame, Box<dyn Error>> {
-        let cash_flow = self.get_fundamentals("cash-flow", "quarterly").await?;
+    async fn cashflow_statement(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+        let cash_flow = self.get_fundamentals(StatementType::CashFlowStatement, frequency).await?;
         
         let mut ifrs_mapping = HashMap::new();
 
@@ -277,7 +287,10 @@ impl Financials for Ticker {
         // Transpose the DataFrame
         let dates = cash_flow.column("asOfDate")?.str()?.into_no_null_iter()
             .collect::<Vec<&str>>();
-        let dates= convert_to_quarter(dates);
+        let dates= match frequency {
+            StatementFrequency::Quarterly => convert_to_quarter(dates),
+            StatementFrequency::Annual => convert_to_year(dates),
+        };
         let items = Series::new("Items", renamed_df.get_column_names());
         let mut transposed_df = renamed_df.transpose(None, None)?;
         let _ =  transposed_df.set_column_names(&dates)?;

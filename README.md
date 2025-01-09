@@ -5,6 +5,8 @@
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 [![CodeFactor](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics/badge)](https://www.codefactor.io/repository/github/nnamdi-sys/finalytics)
+[![Crates.io](https://img.shields.io/crates/d/finalytics)](https://crates.io/crates/finalytics)
+
 
 **Finalytics** is a Rust library designed for retrieving financial data and performing security analysis and portfolio optimization.
 
@@ -35,35 +37,33 @@ use finalytics::prelude::*;
 async fn main() -> Result<(), Box<dyn Error>> {
 
     // Instantiate a Multiple Ticker Object
-    let ticker_symbols = Vec::from(["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"]);
+    let ticker_symbols = vec!["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"];
 
     let tickers = TickersBuilder::new()
-        .tickers(ticker_symbols)
-        .start_date("2020-01-01")
-        .end_date("2024-01-01")
+        .tickers(ticker_symbols.clone())
+        .start_date("2023-01-01")
+        .end_date("2024-12-31")
         .interval(Interval::OneDay)
         .benchmark_symbol("^GSPC")
         .confidence_level(0.95)
         .risk_free_rate(0.02)
         .build();
 
-    // Calculate the Performance Statistics of all the Tickers
-    let performance_stats = tickers.performance_stats().await?;
-    println!("{:?}", performance_stats);
+    // Generate a Single Ticker Report
+    let ticker = tickers.clone().get_ticker("AAPL").await?;
+    ticker.report(Some(ReportType::Performance)).await?.show()?;
+    ticker.report(Some(ReportType::Financials)).await?.show()?;
+    ticker.report(Some(ReportType::Options)).await?.show()?;
+    ticker.report(Some(ReportType::News)).await?.show()?;
 
-    // Display the Security Analysis Charts
-    tickers.returns_chart(None, None).await?.show();
-    tickers.returns_matrix(None, None).await?.show();
-    
+    // Generate a Multiple Ticker Report
+    tickers.report(Some(ReportType::Performance)).await?.show()?;
+
     // Perform a Portfolio Optimization
-    let portfolio = tickers.optimize_portfolio(ObjectiveFunction::MaxSharpe).await?;
-    println!("{:?}", portfolio.performance_stats);
+    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
 
-    // Display the Portfolio Optimization Charts
-    portfolio.performance_stats_table(None, None)?.show();
-    portfolio.optimization_chart(None, None)?.show();
-    portfolio.performance_chart(None, None)?.show();
-    portfolio.asset_returns_chart(None, None)?.show();
+    // Generate a Portfolio Report
+    portfolio.report(Some(ReportType::Performance)).await?.show()?;
 
     Ok(())
 }
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 [![Documentation Status](https://img.shields.io/badge/docs-quarto-blue)](https://nnamdi.quarto.pub/finalytics/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
-![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 ![PePy](https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads)
 
 
@@ -96,39 +96,38 @@ from finalytics import Tickers
 
 # Instantiate a Multiple Ticker Object
 tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
-                  start_date="2020-01-01",
-                  end_date="2024-01-01",
+                  start_date="2023-01-01",
+                  end_date="2024-12-31",
                   interval="1d",
                   confidence_level=0.95,
                   risk_free_rate=0.02)
 
-# Calculate the Performance Statistics of all the Tickers
-print(tickers.performance_stats())
+# Generate a Single Ticker Report
+ticker = tickers.get_ticker("AAPL")
+ticker.report("performance")
+ticker.report("financials")
+ticker.report("options")
+ticker.report("news")
 
-# Display the Security Analysis Charts
-tickers.returns_chart().show()
-tickers.returns_matrix().show()
+# Generate a Multiple Ticker Report
+tickers.report("performance")
 
-# Perform Portfolio Optimization
-portfolio = tickers.optimize()
-print(portfolio.optimization_results())
+# Perform a Portfolio Optimization
+portfolio = tickers.optimize(objective_function="max_sharpe")
 
-# Display the Portfolio Optimization Charts
-portfolio.optimization_chart().show()
-portfolio.performance_chart().show()
-portfolio.asset_returns_chart().show()
-portfolio.performance_stats_table().show()
+# Generate a Portfolio Report
+portfolio.report("performance")
 
 ```
 
 
 ## Sample Applications
 
-<h3><a href="https://finalytics.rs/ticker">Ticker Charts Viewer</a></h3>
+<h3><a href="https://finalytics.rs/ticker">Ticker Dashboard</a></h3>
 
 This sample application allows you to perform security analysis based on the Finalytics Library.
 
-<h3><a href="https://finalytics.rs/portfolio">Portfolio Charts Viewer</a></h3>
+<h3><a href="https://finalytics.rs/portfolio">Portfolio Dashboard</a></h3>
 
 This sample application enables you to perform portfolio optimization based on the Finalytics Library.
 

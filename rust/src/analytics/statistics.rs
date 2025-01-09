@@ -90,7 +90,7 @@ impl PerformanceStats {
         let active_return = ((1.0 + active_return/100.0).powf(252.0) - 1.0) * 100.0;
         let active_risk = std_dev(&excess_returns) * 252.0_f64.sqrt();
         let information_ratio = active_return / active_risk;
-        let maximum_drawdown = maximum_drawdown(&returns);
+        let (_, maximum_drawdown) = maximum_drawdown(&returns);
         let calmar_ratio = annualized_return / maximum_drawdown;
         let value_at_risk = value_at_risk(&returns, confidence_level);
         let expected_shortfall = expected_shortfall(&returns, confidence_level);
@@ -250,35 +250,50 @@ pub fn correlation_matrix(df: &DataFrame) -> Result<ndarray::Array2<f64>, Box<dy
 ///
 /// # Returns
 ///
-/// * `f64` - Maximum drawdown
-pub fn maximum_drawdown(returns: &Series) -> f64 {
-    let mut max_drawdown = 0.0;
-    let returns = returns.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-    let mut peak = returns[0];
-    let mut drawdown = 0.0;
+/// * `(Vec<f64>, f64)` - Rolling drawdowns and maximum drawdown
+pub fn maximum_drawdown(returns: &Series) -> (Vec<f64>, f64) {
+    // Convert the Series into a Vec<f64>
+    let returns = returns
+        .f64()
+        .unwrap()
+        .to_vec()
+        .iter()
+        .map(|x| x.unwrap())
+        .collect::<Vec<f64>>();
 
-    // Iterate through the returns series to calculate maximum drawdown
-    for &return_value in returns.iter() {
-        // Update the peak return if necessary
-        if return_value > peak {
-            peak = return_value;
-            drawdown = 0.0; // Reset drawdown when a new peak is reached
-        } else {
-            // Calculate the drawdown as the difference from the peak
-            let current_drawdown = peak - return_value;
-            if current_drawdown > drawdown {
-                drawdown = current_drawdown;
-            }
+    // Step 1: Calculate cumulative returns
+    let mut cumulative_returns = Vec::with_capacity(returns.len());
+    let mut cumulative_sum = 0.0;
+    for &return_value in &returns {
+        cumulative_sum += return_value;
+        cumulative_returns.push(cumulative_sum);
+    }
+
+    // Step 2: Calculate cumulative maximum of cumulative returns
+    let mut cumulative_max = Vec::with_capacity(cumulative_returns.len());
+    let mut current_max = cumulative_returns[0];
+    for &cum_return in &cumulative_returns {
+        if cum_return > current_max {
+            current_max = cum_return;
         }
+        cumulative_max.push(current_max);
+    }
 
-        // Update the maximum drawdown if necessary
+    // Step 3: Calculate drawdowns
+    let mut rolling_drawdowns = Vec::new();
+    let mut max_drawdown = 0.0;
+    for (cum_max, cum_return) in cumulative_max.iter().zip(cumulative_returns.iter()) {
+        let drawdown = cum_max - cum_return; // Difference between the peak and current value
+        rolling_drawdowns.push(-drawdown); // Negative drawdown for underwater plot
         if drawdown > max_drawdown {
-            max_drawdown = drawdown;
+            max_drawdown = drawdown; // Update maximum drawdown
         }
     }
 
-    max_drawdown
+    // Return rolling drawdowns and the overall maximum drawdown
+    (rolling_drawdowns, max_drawdown)
 }
+
 
 /// computes the value at risk of a series of security returns
 ///

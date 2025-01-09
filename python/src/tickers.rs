@@ -2,8 +2,8 @@ use tokio::task;
 use pyo3::prelude::*;
 use polars::export::chrono;
 use finalytics::prelude::*;
-use crate::ticker::PyTicker;
 use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot};
+use crate::ticker::PyTicker;
 use crate::portfolio::PyPortfolio;
 
 
@@ -46,6 +46,7 @@ impl PyTickers {
     ///                             confidence_level=0.95,
     ///                             risk_free_rate=0.02)
     /// ```
+    #[pyo3(signature = (symbols, start_date=None, end_date=None, interval=None, benchmark_symbol=None, confidence_level=None, risk_free_rate=None))]
     pub fn new(symbols: Vec<String>, start_date: Option<String>, end_date: Option<String>, interval: Option<String>, benchmark_symbol: Option<String>,
                confidence_level: Option<f64>, risk_free_rate: Option<f64>) -> Self {
         let symbols = symbols.iter().map(|x| x.as_str()).collect();
@@ -110,40 +111,44 @@ impl PyTickers {
     }
 
     /// Fetch the income statement for all tickers
-    pub fn get_income_statement(&self) -> PyObject {
+    pub fn get_income_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.income_statement()
+                self.tickers.income_statement(frequency)
             ).unwrap();
             rust_df_to_py_df(&df).unwrap()
         })
     }
 
     /// Fetch the balance sheet for all tickers
-    pub fn get_balance_sheet(&self) -> PyObject {
+    pub fn get_balance_sheet(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.balance_sheet()
+                self.tickers.balance_sheet(frequency)
             ).unwrap();
             rust_df_to_py_df(&df).unwrap()
         })
     }
 
     /// Fetch the cash flow statement for all tickers
-    pub fn get_cashflow_statement(&self) -> PyObject {
+    pub fn get_cashflow_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.cashflow_statement()
+                self.tickers.cashflow_statement(frequency)
             ).unwrap();
             rust_df_to_py_df(&df).unwrap()
         })
     }
 
     /// Fetch the financial ratios for all tickers
-    pub fn get_financial_ratios(&self) -> PyObject {
+    pub fn get_financial_ratios(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
+            let frequency = StatementFrequency::from_str(frequency);
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.financial_ratios()
+                self.tickers.financial_ratios(frequency)
             ).unwrap();
             rust_df_to_py_df(&df).unwrap()
         })
@@ -170,6 +175,7 @@ impl PyTickers {
     }
 
     /// Display the cumulative returns chart for all tickers
+    #[pyo3(signature = (height=None, width=None))]
     pub fn returns_chart(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         task::block_in_place(move || {
             let plot = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -180,6 +186,7 @@ impl PyTickers {
     }
 
     /// Display the returns correlation matrix for all tickers
+    #[pyo3(signature = (height=None, width=None))]
     pub fn returns_matrix(&self, height: Option<usize>, width: Option<usize>) -> PyObject {
         task::block_in_place(move || {
             let plot = tokio::runtime::Runtime::new().unwrap().block_on(
@@ -187,6 +194,24 @@ impl PyTickers {
             ).unwrap();
             rust_plot_to_py_plot(plot).unwrap()
         })
+    }
+
+    /// Displays the analytics report for the tickers
+    ///
+    /// # Arguments
+    ///
+    /// * `report_type` - `optional str` - The type of report to display (performance)
+    #[pyo3(signature = (report_type=None))]
+    pub fn report(&self, report_type: Option<String>) {
+        task::block_in_place(move || {
+            let report_type = match report_type {
+                Some(report_type) => ReportType::from_str(&report_type),
+                None => ReportType::Performance
+            };
+            let report = tokio::runtime::Runtime::new().unwrap().block_on(
+                self.tickers.report(Some(report_type))).unwrap();
+            report.show().unwrap();
+        });
     }
 
     /// Fetch the Ticker object for a specific ticker symbol
@@ -203,9 +228,10 @@ impl PyTickers {
     }
 
     /// Optimizes the tickers given the objective function and constraints
+    #[pyo3(signature = (objective_function=None, constraints=None))]
     pub fn optimize(&self, objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>) -> PyPortfolio {
         PyPortfolio::new(
-            self.tickers.tickers.clone().iter().map(|x| x.ticker.as_str()).collect(),
+            self.tickers.tickers.clone().iter().map(|x| x.ticker.to_string()).collect(),
             Some(self.tickers.benchmark_symbol.clone()),
             Some(self.tickers.start_date.clone()),
             Some(self.tickers.end_date.clone()),

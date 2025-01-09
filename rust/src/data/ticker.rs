@@ -9,7 +9,7 @@ use tokio::sync::Semaphore;
 use crate::models::ticker::Ticker;
 use crate::utils::web_utils::{fetch_news, get_json_response};
 use crate::utils::date_utils::{round_datetime_to_day, round_datetime_to_hour, round_datetime_to_minute, time_to_maturity, to_date, to_datetime, to_timestamp};
-use crate::data::config::{Fundamentals, FundamentalsResponse, Interval, Object, OptionContract, Options, Quote, TickerSummaryStats};
+use crate::data::config::{Fundamentals, FundamentalsResponse, Interval, Object, OptionContract, Options, Quote, StatementFrequency, StatementType, TickerSummaryStats};
 
 
 pub trait TickerData {
@@ -17,7 +17,7 @@ pub trait TickerData {
     fn get_ticker_stats(&self) -> impl std::future::Future<Output = Result<TickerSummaryStats, Box<dyn Error>>>;
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output = Result<Options, Box<dyn Error>>>;
-    fn get_fundamentals(&self, statement_type: &str, frequency: &str) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_fundamentals(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
 
@@ -266,24 +266,24 @@ impl TickerData for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `statement_type` - Statement Type (e.g. income-statement, balance-sheet, cash-flow)
-    /// * `frequency` - Frequency (e.g. annual, quarterly)
+    /// * `statement_type` - StatementType
+    /// * `frequency` - StatementFrequency
     ///
     /// # Returns
     ///
     /// * `DataFrame` - Ticker Fundamental Data
     async fn get_fundamentals(
         &self,
-        statement_type: &str,
-        frequency: &str
+        statement_type: StatementType,
+        frequency: StatementFrequency
     ) -> Result<DataFrame, Box<dyn Error>> {
         let symbol = self.ticker.clone();
         let period1 = (Utc::now() - Duration::days(365 * 5)).timestamp();
         let period2 = Utc::now().timestamp();
         let _type = match statement_type {
-            "income-statement" => Fundamentals.get_income_statement_items(frequency),
-            "balance-sheet" => Fundamentals.get_balance_sheet_items(frequency),
-            "cash-flow" => Fundamentals.get_cash_flow_items(frequency),
+            StatementType::IncomeStatement => Fundamentals.get_income_statement_items(frequency),
+            StatementType::BalanceSheet => Fundamentals.get_balance_sheet_items(frequency),
+            StatementType::CashFlowStatement => Fundamentals.get_cash_flow_items(frequency),
             _ => unimplemented!("Statement Type Not Supported"),
         };
         let _type_clone = _type.clone();
@@ -314,7 +314,7 @@ impl TickerData for Ticker {
 
                     if items.len() == columns[0].len(){
                         let vars_vec = items.iter().map(|x| x.reportedValue.raw).collect::<Vec<f64>>();
-                        let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
+                        let vars_series = Series::new(&*key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
                         columns.push(vars_series);
                     }
                     else {
@@ -332,7 +332,7 @@ impl TickerData for Ticker {
                                 vars_vec.push(0.0);
                             }
                         }
-                        let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
+                        let vars_series = Series::new(&*key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
                         columns.push(vars_series);
                     }
 
@@ -358,7 +358,7 @@ impl TickerData for Ticker {
                         vars_vec.push(0.0);
                     }
                 }
-                let vars_series = Series::new(&*key.as_str().replace(frequency, ""), &vars_vec);
+                let vars_series = Series::new(&*key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
                 columns.push(vars_series);
             }
         }
@@ -382,7 +382,7 @@ impl TickerData for Ticker {
         let mut futures = Vec::new();
 
         // Define the maximum number of concurrent tasks
-        let max_concurrent_tasks = 50;
+        let max_concurrent_tasks = 20;
         let semaphore = Arc::new(Semaphore::new(max_concurrent_tasks));
 
         // Create and configure the progress bar

@@ -116,6 +116,10 @@ print(news)
 
 Fetch the income statement for all tickers.
 
+**Parameters:**
+
+- `frequency` (str): The frequency of the data (annual or quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the income statement.
@@ -123,7 +127,7 @@ Fetch the income statement for all tickers.
 **Example:**
 
 ```{python}
-income_statement = tickers.get_income_statement()
+income_statement = tickers.get_income_statement(frequency="quarterly")
 print(income_statement)
 ```
 </details>
@@ -133,6 +137,10 @@ print(income_statement)
 
 Fetch the balance sheet for all tickers.
 
+**Parameters:**
+
+- `frequency` (str): The frequency of the data (annual or quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the balance sheet.
@@ -140,7 +148,7 @@ Fetch the balance sheet for all tickers.
 **Example:**
 
 ```{python}
-balance_sheet = tickers.get_balance_sheet()
+balance_sheet = tickers.get_balance_sheet(frequency="quarterly")
 print(balance_sheet)
 ```
 </details>
@@ -150,6 +158,10 @@ print(balance_sheet)
 
 Fetch the cash flow statement for all tickers.
 
+**Parameters:**
+
+- `frequency` (str): The frequency of the data (annual or quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the cash flow statement.
@@ -157,7 +169,7 @@ Fetch the cash flow statement for all tickers.
 **Example:**
 
 ```{python}
-cashflow_statement = tickers.get_cashflow_statement()
+cashflow_statement = tickers.get_cashflow_statement(frequency="quarterly")
 print(cashflow_statement)
 ```
 </details>
@@ -167,6 +179,10 @@ print(cashflow_statement)
 
 Fetch the financial ratios for all tickers.
 
+**Parameters:**
+
+- `frequency` (str): The frequency of the data (annual or quarterly).
+
 **Returns:**
 
 - `DataFrame`: Polars DataFrame containing the financial ratios.
@@ -174,7 +190,7 @@ Fetch the financial ratios for all tickers.
 **Example:**
 
 ```{python}
-financial_ratios = tickers.get_financial_ratios()
+financial_ratios = tickers.get_financial_ratios(frequency="quarterly")
 print(financial_ratios)
 ```
 </details>
@@ -246,6 +262,23 @@ returns_matrix = tickers.returns_matrix(height=600, width=800)
 returns_matrix.show()
 ```
 </details>
+
+<details>
+<summary>`report`</summary>
+
+Generate a report for all tickers.
+
+**Parameters:**
+
+- report_type (str): The type of report to generate ("performance").
+
+**Example:**
+
+```{python}
+tickers.report("performance")
+```
+</details>
+
 
 <details>
 <summary>`get_ticker`</summary>

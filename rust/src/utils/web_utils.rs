@@ -55,9 +55,13 @@ pub async fn fetch_news(token: &str, start_date: NaiveDate, end_date: NaiveDate,
 )]
 async fn fetch_html(url: String) -> Result<String, Box<dyn Error + Send + Sync>> {
     let response = REQUEST_CLIENT.get(url).send().await?;
-    if response.status() != StatusCode::OK {
-        return Err(format!("Request failed with status: {}", response.status()).into());
+
+   if response.status() != StatusCode::OK {
+       let body = response.text().await?;
+       println!("Request failed with error: {}", &body);
+       return Err(format!("Request failed with error: {}", body).into());
     }
+
     let body = response.text().await?;
     Ok(body)
 }
@@ -67,8 +71,8 @@ fn extract_news_details(body: String, compute_sentiment: bool) -> DataFrame {
 
     // Collect data into vectors
     let mut titles = Vec::new();
-    let mut links = Vec::new();
     let mut sources = Vec::new();
+    let mut links = Vec::new();
     let mut pub_dates = Vec::new();
     let mut sentiment_scores = Vec::new();
 
@@ -82,8 +86,8 @@ fn extract_news_details(body: String, compute_sentiment: bool) -> DataFrame {
         }
         let pub_date = NaiveDateTime::parse_from_str(&pub_date, "%a, %d %b %Y %H:%M:%S GMT").unwrap();
         titles.push(title.clone());
+        links.push(format!(r#"<a href="{}">{}</a>"#, link, title.replace(format!("- {}", source).as_str(), "")));
         sources.push(source);
-        links.push(link);
         pub_dates.push(pub_date);
         if compute_sentiment {
             let analyzer = SentimentIntensityAnalyzer::new();

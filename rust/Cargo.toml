@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -13,35 +13,35 @@ keywords = ["finance", "analytics"]
 [lib]
 path = "src/lib.rs"
 
-
 [dependencies]
-openssl = { version = "0.10.64", features = ["vendored"] }
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.122"
-reqwest = { version = "0.12.2", features = ["json"] }
-tokio = { version = "1.32.0", features = ["full"] }
-chrono = "0.4.37"
+openssl = { version = "0.10.68", features = ["vendored"] }
+serde = { version = "1.0.216", features = ["derive"] }
+serde_json = "1.0.133"
+reqwest = { version = "0.12.9", features = ["json"] }
+tokio = { version = "1.42.0", features = ["full"] }
+chrono = "0.4.39"
 select = "0.6.0"
 vader_sentiment = "0.1.1"
-polars = { version = "0.41.3", default-features = false, features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty"] }
+polars = { version = "0.41.3", features = ["lazy", "dtype-datetime", "rows", "fmt_no_tty", "json"] }
 ta = "0.5.0"
 num-format = "0.4.4"
-smartcore = "0.3.2"
-statrs = "0.17.1"
+smartcore = "0.4.0"
+statrs = "0.18.0"
 rand = "0.8.5"
-ndarray = "0.16.0"
+ndarray = "0.16.1"
 rand_distr = "0.4.3"
 optimization = "0.2.0"
 html-escape = "0.2.13"
-plotly = "0.9.0"
-once_cell = "1.19.0"
-futures = "0.3.30"
-indicatif = "0.17.8"
-cached = { version = "0.53.0", features = ["async"] }
-anyhow = "1.0.86"
+plotly = "0.12.1"
+once_cell = "1.20.2"
+futures = "0.3.31"
+indicatif = "0.17.9"
+cached = { version = "0.54.0", features = ["async"] }
+anyhow = "1.0.94"
+webbrowser = "1.0.3"
 
 [features]
-kaleido = ["plotly/kaleido"]
+kaleido = ["plotly/kaleido", "plotly/kaleido_download"]
 
 
 

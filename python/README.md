@@ -5,7 +5,7 @@
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 [![Documentation Status](https://img.shields.io/badge/docs-quarto-blue)](https://nnamdi.quarto.pub/finalytics/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
-![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)
+![Python Version](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 ![PePy](https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads)
 
 
@@ -27,28 +27,27 @@ from finalytics import Tickers
 
 # Instantiate a Multiple Ticker Object
 tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
-                  start_date="2020-01-01",
-                  end_date="2024-01-01",
+                  start_date="2023-01-01",
+                  end_date="2024-12-31",
                   interval="1d",
                   confidence_level=0.95,
                   risk_free_rate=0.02)
 
-# Calculate the Performance Statistics of all the Tickers
-print(tickers.performance_stats())
+# Generate a Single Ticker Report
+ticker = tickers.get_ticker("AAPL")
+ticker.report("performance")
+ticker.report("financials")
+ticker.report("options")
+ticker.report("news")
 
-# Display the Security Analysis Charts
-tickers.returns_chart().show()
-tickers.returns_matrix().show()
+# Generate a Multiple Ticker Report
+tickers.report("performance")
 
-# Perform Portfolio Optimization
-portfolio = tickers.optimize()
-print(portfolio.optimization_results())
+# Perform a Portfolio Optimization
+portfolio = tickers.optimize(objective_function="max_sharpe")
 
-# Display the Portfolio Optimization Charts
-portfolio.optimization_chart().show()
-portfolio.performance_chart().show()
-portfolio.asset_returns_chart().show()
-portfolio.performance_stats_table().show()
+# Generate a Portfolio Report
+portfolio.report("performance")
 
 ```
 

@@ -98,7 +98,7 @@ impl PortfolioBuilder {
 ///
 /// ### Example
 ///
-/// ```
+/// ```rust
 /// use std::error::Error;
 /// use finalytics::prelude::*;
 ///
@@ -118,14 +118,8 @@ impl PortfolioBuilder {
 ///                                             .constraints(constraints)
 ///                                             .build().await?;
 ///
-///     // Display Portfolio Optimization Results
-///     println!("{:?}", portfolio.performance_stats);
-///
-///    // Display Portfolio Analytics Charts
-///     portfolio.optimization_chart(None, None)?.show();
-///     portfolio.performance_chart(None, None)?.show();
-///     portfolio.asset_returns_chart(None, None)?.show();
-///     portfolio.performance_stats_table(None, None)?.show();
+///    // Display Portfolio Performance Report
+///    portfolio.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///     Ok(())
 /// }
