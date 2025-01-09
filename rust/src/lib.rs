@@ -124,7 +124,7 @@ mod tests {
     use crate::prelude::*;
     use std::error::Error;
 
-    #[ignore]
+    //#[ignore]
     #[tokio::test]
     async fn test_finalytics_reports() -> Result<(), Box<dyn Error>> {
         // Instantiate a Multiple Ticker Object

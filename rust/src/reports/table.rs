@@ -1,8 +1,9 @@
 use std::error::Error;
 use std::fs;
-use std::io::Cursor;
+use chrono::DateTime;
 use webbrowser;
 use polars::prelude::*;
+use serde_json::Value;
 
 pub enum TableType {
     OHLCV,
@@ -95,54 +96,76 @@ impl DataTable {
     }
 
     pub fn to_html(&self) -> Result<String, Box<dyn Error>> {
-        // Clone and serialize the DataFrame to JSON
-        let mut buffer = Cursor::new(Vec::new());
         let df = &mut self.data.clone();
-        JsonWriter::new(&mut buffer)
-            .with_json_format(JsonFormat::Json)
-            .finish(df)?;
-        let json_data = String::from_utf8(buffer.into_inner())?;
-        let parsed_json: serde_json::Value = serde_json::from_str(&json_data)?;
 
-        // Ensure JSON is an array of objects
-        let json_array = match parsed_json.as_array() {
-            Some(array) => array,
-            None => return Err("Failed to parse JSON data as an array".into()),
+        let json_data = serde_json::to_string(df)?;
+
+        let parsed_json: Value = serde_json::from_str(&json_data)?;
+
+        let columns = match parsed_json.get("columns") {
+            Some(Value::Array(cols)) => cols,
+            _ => return Err("Failed to find columns in JSON.".into()),
         };
 
-        // Extract column names in order
-        let column_names = self.data.get_column_names();
+        let column_names = df.get_column_names();
 
-        // Create the 2D array (dataSet) by extracting the values for each row
-        let data_set: Vec<Vec<String>> = json_array
+        let values: Vec<Vec<Value>> = columns
             .iter()
-            .filter_map(|row| row.as_object())
-            .map(|row| {
+            .filter_map(|col| col.get("values"))
+            .filter_map(|v| v.as_array())
+            .map(|arr| arr.clone())
+            .collect();
+
+        let num_rows = values.get(0).map_or(0, |v| v.len());
+        for column in &values {
+            if column.len() != num_rows {
+                return Err("Column lengths do not match.".into());
+            }
+        }
+
+        // Create the 2D array (dataSet) by combining values from each column
+        let data_set: Vec<Vec<String>> = (0..num_rows)
+            .map(|row_idx| {
                 column_names
                     .iter()
-                    .map(|col| {
-                        match row.get(*col) {
-                            Some(value) => match value {
-                                serde_json::Value::String(s) => s.clone(),
-                                serde_json::Value::Number(n) => n.to_string(),
-                                serde_json::Value::Bool(b) => b.to_string(),
-                                _ => "".to_string(),
+                    .map(|col_name| {
+                        let col_idx = column_names.iter().position(|name| name == col_name).unwrap();
+                        let value = &values[col_idx][row_idx];
+
+                        // Check if the column has a "Datatype" field with "Datetime"
+                        let column_datatype = columns[col_idx].get("datatype");
+                        let is_datetime = column_datatype
+                            .and_then(|dt| dt.get("Datetime"))
+                            .is_some();
+
+                        // Handle timestamps as datetime if applicable
+                        match value {
+                            // Check if the datatype is Datetime and the value is a number (timestamp in milliseconds)
+                            Value::Number(n) if is_datetime => {
+                                // Convert the timestamp (milliseconds) to a DateTime string
+                                let timestamp_ms = n.as_i64().unwrap();
+                                #[allow(deprecated)]
+                                let datetime = DateTime::from_timestamp(timestamp_ms / 1000, (timestamp_ms % 1000) as u32 * 1_000_000).unwrap();
+                                datetime.format("%Y-%m-%d %H:%M:%S").to_string()
                             },
-                            None => "".to_string(),
+                            // Other types of values (String, Number, Bool)
+                            Value::String(s) => s.clone(),
+                            Value::Number(n) => n.to_string(),
+                            Value::Bool(b) => b.to_string(),
+                            _ => "".to_string(),
                         }
                     })
                     .collect()
             })
             .collect();
 
-        // Convert dataSet to JSON (for use in DataTable)
         let ordered_json_data = serde_json::to_string(&data_set)?;
 
-        // Generate column definitions with proper titles
         let columns: Vec<String> = column_names
             .iter()
             .map(|name| format!(r#"{{ title: "{}" }}"#, name))
             .collect();
+
 
         // Build the HTML
         let html = format!(

@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: linux-wheels-${{ matrix.target }}  # Unique name with platform prefix
+          name: linux-wheels-${{ matrix.target }}
           overwrite: false
 
   windows:
@@ -57,13 +57,6 @@ jobs:
         with:
           python-version: '3.10'
           architecture: ${{ matrix.target }}
-      - name: Set RUSTFLAGS to disable AVX2, AVX, and SSE
-        env:
-          RUSTFLAGS: |
-            -C target-feature=-avx2
-            -C target-feature=-avx
-            -C target-feature=-sse
-        run: echo "RUSTFLAGS set to disable AVX2, AVX, and SSE"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -99,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: macos-wheels-${{ matrix.target }}  # Unique name with platform prefix
+          name: macos-wheels-${{ matrix.target }}
           overwrite: false
 
   sdist:
@@ -122,20 +115,20 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"  # Trigger release when a tag is pushed
+    if: "startsWith(github.ref, 'refs/tags/')"  #nb: asterisk this line to release to pypi
     needs: [linux, windows, macos, sdist]
     env:
       NODE_OPTIONS: --max-old-space-size=16384
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-wheels-x86_64  # Download dynamically named wheels based on platform and target
+          name: linux-wheels-x86_64
       - uses: actions/download-artifact@v4
         with:
-          name: macos-wheels-x86_64  # Download dynamically named wheels based on platform and target
+          name: macos-wheels-x86_64
       - uses: actions/download-artifact@v4
         with:
-          name: windows-wheels-x64  # Download dynamically named wheels based on platform and target
+          name: windows-wheels-x64
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
