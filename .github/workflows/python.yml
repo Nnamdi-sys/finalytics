@@ -50,7 +50,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [ x86, x86_64 ]  # Ensure both targets are included for testing
+        target: [x64, x86]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
