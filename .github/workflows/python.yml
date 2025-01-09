@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64,]
+        target: [x86_64]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
@@ -32,9 +32,9 @@ jobs:
           python-version: '3.10'
       - name: Install Perl and cpanm
         run: |
-            sudo apt-get update
-            sudo apt-get install -y perl
-            sudo apt-get install -y cpanminus
+          sudo apt-get update
+          sudo apt-get install -y perl
+          sudo apt-get install -y cpanminus
       - name: Install libipc-cmd-perl
         run: sudo cpanm IPC::Cmd
       - name: Build wheels
@@ -45,9 +45,8 @@ jobs:
           working-directory: python
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
-          name: wheels
           path: python/dist
 
   windows:
@@ -71,9 +70,8 @@ jobs:
           working-directory: python
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
-          name: wheels
           path: python/dist
 
   macos:
@@ -94,9 +92,8 @@ jobs:
           working-directory: python
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
-          name: wheels
           path: python/dist
 
   sdist:
@@ -110,22 +107,21 @@ jobs:
           args: --out dist
           working-directory: python
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
-          name: wheels
           path: python/dist
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"  #nb: asterisk this line to release to pypi
+    if: "startsWith(github.ref, 'refs/tags/')"  # Note: Asterisk this line to release to PyPI
     needs: [linux, windows, macos, sdist]
     env:
       NODE_OPTIONS: --max-old-space-size=16384
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4  # Updated to v4
         with:
-          name: wheels
+          path: python/dist  # Specify where to download the artifacts
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
@@ -133,4 +129,3 @@ jobs:
         with:
           command: upload
           args: --non-interactive --skip-existing *
-
