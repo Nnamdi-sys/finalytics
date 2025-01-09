@@ -43,23 +43,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: wheels-${{ matrix.target }}  # Ensures unique names for each target
+          name: linux-wheels-${{ matrix.target }}  # Unique name with platform prefix
           overwrite: false
 
   windows:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [x64, x86]
+        target: [ x86, x86_64 ]  # Ensure both targets are included for testing
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           architecture: ${{ matrix.target }}
-      - name: Build wheels
+      - name: Set RUSTFLAGS to disable AVX2, AVX, and SSE
         env:
-          RUSTFLAGS: "-C target-feature=-avx2"  # Disable AVX2 for x86
+          RUSTFLAGS: |
+            -C target-feature=-avx2
+            -C target-feature=-avx
+            -C target-feature=-sse
+        run: echo "RUSTFLAGS set to disable AVX2, AVX, and SSE"
+      - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
@@ -70,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: wheels-${{ matrix.target }}  # Ensures unique names for each target
+          name: windows-wheels-${{ matrix.target }}
           overwrite: false
 
   macos:
@@ -94,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: wheels-${{ matrix.target }}  # Ensures unique names for each target
+          name: macos-wheels-${{ matrix.target }}  # Unique name with platform prefix
           overwrite: false
 
   sdist:
@@ -124,7 +129,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: wheels-${{ matrix.target }}  # Download dynamically named wheels
+          name: linux-wheels-x86_64  # Download dynamically named wheels based on platform and target
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-wheels-x86_64  # Download dynamically named wheels based on platform and target
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-wheels-x64  # Download dynamically named wheels based on platform and target
       - name: Publish to PyPI
         uses: PyO3/maturin-action@v1
         env:
