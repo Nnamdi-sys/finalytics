@@ -210,7 +210,7 @@ class CodeTabsComponent extends HTMLElement {
             </a>
             <a href="https://pypi.org/project/finalytics/">
                 <img src="https://img.shields.io/pypi/v/finalytics?color=blue" alt="PyPI version badge">
-                <img src="https://static.pepy.tech/personalized-badge/finalytics?period=total&units=international_system&left_color=black&right_color=blue&left_text=Downloads" alt="PePy download stats">
+                <img src="https://static.pepy.tech/badge/finalytics" alt="PyPI Downloads">
             </a>
         </div>
         <p>Finalytics leverages Rust’s high performance with a Python integration, offering robust tools for financial data analysis.</p>
