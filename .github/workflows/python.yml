@@ -14,12 +14,10 @@ permissions:
   contents: read
 
 jobs:
-
   linux:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64]
     steps:
       - uses: actions/checkout@v3
@@ -35,6 +33,9 @@ jobs:
         run: sudo cpanm IPC::Cmd
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -51,7 +52,6 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x64, x86]
     steps:
       - uses: actions/checkout@v3
@@ -61,6 +61,9 @@ jobs:
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          PYO3_PYTHON: C:\hostedtoolcache\windows\Python\3.10.15\${{ matrix.target }}\python.exe
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -70,14 +73,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: python/dist
-          name: windows-wheels-${{ matrix.target }}
+          name: windows-wheels"${{ matrix.target }}
           overwrite: false
 
   macos:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v3
@@ -86,6 +88,9 @@ jobs:
           python-version: '3.10'
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
@@ -102,8 +107,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
       - name: Build sdist
         uses: PyO3/maturin-action@v1
+        env:
+          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           command: sdist
           args: --out dist
@@ -136,6 +147,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           command: upload
           args: --non-interactive --skip-existing *
