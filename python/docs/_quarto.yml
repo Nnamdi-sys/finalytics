@@ -18,4 +18,8 @@ website:
         href: tickers.qmd
       - text: "Portfolio Module"
         href: portfolio.qmd
+      - text: "Screener Module"
+        href: screener.qmd
+      - text: "DataFrame Interface"
+        href: dataframe.qmd
 

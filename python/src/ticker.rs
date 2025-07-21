@@ -1,60 +1,74 @@
+use std::str::FromStr;
 use polars::export::chrono;
 use tokio::task;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3_polars::PyDataFrame;
 use finalytics::prelude::*;
 use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
 
+/// Create a new Ticker object
+///
+/// # Arguments
+///
+/// * `symbol` - `str` - The ticker symbol of the asset
+/// * `start_date` - `str` - The start date of the time period in the format YYYY-MM-DD
+/// * `end_date` - `str` - The end date of the time period in the format YYYY-MM-DD
+/// * `interval` - `str` - The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo)
+/// * `benchmark_symbol` - `str` - The ticker symbol of the benchmark to compare against
+/// * `confidence_level` - `float` - The confidence level for the VaR and ES calculations
+/// * `risk_free_rate` - `float` - The risk-free rate to use in the calculations
+///
+/// # Optional Arguments (For Custom Data)
+///
+/// * `ticker_data` - `DataFrame` - A Polars DataFrame containing the ticker data
+/// * `benchmark_data` - `DataFrame` - A Polars DataFrame containing the benchmark data
+///
+/// # Returns
+///
+/// `Ticker` - A Ticker object
+///
+/// # Example
+///
+/// ```python
+/// import finalytics
+///
+/// ticker = finalytics.Ticker(symbol="AAPL", start_date="2020-01-01", end_date="2021-01-01", interval="1d",
+/// benchmark_symbol="^GSPC", confidence_level=0.95, risk_free_rate=0.02)
+/// ```
 #[pyclass]
 #[pyo3(name = "Ticker")]
 pub struct PyTicker {
     pub ticker: Ticker
 }
 
-
 #[pymethods]
 impl PyTicker {
     #[new]
-    /// Create a new Ticker object
-    ///
-    /// # Arguments
-    ///
-    /// * `symbol` - `str` - The ticker symbol of the asset
-    /// * `start_date` - `str` - The start date of the time period in the format YYYY-MM-DD
-    /// * `end_date` - `str` - The end date of the time period in the format YYYY-MM-DD
-    /// * `interval` - `str` - The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo)
-    /// * `benchmark_symbol` - `str` - The ticker symbol of the benchmark to compare against
-    /// * `confidence_level` - `float` - The confidence level for the VaR and ES calculations
-    /// * `risk_free_rate` - `float` - The risk free rate to use in the calculations
-    ///
-    /// # Returns
-    ///
-    /// `Ticker` - A Ticker object
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// import finalytics
-    ///
-    /// ticker = finalytics.Ticker(symbol="AAPL", start_date="2020-01-01", end_date="2021-01-01", interval="1d",
-    /// benchmark_symbol="^GSPC", confidence_level=0.95, risk_free_rate=0.02)
-    /// ```
-    #[pyo3(signature = (symbol, start_date=None, end_date=None, interval=None, benchmark_symbol=None, confidence_level=None, risk_free_rate=None))]
+    #[pyo3(signature = (symbol, start_date=None, end_date=None, interval=None, benchmark_symbol=None,
+    confidence_level=None, risk_free_rate=None, ticker_data=None, benchmark_data=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(symbol: &str, start_date: Option<String>, end_date: Option<String>, interval: Option<String>, benchmark_symbol: Option<String>,
-    confidence_level: Option<f64>, risk_free_rate: Option<f64>) -> Self {
+    confidence_level: Option<f64>, risk_free_rate: Option<f64>, ticker_data: Option<PyDataFrame>, benchmark_data: Option<PyDataFrame>) -> Self {
         let default_start = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(365))
             .unwrap().format("%Y-%m-%d").to_string();
-        let defualt_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let interval = Interval::from_str(&interval.unwrap_or("1d".to_string()));
+        let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let interval = Interval::from_str(&interval.unwrap_or("1d".to_string())).unwrap();
         task::block_in_place(move || {
-            let ticker = TickerBuilder::new()
+            let ticker_data = ticker_data.map(|data| KLINE::from_dataframe(symbol, &data.0).unwrap());
+            let benchmark_data = benchmark_data.map(|data| KLINE::from_dataframe(
+                &benchmark_symbol.clone().unwrap_or("Benchmark".to_string()),
+                &data.0).unwrap());
+            let ticker = Ticker::builder()
                 .ticker(symbol)
                 .start_date(&start_date.unwrap_or(default_start))
-                .end_date(&end_date.unwrap_or(defualt_end))
+                .end_date(&end_date.unwrap_or(default_end))
                 .interval(interval)
                 .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
                 .confidence_level(confidence_level.unwrap_or(0.95))
                 .risk_free_rate(risk_free_rate.unwrap_or(0.02))
+                .ticker_data(ticker_data)
+                .benchmark_data(benchmark_data)
                 .build();
             PyTicker {
                 ticker
@@ -71,7 +85,7 @@ impl PyTicker {
         task::block_in_place(move || {
             let quote = tokio::runtime::Runtime::new().unwrap().block_on(self.ticker.get_quote()).unwrap();
             Python::with_gil(|py| {
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("Symbol", quote.symbol).unwrap();
                 locals.set_item("Name", quote.name).unwrap();
                 locals.set_item("Exchange", quote.exchange).unwrap();
@@ -93,45 +107,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `dict` - A dictionary containing the summary statistics
-    pub fn get_summary_stats(&self) -> Py<PyDict>  {
+    pub fn get_summary_stats(&self) -> PyObject {
         task::block_in_place(move || {
             let ticker_stats = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_ticker_stats()
-            ).unwrap();
-            Python::with_gil(|py| {
-                let locals = PyDict::new(py);
-                locals.set_item("Symbol", ticker_stats.symbol).unwrap();
-                locals.set_item("Name", ticker_stats.long_name).unwrap();
-                locals.set_item("Exchange", ticker_stats.full_exchange_name).unwrap();
-                locals.set_item("Currency", ticker_stats.currency).unwrap();
-                locals.set_item("Timestamp", ticker_stats.regular_market_time).unwrap();
-                locals.set_item("Current Price", ticker_stats.regular_market_price).unwrap();
-                locals.set_item("24H Change", ticker_stats.regular_market_change_percent).unwrap();
-                locals.set_item("24H Volume", ticker_stats.regular_market_volume).unwrap();
-                locals.set_item("24H Open", ticker_stats.regular_market_open).unwrap();
-                locals.set_item("24H High", ticker_stats.regular_market_day_high).unwrap();
-                locals.set_item("24H Low", ticker_stats.regular_market_day_low).unwrap();
-                locals.set_item("24H Close", ticker_stats.regular_market_previous_close).unwrap();
-                locals.set_item("52 Week High", ticker_stats.fifty_two_week_high).unwrap();
-                locals.set_item("52 Week Low", ticker_stats.fifty_two_week_low).unwrap();
-                locals.set_item("52 Week Change", ticker_stats.fifty_two_week_change_percent).unwrap();
-                locals.set_item("50 Day Average", ticker_stats.fifty_day_average).unwrap();
-                locals.set_item("200 Day Average", ticker_stats.two_hundred_day_average).unwrap();
-                locals.set_item("Trailing EPS", ticker_stats.trailing_eps).unwrap();
-                locals.set_item("Current EPS", ticker_stats.current_eps).unwrap();
-                locals.set_item("Forward EPS", ticker_stats.eps_forward).unwrap();
-                locals.set_item("Trailing P/E", ticker_stats.trailing_pe).unwrap();
-                locals.set_item("Current P/E", ticker_stats.current_pe).unwrap();
-                locals.set_item("Forward P/E", ticker_stats.forward_pe).unwrap();
-                locals.set_item("Dividend Rate", ticker_stats.dividend_rate).unwrap();
-                locals.set_item("Dividend Yield", ticker_stats.dividend_yield).unwrap();
-                locals.set_item("Book Value", ticker_stats.book_value).unwrap();
-                locals.set_item("Price to Book", ticker_stats.price_to_book).unwrap();
-                locals.set_item("Market Cap", ticker_stats.market_cap).unwrap();
-                locals.set_item("Shares Outstanding", ticker_stats.shares_outstanding).unwrap();
-                locals.set_item("Average Analyst Rating", ticker_stats.average_analyst_rating).unwrap();
-                locals.into()
-            })
+            ).unwrap().to_dataframe().unwrap();
+            rust_df_to_py_df(&ticker_stats).unwrap()
         })
     }
 
@@ -145,8 +126,7 @@ impl PyTicker {
             let price_history = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_chart()
             ).unwrap();
-            let df = rust_df_to_py_df(&price_history).unwrap();
-            df
+            rust_df_to_py_df(&price_history).unwrap()
         })
     }
 
@@ -160,8 +140,7 @@ impl PyTicker {
             let options_chain = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_options()
             ).unwrap().chain;
-            let df = rust_df_to_py_df(&options_chain).unwrap();
-            df
+            rust_df_to_py_df(&options_chain).unwrap()
         })
     }
 
@@ -178,8 +157,7 @@ impl PyTicker {
                 self.ticker.get_news()
             ).unwrap();
 
-            let df = rust_df_to_py_df(&news).unwrap();
-            df
+            rust_df_to_py_df(&news).unwrap()
         })
     }
 
@@ -194,11 +172,10 @@ impl PyTicker {
     /// `DataFrame` - A Polars DataFrame containing the Income Statement
     pub fn get_income_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
-            let frequency = StatementFrequency::from_str(frequency);
+            let frequency = StatementFrequency::from_str(frequency).unwrap();
             let income_statement = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.income_statement(frequency)).unwrap();
-            let df = rust_df_to_py_df(&income_statement).unwrap();
-            df
+                self.ticker.get_financials(StatementType::IncomeStatement, frequency)).unwrap();
+            rust_df_to_py_df(&income_statement).unwrap()
         })
     }
 
@@ -213,11 +190,10 @@ impl PyTicker {
     /// `DataFrame` - A Polars DataFrame containing the Balance Sheet
     pub fn get_balance_sheet(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
-            let frequency = StatementFrequency::from_str(frequency);
+            let frequency = StatementFrequency::from_str(frequency).unwrap();
             let balance_sheet = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.balance_sheet(frequency)).unwrap();
-            let df = rust_df_to_py_df(&balance_sheet).unwrap();
-            df
+                self.ticker.get_financials(StatementType::BalanceSheet, frequency)).unwrap();
+            rust_df_to_py_df(&balance_sheet).unwrap()
         })
     }
 
@@ -232,11 +208,10 @@ impl PyTicker {
     /// `DataFrame` - A Polars DataFrame containing the Cashflow Statement
     pub fn get_cashflow_statement(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
-            let frequency = StatementFrequency::from_str(frequency);
+            let frequency = StatementFrequency::from_str(frequency).unwrap();
             let cashflow_statement = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.cashflow_statement(frequency)).unwrap();
-            let df = rust_df_to_py_df(&cashflow_statement).unwrap();
-            df
+                self.ticker.get_financials(StatementType::CashFlowStatement, frequency)).unwrap();
+            rust_df_to_py_df(&cashflow_statement).unwrap()
         })
     }
 
@@ -251,11 +226,10 @@ impl PyTicker {
     /// `DataFrame` - A Polars DataFrame containing the Financial Ratios
     pub fn get_financial_ratios(&self, frequency: &str) -> PyObject {
         task::block_in_place(move || {
-            let frequency = StatementFrequency::from_str(frequency);
+            let frequency = StatementFrequency::from_str(frequency).unwrap();
             let ratios = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.ticker.financial_ratios(frequency)).unwrap();
-            let df = rust_df_to_py_df(&ratios).unwrap();
-            df
+                self.ticker.get_financials(StatementType::FinancialRatios, frequency)).unwrap();
+            rust_df_to_py_df(&ratios).unwrap()
         })
     }
 
@@ -264,13 +238,11 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the implied volatility surface
-
     pub fn volatility_surface(&self) -> PyObject {
         task::block_in_place(move || {
             let volatility_surface = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.volatility_surface()).unwrap();
-            let df = rust_df_to_py_df(&volatility_surface.ivols_df).unwrap();
-            df
+            rust_df_to_py_df(&volatility_surface.ivols_df).unwrap()
         })
     }
 
@@ -284,12 +256,12 @@ impl PyTicker {
             let performance_stats = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.performance_stats()).unwrap();
             Python::with_gil(|py| {
-                let locals = PyDict::new(py);
+                let locals = PyDict::new_bound(py);
                 locals.set_item("Symbol", performance_stats.ticker_symbol).unwrap();
                 locals.set_item("Benchmark", performance_stats.benchmark_symbol).unwrap();
                 locals.set_item("Start Date", performance_stats.start_date).unwrap();
                 locals.set_item("End Date", performance_stats.end_date).unwrap();
-                locals.set_item("Interval", performance_stats.interval.to_string()).unwrap();
+                locals.set_item("Interval", performance_stats.interval.average).unwrap();
                 locals.set_item("Confidence Level", performance_stats.confidence_level).unwrap();
                 locals.set_item("Risk Free Rate", performance_stats.risk_free_rate).unwrap();
                 locals.set_item("Daily Return", performance_stats.performance_stats.daily_return).unwrap();
@@ -418,7 +390,7 @@ impl PyTicker {
     pub fn report(&self, report_type: Option<String>) {
         task::block_in_place(move || {
             let report_type = match report_type {
-                Some(report_type) => ReportType::from_str(&report_type),
+                Some(report_type) => ReportType::from_str(&report_type).unwrap(),
                 None => ReportType::Performance
             };
             let report = tokio::runtime::Runtime::new().unwrap().block_on(

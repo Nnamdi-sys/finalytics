@@ -36,8 +36,27 @@ use finalytics::prelude::*;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 
+    // Screen for Large-Cap NASDAQ Stocks
+    let screener = Screener::builder()
+        .quote_type(QuoteType::Equity)
+        .add_filter(ScreenerFilter::EqStr(
+            ScreenerMetric::Equity(EquityScreener::Exchange),
+            Exchange::NASDAQ.as_ref()
+        ))
+        .sort_by(
+            ScreenerMetric::Equity(EquityScreener::MarketCapIntraday),
+            true
+        )
+        .size(10)
+        .build()
+        .await?;
+
+    screener.overview().show()?;
+    screener.metrics().await?.show()?;
+
     // Instantiate a Multiple Ticker Object
-    let ticker_symbols = vec!["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"];
+    let ticker_symbols = screener.symbols.iter()
+        .map(|x| x.as_str()).collect::<Vec<&str>>();
 
     let tickers = TickersBuilder::new()
         .tickers(ticker_symbols.clone())
@@ -50,7 +69,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build();
 
     // Generate a Single Ticker Report
-    let ticker = tickers.clone().get_ticker("AAPL").await?;
+    let symbol = ticker_symbols.first().unwrap();
+    let ticker = tickers.clone().get_ticker(symbol).await?;
     ticker.report(Some(ReportType::Performance)).await?.show()?;
     ticker.report(Some(ReportType::Financials)).await?.show()?;
     ticker.report(Some(ReportType::Options)).await?.show()?;
@@ -92,10 +112,25 @@ pip install finalytics
 View the [documentation](https://nnamdi.quarto.pub/finalytics/) for more information.
 
 ```python
-from finalytics import Tickers
+from finalytics import Screener, Tickers
+
+# Screen for Large Cap NASDAQ Stocks
+screener = Screener(
+    quote_type="EQUITY",
+    filters=[
+        '{"operator": "eq", "operands": ["exchange", "NMS"]}'
+    ],
+    sort_field="intradaymarketcap",
+    sort_descending=True,
+    offset=0,
+    size=10
+)
+screener.display()
+
 
 # Instantiate a Multiple Ticker Object
-tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
+symbols = screener.symbols()
+tickers = Tickers(symbols=symbols,
                   start_date="2023-01-01",
                   end_date="2024-12-31",
                   interval="1d",
@@ -103,7 +138,7 @@ tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
                   risk_free_rate=0.02)
 
 # Generate a Single Ticker Report
-ticker = tickers.get_ticker("AAPL")
+ticker = tickers.get_ticker(symbols[0])
 ticker.report("performance")
 ticker.report("financials")
 ticker.report("options")
@@ -117,7 +152,6 @@ portfolio = tickers.optimize(objective_function="max_sharpe")
 
 # Generate a Portfolio Report
 portfolio.report("performance")
-
 ```
 
 
@@ -130,5 +164,9 @@ This sample application allows you to perform security analysis based on the Fin
 <h3><a href="https://finalytics.rs/portfolio">Portfolio Dashboard</a></h3>
 
 This sample application enables you to perform portfolio optimization based on the Finalytics Library.
+
+<h3><a href="https://finalytics.rs/screener">Screener Dashboard</a></h3>
+
+This sample application allows you to screen for securities based on the Finalytics Library.
 
 

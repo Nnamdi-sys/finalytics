@@ -1,98 +1,152 @@
 use std::error::Error;
-use std::fs;
+use std::{fmt, fs};
 use chrono::DateTime;
 use webbrowser;
 use polars::prelude::*;
 use serde_json::Value;
 
-pub enum TableType {
-    OHLCV,
-    OptionsChain,
-    VolatilitySurface,
-    Returns,
-    NewsSentiment,
-    AnnualIncomeStatement,
-    QuarterlyIncomeStatement,
-    AnnualBalanceSheet,
-    QuarterlyBalanceSheet,
-    AnnualCashflowStatement,
-    QuarterlyCashflowStatement,
-    AnnualFinancialRatios,
-    QuarterlyFinancialRatios,
-    PerformanceStats,
-    SummaryStats
+pub enum DataTableFormat {
+    Currency,
+    Number,
+    Performance,
+    Custom(String),
 }
 
-impl TableType {
-    pub fn id(&self) -> &str {
+impl fmt::Display for DataTableFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TableType::OHLCV => "ohlcvTable",
-            TableType::OptionsChain => "optionsChain",
-            TableType::VolatilitySurface => "volatilitySurface",
-            TableType::Returns => "returnsTable",
-            TableType::NewsSentiment => "newsSentiment",
-            TableType::AnnualIncomeStatement => "annualIncomeStatement",
-            TableType::QuarterlyIncomeStatement => "quarterlyIncomeStatement",
-            TableType::AnnualBalanceSheet => "annualBalanceSheet",
-            TableType::QuarterlyBalanceSheet => "quarterlyBalanceSheet",
-            TableType::AnnualCashflowStatement => "annualCashflowStatement",
-            TableType::QuarterlyCashflowStatement => "quarterlyCashflowStatement",
-            TableType::AnnualFinancialRatios => "annualFinancialRatios",
-            TableType::QuarterlyFinancialRatios => "quarterlyFinancialRatios",
-            TableType::PerformanceStats => "performanceStats",
-            TableType::SummaryStats => "summaryStats"
-        }
-    }
-
-    pub fn ordering(&self) -> bool {
-        match self {
-            TableType::OHLCV => true,
-            TableType::OptionsChain => true,
-            TableType::VolatilitySurface => true,
-            TableType::Returns => true,
-            TableType::NewsSentiment => true,
-            TableType::AnnualIncomeStatement => false,
-            TableType::QuarterlyIncomeStatement => false,
-            TableType::AnnualBalanceSheet => false,
-            TableType::QuarterlyBalanceSheet => false,
-            TableType::AnnualCashflowStatement => false,
-            TableType::QuarterlyCashflowStatement => false,
-            TableType::AnnualFinancialRatios => false,
-            TableType::QuarterlyFinancialRatios => false,
-            TableType::PerformanceStats => false,
-            TableType::SummaryStats => false,
-        }
-    }
-
-    pub fn column_defs(&self) -> String {
-        match self {
-            TableType::OHLCV => NUMBER_FMT.to_string(),
-            TableType::OptionsChain => OPTIONS_FMT.to_string(),
-            TableType::VolatilitySurface => NUMBER_FMT.to_string(),
-            TableType::Returns => NUMBER_FMT.to_string(),
-            TableType::NewsSentiment => NEWS_FMT.to_string(),
-            TableType::AnnualIncomeStatement => CURRENCY_FMT.to_string(),
-            TableType::QuarterlyIncomeStatement => CURRENCY_FMT.to_string(),
-            TableType::AnnualBalanceSheet => CURRENCY_FMT.to_string(),
-            TableType::QuarterlyBalanceSheet => CURRENCY_FMT.to_string(),
-            TableType::AnnualCashflowStatement => CURRENCY_FMT.to_string(),
-            TableType::QuarterlyCashflowStatement => CURRENCY_FMT.to_string(),
-            TableType::AnnualFinancialRatios => NUMBER_FMT.to_string(),
-            TableType::QuarterlyFinancialRatios => NUMBER_FMT.to_string(),
-            TableType::PerformanceStats => NO_FMT.to_string(),
-            TableType::SummaryStats => NO_FMT.to_string(),
+            DataTableFormat::Currency => write!(f, "{CURRENCY_FMT}"),
+            DataTableFormat::Number => write!(f, "{NUMBER_FMT}"),
+            DataTableFormat::Performance => write!(f, "{PERFORMANCE_TABLE_FMT}"),
+            DataTableFormat::Custom(fmt) => write!(f, "{fmt}"),
         }
     }
 }
+
+static CURRENCY_FMT: &str = r#"
+[
+    {
+        "targets": 0,
+        "render": function(data) { return data; },
+    },
+    {
+        "targets": "_all",
+        "render": function(data) {
+            if (data == null) return '';
+
+            try {
+                let parsed = JSON.parse(data);
+                if (typeof parsed === 'number') {
+                    return '$' + $.fn.dataTable.render.number(',', '.', 2).display(parsed);
+                } else {
+                    return parsed;
+                }
+            } catch (e) {
+                return data;
+            }
+        }
+    }
+]
+"#;
+
+static NUMBER_FMT: &str = r#"
+[
+    {
+        "targets": "_all",
+        "render": function(data) {
+            if (data == null) return '';
+
+            try {
+                let parsed = JSON.parse(data);
+                if (typeof parsed === 'number') {
+                    return $.fn.dataTable.render.number(',', '.', 2).display(parsed);
+                } else {
+                    return parsed;
+                }
+            } catch (e) {
+                return data;
+            }
+        }
+    }
+]
+"#;
+
+static PERFORMANCE_TABLE_FMT: &str = r#"
+[
+    {
+        "targets": 0,
+        "render": function(data) { return data; } // Ticker symbol, no formatting
+    },
+    {
+        "targets": [1, 2, 3, 4, 5, 10, 11, 14, 15, 16], // Percentage fields
+        "render": function(data) {
+            if (data == null || data === '') return '';
+
+            try {
+                let parsed = parseFloat(data);
+                if (isNaN(parsed)) return data;
+
+                // Handle Infinity and -Infinity
+                if (!isFinite(parsed)) {
+                    return parsed > 0 ? '∞%' : '-∞%';
+                }
+
+                // Handle extremely large values (e.g., > 1e308 or < -1e308)
+                if (Math.abs(parsed) > 1e308) {
+                    return parsed > 0 ? '>999T%' : '<-999T%';
+                }
+
+                // Format as percentage with 2 decimal places
+                return $.fn.dataTable.render.number(',', '.', 2).display(parsed) + '%';
+            } catch (e) {
+                return data;
+            }
+        }
+    },
+    {
+        "targets": [6, 7, 8, 9, 12, 13], // Decimal fields
+        "render": function(data) {
+            if (data == null || data === '') return '';
+
+            try {
+                let parsed = parseFloat(data);
+                if (isNaN(parsed)) return data;
+
+                // Handle Infinity and -Infinity
+                if (!isFinite(parsed)) {
+                    return parsed > 0 ? '∞' : '-∞';
+                }
+
+                // Handle extremely large values
+                if (Math.abs(parsed) > 1e308) {
+                    return parsed > 0 ? '>999T' : '<-999T';
+                }
+
+                // Format as number with 2 decimal places
+                return $.fn.dataTable.render.number(',', '.', 2).display(parsed);
+            } catch (e) {
+                return data;
+            }
+        }
+    }
+]
+"#;
 
 pub struct DataTable {
-    data: DataFrame,
-    table_type: TableType,
+    pub data: DataFrame,
+    id: String,
+    ordering: bool,
+    format: DataTableFormat,
 }
 
 impl DataTable {
-    pub fn new(data: DataFrame, table_type: TableType) -> Self {
-        DataTable { data, table_type }
+    pub fn new(data: DataFrame, id: String, ordering: bool, format: DataTableFormat) -> Self {
+        DataTable { 
+            data, 
+            id,
+            ordering,
+            format,
+        }
     }
 
     pub fn to_html(&self) -> Result<String, Box<dyn Error>> {
@@ -113,10 +167,10 @@ impl DataTable {
             .iter()
             .filter_map(|col| col.get("values"))
             .filter_map(|v| v.as_array())
-            .map(|arr| arr.clone())
+            .cloned()
             .collect();
 
-        let num_rows = values.get(0).map_or(0, |v| v.len());
+        let num_rows = values.first().map_or(0, |v| v.len());
         for column in &values {
             if column.len() != num_rows {
                 return Err("Column lengths do not match.".into());
@@ -163,7 +217,7 @@ impl DataTable {
 
         let columns: Vec<String> = column_names
             .iter()
-            .map(|name| format!(r#"{{ title: "{}" }}"#, name))
+            .map(|name| format!(r#"{{ title: "{name}" }}"#))
             .collect();
 
 
@@ -177,6 +231,7 @@ impl DataTable {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.2.0/css/dataTables.dataTables.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
 
     <! -- DataTables Options JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -184,6 +239,7 @@ impl DataTable {
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.html5.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
 
 </head>
 <body>
@@ -201,6 +257,9 @@ impl DataTable {
                 ordering: {ordering},
                 dom: 'Bfrtip',
                 autoWidth: true,
+                fixedColumns: {{
+                    left: 1
+                }},
                 buttons: [
                     "copyHtml5",
                     "csvHtml5",
@@ -211,11 +270,11 @@ impl DataTable {
     </script>
 </body>
 </html>
-"#,         id = self.table_type.id(),
+"#,         id = self.id,
             ordered_json_data = ordered_json_data,
-            ordering = self.table_type.ordering(),
+            ordering = self.ordering,
             columns = columns.join(", "),
-            column_defs = self.table_type.column_defs()
+            column_defs = self.format
         );
 
         Ok(html)
@@ -223,73 +282,11 @@ impl DataTable {
 
     pub fn show(&self) -> Result<(), Box<dyn Error>> {
         let html_content = self.to_html()?;
-        let filename = format!("{}_table.html", self.table_type.id());
+        let filename = format!("{}_table.html", self.id);
         let temp_file_path = std::env::temp_dir().join(filename);
         fs::write(&temp_file_path, html_content)?;
         webbrowser::open(temp_file_path.to_str().unwrap())?;
         Ok(())
     }
 }
-
-static NO_FMT: &str = r#"
-[
-    {
-        "targets": "_all",
-        "render": function(data) { return data; },
-    }
-]
-"#;
-
-static OPTIONS_FMT: &str = r#"
-[
-    {
-        "targets": [0, 13],
-        "render": function(data) { return data; },
-    },
-    {
-        "targets": "_all",
-        "render": function(data) { return data != null ? $.fn.dataTable.render.number(',', '.', 2).display(data) : ''; },
-    }
-]
-"#;
-
-static NEWS_FMT: &str = r#"
-[
-    {
-        "targets": [0, 1, 2],
-        "render": function(data) { return data; },
-    },
-    {
-        "targets": 3,
-        "render": function(data) { return data != null ? $.fn.dataTable.render.number(',', '.', 2).display(data) : ''; },
-    }
-]
-"#;
-
-
-static NUMBER_FMT: &str = r#"
-[
-    {
-        "targets": 0,
-        "render": function(data) { return data; },
-    },
-    {
-        "targets": "_all",
-        "render": function(data) { return data != null ? $.fn.dataTable.render.number(',', '.', 2).display(data) : ''; },
-    }
-]
-"#;
-
-static CURRENCY_FMT: &str = r#"
-[
-    {
-        "targets": 0,
-        "render": function(data) { return data; },
-    },
-    {
-        "targets": "_all",
-        "render": function(data) { return data != null ? '$' + $.fn.dataTable.render.number(',', '.', 2).display(data) : ''; },
-    },
-]
-"#;
 

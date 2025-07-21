@@ -2,12 +2,12 @@ use std::error::Error;
 use polars::prelude::*;
 use futures::future::join_all;
 use indicatif::{ProgressBar, ProgressStyle};
-use crate::data::config::TickerSummaryStats;
+use crate::data::yahoo::config::TickerSummaryStats;
 use crate::analytics::performance::TickerPerformanceStats;
-use crate::prelude::{Financials, StatementFrequency, TickerData, TickerPerformance, Tickers};
+use crate::prelude::{StatementFrequency, StatementType, TickerData, TickerPerformance, Tickers};
 
 macro_rules! fetch_all {
-    ($tickers:expr, $method:ident, $idx:expr $(, $param:expr)?) => {{
+    ($tickers:expr, $method:ident, $idx:expr $(, $param:expr)*) => {{
         let mut futures = Vec::new();
         let tickers = $tickers.clone();
         let total_tickers = tickers.len();
@@ -21,7 +21,7 @@ macro_rules! fetch_all {
         for ticker in tickers.into_iter() {
             let ticker = ticker.clone();
             let fut = tokio::task::spawn(async move {
-                let result = ticker.$method($($param)?).await;
+                let result = ticker.$method($($param), *).await;
                 match result {
                     Ok(mut df) => {
                         let symbol_series = Series::new("symbol", vec![ticker.ticker.clone(); df.height()]);
@@ -51,7 +51,7 @@ macro_rules! fetch_all {
                 Ok(Ok(df)) => {
                     match joint_df.vstack(&df) {
                         Ok(jdf) => joint_df = jdf,
-                        Err(e) => eprintln!("Unable to Vstack {:?}: {}", &df, e),
+                        Err(e) => eprintln!("Unable to stack {:?}: {}", &df, e),
                     }
                 }
                 Ok(Err(_)) => continue,
@@ -64,13 +64,11 @@ macro_rules! fetch_all {
     }};
 }
 
+
 pub trait TickersData {
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn income_statement(&self, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn balance_sheet(&self, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn cashflow_statement(&self, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn financial_ratios(&self, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
+    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_ticker_stats(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn returns(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
@@ -89,27 +87,13 @@ impl TickersData for Tickers {
         fetch_all!(self.tickers.clone(), get_news, 1)
     }
 
-    /// Fetch the Income Statement Data for all tickers in the Tickers Struct
-    async fn income_statement(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), income_statement, 1, frequency)
+    /// Fetch the Financials for all tickers in the Tickers Struct
+    async fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+        fetch_all!(self.tickers.clone(), get_financials, 1, statement_type, frequency)
     }
 
-    /// Fetch the Balance Sheet Data for all tickers in the Tickers Struct
-    async fn balance_sheet(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), balance_sheet, 1, frequency)
-    }
 
-    /// Fetch the Cashflow Statement Data for all tickers in the Tickers Struct
-    async fn cashflow_statement(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), cashflow_statement, 1, frequency)
-    }
-
-    /// Fetch the Financial Ratios Data for all tickers in the Tickers Struct
-    async fn financial_ratios(&self, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), financial_ratios, 1, frequency)
-    }
-
-    /// Fetch the Ticker Summary Stats Data for all tickers in the Tickers Struct
+    /// Fetch the Ticker Summary Stats Data for all tickers in the Tickers' Struct
     async fn get_ticker_stats(&self) -> Result<DataFrame, Box<dyn Error>> {
         let mut futures = Vec::new();
         let total_tickers = self.tickers.len();
@@ -124,7 +108,7 @@ impl TickersData for Tickers {
             let fut = tokio::task::spawn(async move {
                 match ticker.get_ticker_stats().await {
                     Ok(stats) => {
-                        Ok(stats)
+                        Ok((ticker.ticker.clone(), stats))
                     }
                     Err(e) => {
                         eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
@@ -137,7 +121,7 @@ impl TickersData for Tickers {
         }
 
         let results = join_all(futures).await;
-        let mut all_stats: Vec<TickerSummaryStats> = Vec::new();
+        let mut all_stats: Vec<(String, TickerSummaryStats)> = Vec::new();
 
         for result in results {
             match result {
@@ -145,78 +129,59 @@ impl TickersData for Tickers {
                     all_stats.push(stats);
                 }
                 Ok(Err(_)) => continue,
-                Err(e) => eprintln!("Error in task: {}", e),
+                Err(e) => eprintln!("Error in task: {e}"),
             }
         }
 
-        let mut fields: Vec<Vec<AnyValue>> = vec![vec![]; 29]; // We have 28 fields excluding 'symbol'
+        let mut formatted_dfs = Vec::new();
 
-        for stat in &all_stats {
-            fields[0].push(AnyValue::String(&stat.symbol));
-            fields[1].push(AnyValue::String(&stat.long_name));
-            fields[2].push(AnyValue::String(&stat.full_exchange_name));
-            fields[3].push(AnyValue::String(&stat.currency));
-            fields[4].push(AnyValue::Int64(stat.regular_market_time));
-            fields[5].push(AnyValue::Float64(stat.regular_market_price));
-            fields[6].push(AnyValue::Float64(stat.regular_market_change_percent));
-            fields[7].push(AnyValue::Float64(stat.regular_market_volume));
-            fields[8].push(AnyValue::Float64(stat.regular_market_open));
-            fields[9].push(AnyValue::Float64(stat.regular_market_day_high));
-            fields[10].push(AnyValue::Float64(stat.regular_market_day_low));
-            fields[11].push(AnyValue::Float64(stat.regular_market_previous_close));
-            fields[12].push(AnyValue::Float64(stat.fifty_two_week_high));
-            fields[13].push(AnyValue::Float64(stat.fifty_two_week_low));
-            fields[14].push(AnyValue::Float64(stat.fifty_two_week_change_percent));
-            fields[15].push(AnyValue::Float64(stat.fifty_day_average));
-            fields[16].push(AnyValue::Float64(stat.two_hundred_day_average));
-            fields[17].push(AnyValue::Float64(stat.trailing_eps));
-            fields[18].push(AnyValue::Float64(stat.current_eps));
-            fields[19].push(AnyValue::Float64(stat.eps_forward));
-            fields[20].push(AnyValue::Float64(stat.trailing_pe));
-            fields[21].push(AnyValue::Float64(stat.current_pe));
-            fields[22].push(AnyValue::Float64(stat.forward_pe));
-            fields[23].push(AnyValue::Float64(stat.dividend_rate));
-            fields[24].push(AnyValue::Float64(stat.dividend_yield));
-            fields[25].push(AnyValue::Float64(stat.book_value));
-            fields[26].push(AnyValue::Float64(stat.price_to_book));
-            fields[27].push(AnyValue::Float64(stat.market_cap));
-            fields[28].push(AnyValue::Float64(stat.shares_outstanding));
+        for (ticker, stats) in all_stats {
+
+            let mut fmt_df = stats.to_dataframe()?;
+            fmt_df.rename("Value", &ticker)?;
+            formatted_dfs.push(fmt_df);
         }
 
-        let df = DataFrame::new(vec![
-            Series::new("symbol", fields[0].clone()),
-            Series::new("long_name", fields[1].clone()),
-            Series::new("full_exchange_name", fields[2].clone()),
-            Series::new("currency", fields[3].clone()),
-            Series::new("regular_market_time", fields[4].clone()),
-            Series::new("regular_market_price", fields[5].clone()),
-            Series::new("regular_market_change_percent", fields[6].clone()),
-            Series::new("regular_market_volume", fields[7].clone()),
-            Series::new("regular_market_open", fields[8].clone()),
-            Series::new("regular_market_day_high", fields[9].clone()),
-            Series::new("regular_market_day_low", fields[10].clone()),
-            Series::new("regular_market_previous_close", fields[11].clone()),
-            Series::new("fifty_two_week_high", fields[12].clone()),
-            Series::new("fifty_two_week_low", fields[13].clone()),
-            Series::new("fifty_two_week_change_percent", fields[14].clone()),
-            Series::new("fifty_day_average", fields[15].clone()),
-            Series::new("two_hundred_day_average", fields[16].clone()),
-            Series::new("trailing_eps", fields[17].clone()),
-            Series::new("current_eps", fields[18].clone()),
-            Series::new("eps_forward", fields[19].clone()),
-            Series::new("trailing_pe", fields[20].clone()),
-            Series::new("current_pe", fields[21].clone()),
-            Series::new("forward_pe", fields[22].clone()),
-            Series::new("dividend_rate", fields[23].clone()),
-            Series::new("dividend_yield", fields[24].clone()),
-            Series::new("book_value", fields[25].clone()),
-            Series::new("price_to_book", fields[26].clone()),
-            Series::new("market_cap", fields[27].clone()),
-            Series::new("shares_outstanding", fields[28].clone()),
-        ])?;
+        let combine = |dfs: Vec<DataFrame>| -> Result<DataFrame, Box<dyn Error>> {
+            let mut combined = dfs.first().ok_or("No data")?.clone();
+            for df in dfs.iter().skip(1) {
+                combined = combined.left_join(df, ["Metric"], ["Metric"])?;
+            }
+            Ok(combined)
+        };
+
+        let mut stats = combine(formatted_dfs)?;
+        let columns = stats.column("Metric")?.str()?.into_no_null_iter()
+            .map(|x| x.to_string()).collect::<Vec<String>>();
+        stats = stats.drop("Metric")?;
+        let symbols = Series::new("Symbol", stats.get_column_names());
+        let mut stats_df = stats.transpose(None, None)?;
+        stats_df.set_column_names(&columns)?;
+        let _ = stats_df.insert_column(0, symbols)?;
+
+        // Drop columns where all values are empty strings
+        let columns_to_drop: Vec<String> = stats_df
+            .get_column_names()
+            .iter()
+            .filter(|&&name| name != "Symbol")
+            .filter_map(|&col_name| {
+                let col = stats_df.column(col_name).ok()?;
+                let utf8 = col.str().ok()?;
+                if utf8.into_no_null_iter().all(|val| val.trim().is_empty()) {
+                    Some(col_name.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for col_name in columns_to_drop {
+            stats_df = stats_df.drop(&col_name)?;
+        }
 
         pb.finish_with_message("Done");
-        Ok(df)
+
+        Ok(stats_df)
     }
 
     /// Fetch the Options Chain Data for all tickers in the Tickers Struct
@@ -236,7 +201,7 @@ impl TickersData for Tickers {
                     Ok(options) => {
                         let mut df = options.chain;
                         let symbol_series = Series::new("symbol", vec![ticker.ticker.clone(); df.height()]);
-                        return if df.width() > 3 {
+                        if df.width() > 3 {
                             let _ = df.insert_column(3, symbol_series);
                             Ok(df)
                         } else {
@@ -263,7 +228,7 @@ impl TickersData for Tickers {
                     joint_df = joint_df.vstack(&df)?;
                 }
                 Ok(Err(_)) => continue,
-                Err(e) => eprintln!("Error in task: {}", e),
+                Err(e) => eprintln!("Error in task: {e}"),
             }
         }
 
@@ -289,7 +254,7 @@ impl TickersData for Tickers {
                     Ok(stats) => {
                         let date_series = Series::new("timestamp", stats.dates_array);
                         let returns_series = Series::new(&ticker.ticker, stats.security_returns);
-                        return if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
+                        if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
                             Ok(df)
                         } else {
                             eprintln!("No Returns Data for {}", &ticker.ticker);
@@ -325,7 +290,7 @@ impl TickersData for Tickers {
                     }
                 }
                 Ok(Err(_)) => continue,
-                Err(e) => eprintln!("Error in task: {}", e),
+                Err(e) => eprintln!("Error in task: {e}"),
             }
         }
 
@@ -372,50 +337,51 @@ impl TickersData for Tickers {
                     all_stats.push(stats);
                 }
                 Ok(Err(_)) => continue,
-                Err(e) => eprintln!("Error in task: {}", e),
+                Err(e) => eprintln!("Error in task: {e}"),
             }
         }
 
-        let mut fields: Vec<Vec<String>> = vec![vec![]; 17];
+        let mut ticker_symbols: Vec<String> = vec![];
+        let mut numeric_fields: Vec<Vec<f64>> = vec![vec![]; 16];
 
         for stat in &all_stats {
-            fields[0].push(stat.ticker_symbol.clone());
-            fields[1].push(format!("{:.2}%", stat.performance_stats.daily_return));
-            fields[2].push(format!("{:.2}%", stat.performance_stats.daily_volatility));
-            fields[3].push(format!("{:.2}%", stat.performance_stats.cumulative_return));
-            fields[4].push(format!("{:.2}%", stat.performance_stats.annualized_return));
-            fields[5].push(format!("{:.2}%", stat.performance_stats.annualized_volatility));
-            fields[6].push(format!("{:.2}", stat.performance_stats.alpha));
-            fields[7].push(format!("{:.2}", stat.performance_stats.beta));
-            fields[8].push(format!("{:.2}", stat.performance_stats.sharpe_ratio));
-            fields[9].push(format!("{:.2}", stat.performance_stats.sortino_ratio));
-            fields[10].push(format!("{:.2}%", stat.performance_stats.active_return));
-            fields[11].push(format!("{:.2}%", stat.performance_stats.active_risk));
-            fields[12].push(format!("{:.2}", stat.performance_stats.information_ratio));
-            fields[13].push(format!("{:.2}", stat.performance_stats.calmar_ratio));
-            fields[14].push(format!("{:.2}%", stat.performance_stats.maximum_drawdown));
-            fields[15].push(format!("{:.2}%", stat.performance_stats.value_at_risk));
-            fields[16].push(format!("{:.2}%", stat.performance_stats.expected_shortfall));
+            ticker_symbols.push(stat.ticker_symbol.clone());
+            numeric_fields[0].push(stat.performance_stats.daily_return);
+            numeric_fields[1].push(stat.performance_stats.daily_volatility);
+            numeric_fields[2].push(stat.performance_stats.cumulative_return);
+            numeric_fields[3].push(stat.performance_stats.annualized_return);
+            numeric_fields[4].push(stat.performance_stats.annualized_volatility);
+            numeric_fields[5].push(stat.performance_stats.alpha);
+            numeric_fields[6].push(stat.performance_stats.beta);
+            numeric_fields[7].push(stat.performance_stats.sharpe_ratio);
+            numeric_fields[8].push(stat.performance_stats.sortino_ratio);
+            numeric_fields[9].push(stat.performance_stats.active_return);
+            numeric_fields[10].push(stat.performance_stats.active_risk);
+            numeric_fields[11].push(stat.performance_stats.information_ratio);
+            numeric_fields[12].push(stat.performance_stats.calmar_ratio);
+            numeric_fields[13].push(stat.performance_stats.maximum_drawdown);
+            numeric_fields[14].push(stat.performance_stats.value_at_risk);
+            numeric_fields[15].push(stat.performance_stats.expected_shortfall);
         }
 
         let df = DataFrame::new(vec![
-            Series::new("Symbol", fields[0].clone()),
-            Series::new("Daily Return", fields[1].clone()),
-            Series::new("Daily Volatility", fields[2].clone()),
-            Series::new("Cumulative Return", fields[3].clone()),
-            Series::new("Annualized Return", fields[4].clone()),
-            Series::new("Annualized Volatility", fields[5].clone()),
-            Series::new("Alpha", fields[6].clone()),
-            Series::new("Beta", fields[7].clone()),
-            Series::new("Sharpe Ratio", fields[8].clone()),
-            Series::new("Sortino Ratio", fields[9].clone()),
-            Series::new("Active Return", fields[10].clone()),
-            Series::new("Active Risk", fields[11].clone()),
-            Series::new("Information Ratio", fields[12].clone()),
-            Series::new("Calmar Ratio", fields[13].clone()),
-            Series::new("Maximum Drawdown", fields[14].clone()),
-            Series::new("Value at Risk", fields[15].clone()),
-            Series::new("Expected Shortfall", fields[16].clone()),
+            Series::new("Symbol", ticker_symbols),
+            Series::new("Daily Return", numeric_fields[0].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Daily Volatility", numeric_fields[1].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Cumulative Return", numeric_fields[2].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Annualized Return", numeric_fields[3].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Annualized Volatility", numeric_fields[4].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Alpha", numeric_fields[5].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Beta", numeric_fields[6].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Sharpe Ratio", numeric_fields[7].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Sortino Ratio", numeric_fields[8].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Active Return", numeric_fields[9].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Active Risk", numeric_fields[10].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Information Ratio", numeric_fields[11].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Calmar Ratio", numeric_fields[12].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Maximum Drawdown", numeric_fields[13].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Value at Risk", numeric_fields[14].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Series::new("Expected Shortfall", numeric_fields[15].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
         ])?;
 
         pb.finish_with_message("Done");

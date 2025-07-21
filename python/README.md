@@ -23,10 +23,25 @@ pip install finalytics
 View the [documentation](https://nnamdi.quarto.pub/finalytics/) for more information.
 
 ```python
-from finalytics import Tickers
+from finalytics import Screener, Tickers
+
+# Screen for Large Cap NASDAQ Stocks
+screener = Screener(
+    quote_type="EQUITY",
+    filters=[
+        '{"operator": "eq", "operands": ["exchange", "NMS"]}'
+    ],
+    sort_field="intradaymarketcap",
+    sort_descending=True,
+    offset=0,
+    size=10
+)
+screener.display()
+
 
 # Instantiate a Multiple Ticker Object
-tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
+symbols = screener.symbols()
+tickers = Tickers(symbols=symbols,
                   start_date="2023-01-01",
                   end_date="2024-12-31",
                   interval="1d",
@@ -34,7 +49,7 @@ tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
                   risk_free_rate=0.02)
 
 # Generate a Single Ticker Report
-ticker = tickers.get_ticker("AAPL")
+ticker = tickers.get_ticker(symbols[0])
 ticker.report("performance")
 ticker.report("financials")
 ticker.report("options")

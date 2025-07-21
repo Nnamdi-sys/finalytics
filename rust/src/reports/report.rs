@@ -1,6 +1,7 @@
 use std::error::Error;
-use crate::reports::table::DataTable;
-use crate::prelude::{TableType, Portfolio, PortfolioCharts, StatementFrequency, Ticker, TickerCharts, TickerData, Tickers, TickersCharts};
+use std::fmt;
+use std::str::FromStr;
+use crate::prelude::{Portfolio, PortfolioCharts, StatementFrequency, Ticker, TickerCharts, Tickers, TickersCharts};
 use crate::reports::tabs::TabbedHtml;
 
 #[derive(Debug, Clone, Copy)]
@@ -11,26 +12,32 @@ pub enum ReportType {
     News
 }
 
-impl ReportType {
-    pub fn from_str(report_type: &str) -> Self {
-        match report_type {
-            "performance" => ReportType::Performance,
-            "financials" => ReportType::Financials,
-            "options" => ReportType::Options,
-            "news" => ReportType::News,
-            _ => panic!("Invalid Report Type")
-        }
-    }
-
-    pub fn to_str(&self) -> &str {
-        match self {
+impl fmt::Display for ReportType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
             ReportType::Performance => "performance",
             ReportType::Financials => "financials",
             ReportType::Options => "options",
             ReportType::News => "news",
+        };
+        write!(f, "{s}")
+    }
+}
+
+impl FromStr for ReportType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "performance" => Ok(ReportType::Performance),
+            "financials" => Ok(ReportType::Financials),
+            "options" => Ok(ReportType::Options),
+            "news" => Ok(ReportType::News),
+            _ => Err(format!("Invalid report type: {s}")),
         }
     }
 }
+
 
 pub trait Report {
     fn report(&self, report_type: Option<ReportType>) -> impl std::future::Future<Output = Result<TabbedHtml, Box<dyn Error>>>;
@@ -52,8 +59,7 @@ impl Report for Ticker {
                 tabs.push(("Performance Chart".to_string(), performance_chart));
                 let performance_stats = self.performance_stats_table().await?.to_html()?;
                 tabs.push(("Performance Stats".to_string(), performance_stats));
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             }
             ReportType::Financials => {
                 let annual_financials = self.financials_tables(StatementFrequency::Annual).await?;
@@ -68,8 +74,7 @@ impl Report for Ticker {
                     ("Quarterly Financial Ratios".to_string(), quarterly_financials.financial_ratios.to_html()?),
                     ("Annual Financial Ratios".to_string(), annual_financials.financial_ratios.to_html()?),
                 ];
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             }
             ReportType::Options => {
                 let options_charts = self.options_charts(None, None).await?;
@@ -81,21 +86,16 @@ impl Report for Ticker {
                     ("Volatility Term Structure".to_string(), options_charts.volatility_term_structure.to_html().replace("plotly-html-element", "volatility_term_structure")),
                     ("Volatility Surface Chart".to_string(), options_charts.volatility_surface.to_html().replace("plotly-html-element", "volatility_surface")),
                 ];
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             },
             ReportType::News => {
                 let mut tabs: Vec<(String, String)> = Vec::new();
-                let mut news = self.get_news().await?;
-                let _ = news.drop_in_place("Title")?;
-                news.rename("Link", "Title")?;
-                let news_table = DataTable::new(news.into(), TableType::NewsSentiment).to_html()?;
+                let news_table = self.news_sentiment_table().await?.to_html()?;
                 tabs.push(("News Sentiment Data".to_string(), news_table));
                 let news_chart = self.news_sentiment_chart(None, None).await?
                     .to_html().replace("plotly-html-element", "news_chart");
                 tabs.push(("News Sentiment Chart".to_string(), news_chart));
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             }
         };
         Ok(report)
@@ -124,8 +124,7 @@ impl Report for Portfolio {
                 let returns_matrix = self.returns_matrix(None, None)?
                     .to_html().replace("plotly-html-element", "returns_matrix");
                 tabs.push(("Returns Matrix".to_string(), returns_matrix));
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             }
             _ => unimplemented!("Only Performance Report is supported for Portfolio")
         };
@@ -151,8 +150,7 @@ impl Report for Tickers {
                 let returns_matrix = self.returns_matrix(None, None).await?
                     .to_html().replace("plotly-html-element", "returns_matrix");
                 tabs.push(("Returns Matrix".to_string(), returns_matrix));
-                let report = TabbedHtml::new(report_type, tabs);
-                report
+                TabbedHtml::new(report_type, tabs)
             }
             _ => unimplemented!("Only Performance Report is supported for Tickers")
         };

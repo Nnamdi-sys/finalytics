@@ -20,20 +20,16 @@ impl TabbedHtml {
         let mut contents = String::new();
 
         for (index, (name, table_html)) in self.tabs.iter().enumerate() {
-            let tab_id = format!("tab-{}", index);
+            let tab_id = format!("tab-{index}");
 
             // Tabs
             tabs.push_str(&format!(
-                r#"<button class="tab-button" onclick="openTab(event, '{id}')">{name}</button>"#,
-                id = tab_id,
-                name = name
+                r#"<button class="tab-button" onclick="openTab(event, '{tab_id}')">{name}</button>"#
             ));
 
             // Content
             contents.push_str(&format!(
-                r#"<div id="{id}" class="tab-content">{content}</div>"#,
-                id = tab_id,
-                content = table_html
+                r#"<div id="{tab_id}" class="tab-content">{table_html}</div>"#
             ));
         }
 
@@ -99,6 +95,8 @@ impl TabbedHtml {
 
             document.getElementById(tabId).classList.add('active');
             event.currentTarget.classList.add('active');
+
+            window.dispatchEvent(new Event('resize'));
         }}
 
         document.addEventListener('DOMContentLoaded', () => {{
@@ -109,16 +107,14 @@ impl TabbedHtml {
         }});
     </script>
 </body>
-</html>"#,
-            tabs = tabs,
-            contents = contents
+</html>"#
         )
     }
 
     /// Opens the HTML in the default web browser.
     pub fn show(&self) -> Result<(), Box<dyn Error>> {
         let html_content = self.to_html();
-        let filename = format!("{}_report.html", self.report_type.to_str());
+        let filename = format!("{}_report.html", self.report_type);
         let temp_file_path = std::env::temp_dir().join(filename);
         let mut file = File::create(&temp_file_path)?;
         file.write_all(html_content.as_bytes())?;

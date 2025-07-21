@@ -9,8 +9,8 @@ use pyo3::types:: PyDict;
 
 pub fn rust_df_to_py_df(df: &DataFrame) -> PyResult<PyObject> {
     Python::with_gil(|py| {
-        let py_polars = Python::import(py, "polars")?;
-        let py_dict = PyDict::new(py);
+        let py_polars = Python::import_bound(py, "polars")?;
+        let py_dict = PyDict::new_bound(py);
 
         // Convert each series into a Python Polars Series
         for series in df.get_columns() {
@@ -57,13 +57,13 @@ pub fn rust_series_to_py_series(series: &Series) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         // import pyarrow
-        let pyarrow = Python::import(py, "pyarrow")?;
+        let pyarrow = Python::import_bound(py, "pyarrow")?;
 
         // pyarrow array
         let pyarrow_array = to_py_array(pyarrow, array)?;
 
         // import polars
-        let polars = Python::import(py, "polars")?;
+        let polars = Python::import_bound(py, "polars")?;
         let out = polars.call_method1("from_arrow", (pyarrow_array,))?;
         Ok(out.into())
     })
@@ -75,8 +75,8 @@ pub fn rust_plot_to_py_plot(plot: Plot) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         // Import the necessary Python libraries
-        let py_plotly = Python::import(py,"plotly.graph_objects")?;
-        let py_json = Python::import(py,"json")?;
+        let py_plotly = Python::import_bound(py,"plotly.graph_objects")?;
+        let py_json = Python::import_bound(py,"json")?;
 
         // Convert the JSON string to a Python dictionary
         let plot_dict: PyObject = py_json.call_method1("loads", (plot_json,))?.extract()?;

@@ -1,0 +1,137 @@
+---
+title: Screener Module Documentation
+format:
+  html:
+    page-layout: full
+---
+
+### Screener
+
+A class representing a Screener object for querying financial instruments.
+
+<details>
+<summary>`__new__`</summary>
+
+Create a new Screener object.
+
+**Parameters:**
+
+- `quote_type` (str): The type of financial instrument to screen. Options are:
+  - `"EQUITY"`
+  - `"MUTUALFUND"`
+  - `"ETF"`
+  - `"INDEX"`
+  - `"FUTURE"`
+  - `"CRYPTO"`
+
+- `filters` (List[str]): A list of JSON strings specifying filter criteria.
+  Each filter should follow the format:
+  ```json
+  {
+      "operator": "<op>",
+      "operands": ["<metric>", <value>[, <value2>]]
+  }
+  ```
+  Where `<op>` can be one of:
+  - `"eq"`
+  - `"gte"`
+  - `"lte"`
+  - `"gt"`
+  - `"lt"`
+  - `"btwn"`
+
+- `sort_field` (str, optional): The metric to sort by.
+- `sort_descending` (bool, default=`True`): Whether to sort in descending order.
+- `offset` (int, default=`0`): The starting index of results to return.
+- `size` (int, default=`250`): The maximum number of results to return.
+
+**Returns:**
+
+- `Screener`: A Screener object.
+
+**Example:**
+
+```{python}
+from finalytics import Screener
+
+screener = Screener(
+    quote_type="EQUITY",
+    filters=[
+        '{"operator": "eq", "operands": ["exchange", "NMS"]}'
+    ],
+    sort_field="intradaymarketcap",
+    sort_descending=True,
+    offset=0,
+    size=100
+)
+```
+
+**Note:**
+A full list of screener metrics for each category can be found at:
+[https://github.com/Nnamdi-sys/finalytics/tree/main/rust/src/data/yahoo/screeners/screeners.json](https://github.com/Nnamdi-sys/finalytics/tree/main/rust/src/data/yahoo/screeners/screeners.json)
+
+</details>
+
+<details>
+<summary>`symbols`</summary>
+
+Get the list of ticker symbols matching the screener criteria.
+
+**Returns:**
+
+- `List[str]`: A list of ticker symbols, e.g., `["AAPL", "MSFT", "GOOGL"]`.
+
+**Example:**
+
+```{python}
+symbols = screener.symbols()
+print(symbols)
+```
+
+</details>
+
+<details>
+<summary>`overview`</summary>
+
+Get a Polars DataFrame containing the overview of screened instruments.
+
+**Returns:**
+
+- `DataFrame`: A Polars DataFrame with overview data.
+
+**Example:**
+
+```{python}
+overview_df = screener.overview()
+print(overview_df)
+```
+</details>
+
+<details>
+<summary>`metrics`</summary>
+
+Get a Polars DataFrame containing detailed metrics for screened instruments.
+
+**Returns:**
+
+- `DataFrame`: A Polars DataFrame with detailed metrics.
+
+**Example:**
+
+```{python}
+metrics_df = screener.metrics()
+print(metrics_df)
+```
+</details>
+
+<details>
+<summary>`display`</summary>
+
+Display the overview and metrics DataFrames as interactive DataTables in the web browser.
+
+**Example:**
+
+```{python}
+screener.display()
+```
+</details>

@@ -28,6 +28,7 @@ impl Column {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Column {
         match s {
             "open" => Column::Open,
@@ -83,7 +84,7 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("sma-{period}");
-        let sma_series = Series::new(&*col, col_val.iter().map(|x| sma.next(*x)).collect::<Vec<f64>>());
+        let sma_series = Series::new(&col, col_val.iter().map(|x| sma.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -111,7 +112,7 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("ema-{period}");
-        let ema_series = Series::new(&*col, col_val.iter().map(|x| ema.next(*x)).collect::<Vec<f64>>());
+        let ema_series = Series::new(&col, col_val.iter().map(|x| ema.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -139,7 +140,7 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("rsi-{period}");
-        let rsi_series = Series::new(&*col, col_val.iter().map(|x| rsi.next(*x)).collect::<Vec<f64>>());
+        let rsi_series = Series::new(&col, col_val.iter().map(|x| rsi.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -235,7 +236,7 @@ impl TechnicalIndicators for Ticker {
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let items = vec![high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
         let mut data_items:Vec<DataItem> = Vec::new();
         for i in 0..close.len() {
             let di = match DataItem::builder()
@@ -293,9 +294,9 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut bb = BollingerBands::new(period, std_dev).unwrap();
-        let bb_str = format!("bb-({period},{std_dev})", period=period, std_dev=std_dev);
-        let upper_str = format!("bb_upper-({period},{std_dev})", period=period, std_dev=std_dev);
-        let lower_str = format!("bb_lower-({period},{std_dev})", period=period, std_dev=std_dev);
+        let bb_str = format!("bb-({period},{std_dev})");
+        let upper_str = format!("bb_upper-({period},{std_dev})");
+        let lower_str = format!("bb_lower-({period},{std_dev})");
         let all_series:Vec<BollingerBandsOutput> = col_val.iter().map(|x| bb.next(*x)).collect();
         let df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
@@ -326,7 +327,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut fs = FastStochastic::new(period).unwrap();
         let col = format!("fs-{period}");
-        let fs_series = Series::new(&*col, col_val.iter().map(|x| fs.next(*x)).collect::<Vec<f64>>());
+        let fs_series = Series::new(&col, col_val.iter().map(|x| fs.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -355,7 +356,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut ss = SlowStochastic::new(stochastic_period, ema_period).unwrap();
         let col = format!("ss-({stochastic_period},{ema_period}`)");
-        let ss_series = Series::new(&*col, col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
+        let ss_series = Series::new(&col, col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -383,7 +384,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut sd = StandardDeviation::new(period).unwrap();
         let col = format!("sd-{period}");
-        let sd_series = Series::new(&*col, col_val.iter().map(|x| sd.next(*x)).collect::<Vec<f64>>());
+        let sd_series = Series::new(&col, col_val.iter().map(|x| sd.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -411,7 +412,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut mad = MeanAbsoluteDeviation::new(period).unwrap();
         let col = format!("mad-{period}");
-        let mad_series = Series::new(&*col, col_val.iter().map(|x| mad.next(*x)).collect::<Vec<f64>>());
+        let mad_series = Series::new(&col, col_val.iter().map(|x| mad.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -439,7 +440,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut max = Maximum::new(period).unwrap();
         let col = format!("max-{period}");
-        let max_series = Series::new(&*col, col_val.iter().map(|x| max.next(*x)).collect::<Vec<f64>>());
+        let max_series = Series::new(&col, col_val.iter().map(|x| max.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -466,8 +467,8 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut min = Minimum::new(period).unwrap();
-        let col = format!("min-{period}", period=period);
-        let min_series = Series::new(&*col, col_val.iter().map(|x| min.next(*x)).collect::<Vec<f64>>());
+        let col = format!("min-{period}");
+        let min_series = Series::new(&col, col_val.iter().map(|x| min.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -476,7 +477,7 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
-    /// Generates a Dataframe of the OHLVC data with the Average True Range Indicator
+    /// Generates a Dataframe of the OHLCV data with the Average True Range Indicator
     ///
     /// # Arguments
     ///
@@ -496,7 +497,7 @@ impl TechnicalIndicators for Ticker {
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let items = vec![high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
         let mut data_items:Vec<DataItem> = Vec::new();
         for i in 0..close.len() {
             let di = match DataItem::builder()
@@ -553,7 +554,7 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut roc = RateOfChange::new(period).unwrap();
         let col = format!("roc-{period}");
-        let roc_series = Series::new(&*col, col_val.iter().map(|x| roc.next(*x)).collect::<Vec<f64>>());
+        let roc_series = Series::new(&col, col_val.iter().map(|x| roc.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
             "timestamp" => ohlcv.column("timestamp")?.clone(),
             col_str => ohlcv.column(col_str)?.clone(),
@@ -562,7 +563,7 @@ impl TechnicalIndicators for Ticker {
         Ok(df)
     }
 
-    /// Generates a Dataframe of the OHLVC data with the On Balance Volume Indicator
+    /// Generates a Dataframe of the OHLCV data with the On Balance Volume Indicator
     ///
     /// # Returns
     ///
@@ -577,7 +578,7 @@ impl TechnicalIndicators for Ticker {
         let mut low = ohlcv.column("low")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut close = ohlcv.column("close")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut volume = ohlcv.column("volume")?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let items = vec![high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
+        let items = [high.clone(), low.clone(), close.clone(), open.clone(), volume.clone()];
         let mut data_items:Vec<DataItem> = Vec::new();
         for i in 0..close.len() {
             let di = match DataItem::builder()

@@ -1,0 +1,1118 @@
+{
+  "equity": {
+    "region": {
+      "name": "Region",
+      "description": "Where this company is based.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "intradayprice": {
+      "name": "Price (Intraday)",
+      "description": "The current price during the trading day.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "eodprice": {
+      "name": "Price (End of Day)",
+      "description": "Previous close or official exchange closing price (doesn't include after hours trading).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "dayvolume": {
+      "name": "Volume",
+      "description": "Today's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "eodvolume": {
+      "name": "Volume (End of Day)",
+      "description": "Previous day's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "avgdailyvol3m": {
+      "name": "Avg Vol (3 month)",
+      "description": "Average trading volume over the past three months.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradaymarketcap": {
+      "name": "Market Cap (Intraday)",
+      "description": "The value of a company on a stock exchange. Calculated by multiplying the total number of shares by the current intraday share price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "sector": {
+      "name": "Sector",
+      "description": "General economic sectors or divisions of economy.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "industry": {
+      "name": "Industry",
+      "description": "For each sector these are the various industries.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "beta": {
+      "name": "Beta (5Y Monthly)",
+      "description": "Measurement of how reactive a stock is compared to the overall market defined as the S&P500. This measurement is taken over a 5 year period (updated monthly).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "indexmembership": {
+      "name": "Index Membership",
+      "description": "Membership in a stock market index such as the S&P 500 or NASDAQ-100.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "days_to_cover_short.value": {
+      "name": "Short Interest Ratio",
+      "description": "The number of days required for short sellers to cover their positions based on average daily trading volume.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "short_interest.value": {
+      "name": "Short Interest",
+      "description": "The percentage change in the number of shares sold short over a specific period.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "short_interest_percentage_change.value": {
+      "name": "Short Interest % Change",
+      "description": "The percentage change in the number of shares shorted over a specific period.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "short_percentage_of_float.value": {
+      "name": "Short % of Float",
+      "description": "The percentage of a company's tradable shares that have been sold short.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "short_percentage_of_shares_outstanding.value": {
+      "name": "Short % of Shares Outstanding",
+      "description": "The percentage of a company's total shares that have been sold short.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "peer_group": {
+      "name": "Peer Group",
+      "description": "Name of the peer group.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "returnonequity.lasttwelvemonths": {
+      "name": "Return on Equity (ROE) %",
+      "description": "The ratio of average shareholder equity to net income. This measures efficiency of converting shareholder investment into income.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "epsgrowth.lasttwelvemonths": {
+      "name": "1 yr. % Change in EPS (Basic)",
+      "description": "% Change in the basic EPS score over a one year period.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "totaldebtequity.lasttwelvemonths": {
+      "name": "Debt/Equity (D/E) %",
+      "description": "The ratio of a company's total liabilities to its shareholder equity. Used to determine the amount of debt a company is taking on inorder to leverage its assets.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "currentratio.lasttwelvemonths": {
+      "name": "Current Ratio",
+      "description": "Total current assets divided by total current liabilities. Ratio that indicates a company's ability to pay off current costs.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "grossprofitmargin.lasttwelvemonths": {
+      "name": "Gross Profit Margin %",
+      "description": "Take the gross profit and divide by the cost of goods in %.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "returnonassets.lasttwelvemonths": {
+      "name": "Return on Assets (ROA) %",
+      "description": "The ratio of net income to total assets of a company. This measures how effective a company is using its assets to create income.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "ltdebtequity.lasttwelvemonths": {
+      "name": "Long Term Debt/Equity (LT D/E) %",
+      "description": "Focuses on just long term debt since long term debt typically has more impact on this ratio.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "returnontotalcapital.lasttwelvemonths": {
+      "name": "Return on Invested Capital (ROIC) %",
+      "description": "The net operating profit after tax divided by the total investment raised by a company by issuing securities to equity shareholders and debt to bondholders.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "netincomemargin.lasttwelvemonths": {
+      "name": "Net Income Margin %",
+      "description": "This ratio represents Net Income (Loss) divided by Total Revenues. This is multiplied by 100. It shows the return on sales after providing for income taxes.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "altmanzscoreusingtheaveragestockinformationforaperiod.lasttwelvemonths": {
+      "name": "Altman Z Score",
+      "description": "1.2A + 1.4B + 3.3C + .6D + 1.0E where A = working capital/total assets and B = retained earnings/total assets and C = earnings before interest and tax / total assets and D = market value of equity / total liabilities and E = sales/ total assets.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "dividendyield": {
+      "name": "Dividend Yield %",
+      "description": "The ratio between the expect dividend and the price of the stock on the last closed day.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "quickratio.lasttwelvemonths": {
+      "name": "Quick Ratio",
+      "description": "( Cash + equivalents + marketable securities + accounts receivable ) / current liabilities. Also called acid test ratio.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totaldebtebitda.lasttwelvemonths": {
+      "name": "Total Debt / EBITDA",
+      "description": "Total debt is the total debt a company has assuming it not going to use any cash to pay it off.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "ebitdamargin.lasttwelvemonths": {
+      "name": "EBITDA Margin %",
+      "description": "This ratio shows the percentage of EBITDA to Total Revenues.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "netdebtebitda.lasttwelvemonths": {
+      "name": "Net Debt / EBITDA",
+      "description": "Net debt is the debt left after it pays off debt with existing cash. If net debt and EBITDA are held constant this would be the number of years it would take to pay off debts. Ratios above 4 are considered very high.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "operatingcashflowtocurrentliabilities.lasttwelvemonths": {
+      "name": "Operating Cash Flow Ratio",
+      "description": "This is the operating cash flow divided by current liabilities. If this is higher than 1 then the company has generated enough cash to pay off all current liabilities.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "forward_dividend_yield": {
+      "name": "Forward Dividend Yield %",
+      "description": "Expected annual dividend divided by the current stock price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "ebitdainterestexpense.lasttwelvemonths": {
+      "name": "EBITDA / Interest Expense (LTM)",
+      "description": "Company's ability to cover interest payments using earnings before interest.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ebitinterestexpense.lasttwelvemonths": {
+      "name": "EBIT / Interest Expense (LTM)",
+      "description": "Company's ability to cover interest payments using earnings before interest and taxes.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "intradaypricechange": {
+      "name": "Price Change (Intraday)",
+      "description": "Dollar amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclose52weekhigh.lasttwelvemonths": {
+      "name": "52 Week Price High (Last Close)",
+      "description": "The highest closing price of the stock in the last 52 weeks.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclose52weeklow.lasttwelvemonths": {
+      "name": "52 Week Price Low (Last Close)",
+      "description": "The lowest closing price of the stock in the last 52 weeks.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "percentchange": {
+      "name": "% Change in Price (Intraday)",
+      "description": "% amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "consecutive_years_of_dividend_growth_count": {
+      "name": "Consecutive Years of Dividend Growth Count",
+      "description": "Number of years a company has increased its dividends.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "price_signal_fifty_two_wk_high.datetime": {
+      "name": "Recent High Timeframe",
+      "description": "Stocks that set new highs within the selected timeframe.",
+      "data_type": "now-1w/d",
+      "unit": ""
+    },
+    "price_signal_fifty_two_wk_low.datetime": {
+      "name": "Recent Low Timeframe",
+      "description": "Stocks that set new lows within the selected timeframe.",
+      "data_type": "now-1w/d",
+      "unit": ""
+    },
+    "totalrevenues1yrgrowth.lasttwelvemonths": {
+      "name": "1 Yr. % Change in Total Revenue",
+      "description": "The percent change in revenue over the last year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "netincome1yrgrowth.lasttwelvemonths": {
+      "name": "1 Yr. % Change in Net Income",
+      "description": "This ratio shows the simple growth in Net Income over one year. The formula is (net_income(t) / net_income(t-1) - 1) * 100",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "basicepscontinuingoperations.lasttwelvemonths": {
+      "name": "EPS (Basic, Continuing Operations)",
+      "description": "This number is the company's earnings per share from the day-to-day operations of its business during the most recent complete fiscal year. It does not include discontinued operations extraordinary items and accounting changes. Better indicated company performance when you removed the discontinued operations.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "quarterlyrevenuegrowth.quarterly": {
+      "name": "Quarterly Revenue Growth (yoy) %",
+      "description": "Measures the increase of sales quarter over quarter for year over year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "totalrevenues.lasttwelvemonths": {
+      "name": "Total Revenue",
+      "description": "The money a company made from selling their goods/service.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "netepsbasic.lasttwelvemonths": {
+      "name": "EPS (Basic)",
+      "description": "Net income divided by the number of outstanding shares. Measures the amount of a companys profit that can be allocated to one share of its common stock.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ebitda1yrgrowth.lasttwelvemonths": {
+      "name": "1 Yr. % Change in EBITDA",
+      "description": "% Change in EBITDA over the last year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "dilutedeps1yrgrowth.lasttwelvemonths": {
+      "name": "1 Yr. % Change in EPS (Diluted)",
+      "description": "% Change in the diluted EPS score over a one year period.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "netepsdiluted.lasttwelvemonths": {
+      "name": "EPS (Diluted)",
+      "description": "This is the EPS score including all convertible securities like outstanding convertible preferred shares convertible debentures stock options and warrants. Typically this is lower than the Basic EPS.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "netincomeis.lasttwelvemonths": {
+      "name": "Net Income",
+      "description": "Is the earnings minus taxes and all expenses. Used to calculate the company EPS. Also referrred to as a company's bottom line since it is at the bottom of the income statement.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "operatingincome.lasttwelvemonths": {
+      "name": "Operating Income",
+      "description": "Is total revenue minus the cost of goods and the cost of operating.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "grossprofit.lasttwelvemonths": {
+      "name": "Gross Profit",
+      "description": "Equals revenue minus the costs of goods sold which can be used to indicate a company's efficiency at producing goods.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ebitda.lasttwelvemonths": {
+      "name": "EBITDA",
+      "description": "Earnings before interest taxes depreciation and amortization. A way to measure the cash flow of a business.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "dilutedepscontinuingoperations.lasttwelvemonths": {
+      "name": "EPS (Diluted, Continuing Operations)",
+      "description": "This number is the company's earnings per share from the day-to-day operations of its business during the most recent complete fiscal year including all convertible securities.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ebit.lasttwelvemonths": {
+      "name": "EBIT",
+      "description": "Earnings before interest and taxes. Used to measure a firm's operating income.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "bookvalueshare.lasttwelvemonths": {
+      "name": "Book Value / Share",
+      "description": "Calculated by taking the equity available to common shareholder divided by the number of outstanding shares. This represents the minimum value per share. If the BVPS is greater than the stock price this could indicate an undervalued stock.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalsharesoutstanding": {
+      "name": "Total Shares Outstanding",
+      "description": "The total number of shares owned by stakeholders.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totaldebt.lasttwelvemonths": {
+      "name": "Total Debt",
+      "description": "The sum of all long term liabilities.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalassets.lasttwelvemonths": {
+      "name": "Total Assets",
+      "description": "Total amount of assets owned where an asset is any item that has economic value such as cash securities inventory intangible assets etc.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalcashandshortterminvestments.lasttwelvemonths": {
+      "name": "Total Cash And Short Term Investments",
+      "description": "The sum of cash and equivalents and short term investments from a company's balance sheet. These two categories are considered very liquid assets.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalcurrentassets.lasttwelvemonths": {
+      "name": "Total Current Assets",
+      "description": "Any asset that is expected to be turned into cash over the next year. This is commonly compared to total current liabilitties to make sure there is enough assets to cover the upcoming liabilities.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalequity.lasttwelvemonths": {
+      "name": "Total Equity",
+      "description": "Equity = Assets - Liabilities.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalcommonsharesoutstanding.lasttwelvemonths": {
+      "name": "Total Common Shares Outstanding",
+      "description": "The number of only common shares (excludes any preferred shares).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalcurrentliabilities.lasttwelvemonths": {
+      "name": "Total Current Liabilities",
+      "description": "Are the liabilities that are due within the next year such as dividends or short term debt.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "totalcommonequity.lasttwelvemonths": {
+      "name": "Total Common Equity",
+      "description": "The value of all common stock shares plus the retained earnings and additional paid-in capital for the year.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "cashfromoperations1yrgrowth.lasttwelvemonths": {
+      "name": "1 yr. % Change in Cash from Operations",
+      "description": "This is the percent growth in the cash generated-spent on the company's core business actvities.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "unleveredfreecashflow.lasttwelvemonths": {
+      "name": "Unlevered (before expenses) Free Cash Flow",
+      "description": "This is the amount of cash the company generated before paying its expenses.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "leveredfreecashflow.lasttwelvemonths": {
+      "name": "Levered (after expenses) Free Cash Flow",
+      "description": "This is the amount of cash a company has left after business expenses. This is the amount of cash a company can use to expand it's business. If this is negative then they have more debt then what they brought in.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "leveredfreecashflow1yrgrowth.lasttwelvemonths": {
+      "name": "1 yr. % Change in Levered Free Cash Flow",
+      "description": "This is the change over a year of the amount of levered free cash flow a company generates.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "dividendpershare.lasttwelvemonths": {
+      "name": "Dividend Per Share (DPS)",
+      "description": "Ratio of the total dividends a company has payed out in 12 months divided by the total number of shares. Thus this is the reported dividend a shareholder recieves per share.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "capitalexpenditure.lasttwelvemonths": {
+      "name": "Capita Expenditure (CapEx)",
+      "description": "Company funds that are used to undertake new projects and investments. This shows you how much a company is investing in its long term growth.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "forward_dividend_per_share": {
+      "name": "Forward Dividend Per Share",
+      "description": "Expected dividend per share for the next 12 months.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "cashfromoperations.lasttwelvemonths": {
+      "name": "Cash From Operations",
+      "description": "Cash generated by core business operations over the last twelve months.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosemarketcap.lasttwelvemonths": {
+      "name": "Market Cap (Last 12M)",
+      "description": "The value of a company on a stock exchange. Calculated by multiplying the total number of shares by the current intraday share price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosetevebitda.lasttwelvemonths": {
+      "name": "Total Enterprise Value (TEV) / EBITDA",
+      "description": "A company's enterprise value (market cap + preferred shares + minority interest + debt - total cash) divided by EBITDA (earnings before interest tax depreciation and amortization). The lower the ratio the cheaper the valuation of the company.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosepricetangiblebookvalue.lasttwelvemonths": {
+      "name": "Price / Tangible Book Value (P/TB)",
+      "description": "Calculated by taking the last close price divided by the tangible book value found in earning calls. If the company was to shutdown and liquidate it's reported assets this is the amount an investor would receive per share of the company.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosetevebit.lasttwelvemonths": {
+      "name": "Total Enterprise Value (TEV) / EBIT",
+      "description": "A company's enterprise value (market cap + preferred shares + minority interest + debt - total cash) divided by EBIT (earnings before interest and tax). The lower the ratio the cheaper the valuation of the company.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosemarketcaptotalrevenue.lasttwelvemonths": {
+      "name": "Price / Sales (P/S)",
+      "description": "P/S indicates the value the market has given to each dollar of the companies sales/revenue.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosetevtotalrevenue.lasttwelvemonths": {
+      "name": "Total Enterprise Value / Total Revenue (EV/Sales)",
+      "description": "Compares the value of the enterprise to the total revenue the company generates. This metric is useful for determining the value of a company that might be acquired.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosepricebookvalue.lasttwelvemonths": {
+      "name": "Price / Book Value (P/B)",
+      "description": "The stock's last closing price compared to its book value.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "lastclosepriceearnings.lasttwelvemonths": {
+      "name": "Price / Earnings (P/E)",
+      "description": "The stock's last closing price compared to its earnings per share.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "pegratio_5y": {
+      "name": "Price / Earnings to Growth (P/E/G)",
+      "description": "P/E ratio divided by the expected earnings growth rate over five years.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "peratio.lasttwelvemonths": {
+      "name": "Trailing P/E",
+      "description": "P/E ratio using earnings from the last 12 months.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "pricebookratio.quarterly": {
+      "name": "P/B (most recent quarter to mrq)",
+      "description": "The stock's market value compared to its book value.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "environmental_score": {
+      "name": "Environmental Score",
+      "description": "Absolute score between 0 and 100 which reflects the company's preparedness disclosure and performance on environmental issues.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "esg_score": {
+      "name": "ESG Score",
+      "description": "Sustainalytics' ESG Ratings measure how well companies proactively manage thei environmental social and governance issues that are the most material to their business and provide an assessment of companies' ability to mitigate ESG risks. The ESG rating is a quantitative score on a scale of 1-100 based on a balanced scorecard system.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "governance_score": {
+      "name": "Governance Score",
+      "description": "Absolute score between 0 and 100 which reflects the company's preparedness disclosure and performance on governance issues.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "social_score": {
+      "name": "Social Score",
+      "description": "Absolute score between 0 and 100 which reflects the company's preparedness disclosure and performance on social issues.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "highest_controversy": {
+      "name": "Highest Controversy",
+      "description": "Controversy level is based on qualitative information relating to company events and incidents that have resulted in negative ESG impacts. Companies may have multiple ongoing controversies under different themes; this metric provides the current level of the most severe controversy. The assessment of severity considers impact risk positive/negative trend as well as the company's preparedness and response. Severity is classified as follows: Category 1 - low; Category 2 - moderate; Category 3 - significant; Category 4 - high; Category 5 - severe.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "pctheldinsider": {
+      "name": "% of Shares Outstanding Held by Insiders",
+      "description": "The percentage of shares of the company held by insiders where insiders are directors or senior officials of a company.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "pctheldinst": {
+      "name": "% of Shares Outstanding Held by Institutions",
+      "description": "The percentage of shares of the company held by financial institutions such as banks funds and large holdings companies. Typically if the instituational owernship is high the stock is considered less risky.",
+      "data_type": "float",
+      "unit": "%"
+    }
+  },
+  "mutualfund": {
+    "categoryname": {
+      "name": "Funds by Category",
+      "description": "This is a specific category or type of Fund provided by Morningstar.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fundfamilyname": {
+      "name": "Funds by Company",
+      "description": "This is the company that owns and manages the mutual fund.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fundnetassets": {
+      "name": "Fund Net Assets",
+      "description": "This figure is recorded in millions of dollars and represents the fund's total asset base.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "eodprice": {
+      "name": "Price (End of Day)",
+      "description": "Previous close or official exchange closing price (doesn't include after hours trading).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradayprice": {
+      "name": "Price (Intraday)",
+      "description": "The current price during the trading day.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradaypricechange": {
+      "name": "Change",
+      "description": "Dollar amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "percentchange": {
+      "name": "Percent Change",
+      "description": "% Amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "region": {
+      "name": "Region",
+      "description": "Where this company is based.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "primary_sector": {
+      "name": "Sector",
+      "description": "General economic sectors or divisions of economy.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "initialinvestment": {
+      "name": "Initial Investment",
+      "description": "In case the mutual funds has a minimum for an initial investment.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "marketcapitalvaluelong": {
+      "name": "Market Capital Value - Long",
+      "description": "Morningstar defines the overall 'size' of a stock fund's portfolio as the geometric mean of the market capitalization for all of the stocks it owns. It's calculated by raising the market capitalization of each stock to a power equal to that stock's stake in the portfolio. The resulting numbers are multiplied together to produce the geometric mean of the market caps of the stocks in the portfolio which is reported as average market capitalization.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy1": {
+      "name": "Annual Return NAV Year 1",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 1 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy3": {
+      "name": "Annual Return NAV Year 3",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 3 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy5": {
+      "name": "Annual Return NAV Year 5",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 5 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy1categoryrank": {
+      "name": "Annual Return NAV Year 1 Category Rank",
+      "description": "This is the fund's total-return percentile rank relative to all funds that have the same Morningstar Category. The highest (or most favorable) percentile rank is 1 and the lowest (or least favorable) percentile rank is 100. The top-performing fund in a category will always receive a rank of 1.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "quarterendtrailingreturnytd": {
+      "name": "Quarter End Trailing Return YTD %",
+      "description": "Morningstar's calculation of total return is determined each month by taking the change in monthly net asset value reinvesting all income and capital-gains distributions during that month and dividing by the starting NAV. Reinvestments are made using the actual reinvestment NAV and daily payoffs are reinvested monthly. Unless otherwise noted Morningstar does not adjust total returns for sales charges (such as front-end loads deferred loads and redemption fees) preferring to give a clearer picture of a fund's performance. The total returns do account for management administrative 12b-1 fees and other costs taken out of fund assets. Total returns for periods longer than one year are expressed in terms of compounded average annual returns (also known as geometric total returns) affording a more meaningful picture of fund performance than non-annualized figures.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "trailing_3m_return": {
+      "name": "Trailing 3M Return %",
+      "description": "% Return of the fund from the last consectutive 3 months.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "trailing_ytd_return": {
+      "name": "Trailing YTD Return %",
+      "description": "% Return of the fund over the last consectutive year to current date.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreportnetexpenseratio": {
+      "name": "Annual Report Net Expense Ratio",
+      "description": "Is the % of money that is spent on administrative and operating expenses.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "turnoverratio": {
+      "name": "Turnover Ratio",
+      "description": "Is the % of the mutual fund that has changed over the year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreportgrossexpenseratio": {
+      "name": "Annual Report Gross Expense Ratio",
+      "description": "Is the % of the assets that are used to run the fund excluding sales or brokerage commissions. This number gives you a sense of how expensive it is to run this fund. Typically investors compare this to the net expense ratio of a company.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "performanceratingoverall": {
+      "name": "Morningstar Performance Rating Overall",
+      "description": "Morningstar analyst ranking on overall performance of a stock compared to funds in a similar category. 5 stars is the highest ranking while 1 is the lowest where the stars are given based on a standard bell curve.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "riskratingoverall": {
+      "name": "Morningstar Risk Rating Overall",
+      "description": "Morningstar fund analyst of a fund's risk by calculating a rick penatly for each fund based on expected utility theory.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "twohundreddaymovingavg": {
+      "name": "200 Day Moving Average",
+      "description": "The average price of an asset over the past 200 trading days, used to identify long-term trends",
+      "data_type": "float",
+      "unit": ""
+    },
+    "fiftydaymovingavg": {
+      "name": "50 Day Moving Average",
+      "description": "The average price of an asset over the past 50 trading days, used to identify intermediate-term trends",
+      "data_type": "float",
+      "unit": ""
+    }
+  },
+  "etf": {
+    "categoryname": {
+      "name": "Funds by Category",
+      "description": "This is a specific category or type of Fund provided by Morningstar.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fundfamilyname": {
+      "name": "Funds by Company",
+      "description": "This is the company that owns and manages the mutual fund.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fundnetassets": {
+      "name": "Fund Net Assets",
+      "description": "This figure is recorded in millions of dollars and represents the fund's total asset base.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "eodprice": {
+      "name": "Price (End of Day)",
+      "description": "Previous close or official exchange closing price (doesn't include after hours trading).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradayprice": {
+      "name": "Price (Intraday)",
+      "description": "The current price during the trading day.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradaypricechange": {
+      "name": "Change",
+      "description": "Dollar amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "percentchange": {
+      "name": "Percent Change",
+      "description": "% Amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "region": {
+      "name": "Region",
+      "description": "Where this company is based.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "primary_sector": {
+      "name": "Sector",
+      "description": "General economic sectors or divisions of economy.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "initialinvestment": {
+      "name": "Initial Investment",
+      "description": "In case the mutual funds has a minimum for an initial investment.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "marketcapitalvaluelong": {
+      "name": "Market Capital Value - Long",
+      "description": "Morningstar defines the overall 'size' of a stock fund's portfolio as the geometric mean of the market capitalization for all of the stocks it owns. It's calculated by raising the market capitalization of each stock to a power equal to that stock's stake in the portfolio. The resulting numbers are multiplied together to produce the geometric mean of the market caps of the stocks in the portfolio which is reported as average market capitalization.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "dayvolume": {
+      "name": "Volume",
+      "description": "Today's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "eodvolume": {
+      "name": "Volume (End of Day)",
+      "description": "Previous day's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "avgdailyvol3m": {
+      "name": "Avg Vol (3 month)",
+      "description": "Average trading volume over the past three months.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy1": {
+      "name": "Annual Return NAV Year 1",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 1 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy3": {
+      "name": "Annual Return NAV Year 3",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 3 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy5": {
+      "name": "Annual Return NAV Year 5",
+      "description": "The net asset value represents the market value per share of a mutual fund. It can be calculated by dividing the total value of the fund portfolio by the number of share thus indicated the worth of one share. This looks at the NAV over 5 year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreturnnavy1categoryrank": {
+      "name": "Annual Return NAV Year 1 Category Rank",
+      "description": "This is the fund's total-return percentile rank relative to all funds that have the same Morningstar Category. The highest (or most favorable) percentile rank is 1 and the lowest (or least favorable) percentile rank is 100. The top-performing fund in a category will always receive a rank of 1.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "trailing_3m_return": {
+      "name": "Trailing 3M Return %",
+      "description": "% Return of the fund from the last consectutive 3 months.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "quarterendtrailingreturnytd": {
+      "name": "Quarter End Trailing Return YTD %",
+      "description": "Morningstar's calculation of total return is determined each month by taking the change in monthly net asset value reinvesting all income and capital-gains distributions during that month and dividing by the starting NAV. Reinvestments are made using the actual reinvestment NAV and daily payoffs are reinvested monthly. Unless otherwise noted Morningstar does not adjust total returns for sales charges (such as front-end loads deferred loads and redemption fees) preferring to give a clearer picture of a fund's performance. The total returns do account for management administrative 12b-1 fees and other costs taken out of fund assets. Total returns for periods longer than one year are expressed in terms of compounded average annual returns (also known as geometric total returns) affording a more meaningful picture of fund performance than non-annualized figures.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "trailing_ytd_return": {
+      "name": "Trailing YTD Return %",
+      "description": "% Return of the fund over the last consectutive year to current date.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreportgrossexpenseratio": {
+      "name": "Annual Report Gross Expense Ratio",
+      "description": "Is the % of the assets that are used to run the fund excluding sales or brokerage commissions. This number gives you a sense of how expensive it is to run this fund. Typically investors compare this to the net expense ratio of a company.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "annualreportnetexpenseratio": {
+      "name": "Annual Report Net Expense Ratio",
+      "description": "Is the % of money that is spent on administrative and operating expenses.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "turnoverratio": {
+      "name": "Turnover Ratio",
+      "description": "Is the % of the mutual fund that has changed over the year.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "performanceratingoverall": {
+      "name": "Morningstar Performance Rating Overall",
+      "description": "Morningstar analyst ranking on overall performance of a stock compared to funds in a similar category. 5 stars is the highest ranking while 1 is the lowest where the stars are given based on a standard bell curve.",
+      "data_type": "int",
+      "unit": ""
+    },
+    "riskratingoverall": {
+      "name": "Morningstar Risk Rating Overall",
+      "description": "Morningstar fund analyst of a fund's risk by calculating a rick penatly for each fund based on expected utility theory.",
+      "data_type": "int",
+      "unit": ""
+    }
+  },
+  "index": {
+    "eodprice": {
+      "name": "Price (End of Day)",
+      "description": "Previous close or official exchange closing price (doesn't include after hours trading).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradayprice": {
+      "name": "Price (Intraday)",
+      "description": "The current price during the trading day.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradaypricechange": {
+      "name": "Change",
+      "description": "Dollar amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "percentchange": {
+      "name": "Percent Change",
+      "description": "% Amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "eodvolume": {
+      "name": "Volume (End of Day)",
+      "description": "Previous day's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "region": {
+      "name": "Region",
+      "description": "Where this company is based.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "sector": {
+      "name": "Sector",
+      "description": "General economic sectors or divisions of economy.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "industry": {
+      "name": "Industry",
+      "description": "For each sector these are the various industries.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "avgdailyvol3m": {
+      "name": "Avg Vol (3 month)",
+      "description": "Average trading volume over the past three months.",
+      "data_type": "float",
+      "unit": ""
+    }
+  },
+  "future": {
+    "eodprice": {
+      "name": "Price (End of Day)",
+      "description": "Previous close or official exchange closing price (doesn't include after hours trading).",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradayprice": {
+      "name": "Price (Intraday)",
+      "description": "The current price during the trading day.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "intradaypricechange": {
+      "name": "Change",
+      "description": "Dollar amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "percentchange": {
+      "name": "Percent Change",
+      "description": "% Amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "dayvolume": {
+      "name": "Volume",
+      "description": "Today's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "open_interest": {
+      "name": "Open Interest",
+      "description": "The total number of open contracts on a security applies primarily to the futures market.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "region": {
+      "name": "Region",
+      "description": "Where this company is based.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "avgdailyvol3m": {
+      "name": "Avg Vol (3 month)",
+      "description": "Average trading volume over the past three months.",
+      "data_type": "float",
+      "unit": ""
+    }
+  },
+  "crypto": {
+    "percentchange": {
+      "name": "Percent Change",
+      "description": "% Amount change in price from the previous close to the current price.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "dayvolume": {
+      "name": "Volume",
+      "description": "Today's traded volume.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "ticker": {
+      "name": "Symbol",
+      "description": "A unique series of letters assigned to a security or financial instrument for trading purposes, like 'AAPL' for Apple Inc.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "intradaymarketcap": {
+      "name": "Market Cap (Intraday)",
+      "description": "The value of a company on a stock exchange. Calculated by multiplying the total number of shares by the current intraday share price.",
+      "data_type": "float",
+      "unit": ""
+    },
+    "exchange": {
+      "name": "Exchange",
+      "description": "A marketplace where securities, commodities, derivatives, and other financial instruments are traded, such as the New York Stock Exchange (NYSE) or NASDAQ.",
+      "data_type": "str",
+      "unit": ""
+    },
+    "fiftytwowkpercentchange": {
+      "name": "52 Week Price % Change",
+      "description": "The percent change in price over the last 52 weeks.",
+      "data_type": "float",
+      "unit": "%"
+    },
+    "avgdailyvol3m": {
+      "name": "Avg Vol (3 month)",
+      "description": "Average trading volume over the past three months.",
+      "data_type": "float",
+      "unit": ""
+    }
+  }
+}

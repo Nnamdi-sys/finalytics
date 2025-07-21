@@ -3,14 +3,14 @@ use polars::prelude::*;
 use rand::Rng;
 use std::error::Error;
 use std::ops::Mul;
-use smartcore::linalg::basic::arrays::Array2;
+use smartcore::linalg::basic::arrays::{Array, Array2};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 use smartcore::linear::linear_regression::LinearRegression;
 use statrs::statistics::Statistics;
 use statrs::distribution::{ContinuousCDF, Normal};
-use crate::data::config::Interval;
+use crate::prelude::IntervalDays;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PerformanceStats {
     pub daily_return: f64,
     pub daily_volatility: f64,
@@ -31,28 +31,6 @@ pub struct PerformanceStats {
 }
 
 impl PerformanceStats {
-    /// Creates a default PerformanceStats struct
-    pub fn default() -> Self {
-        Self {
-            daily_return: 0.0,
-            daily_volatility: 0.0,
-            cumulative_return: 0.0,
-            annualized_return: 0.0,
-            annualized_volatility: 0.0,
-            alpha: 0.0,
-            beta: 0.0,
-            sharpe_ratio: 0.0,
-            sortino_ratio: 0.0,
-            active_return: 0.0,
-            active_risk: 0.0,
-            information_ratio: 0.0,
-            calmar_ratio: 0.0,
-            maximum_drawdown: 0.0,
-            value_at_risk: 0.0,
-            expected_shortfall: 0.0,
-        }
-    }
-
     /// Computes the performance statistics of a series of security returns
     ///
     /// # Arguments
@@ -70,25 +48,26 @@ impl PerformanceStats {
         benchmark_returns: Series,
         risk_free_rate: f64,
         confidence_level: f64,
-        interval: Interval,
+        interval: IntervalDays,
     ) -> Result<PerformanceStats, Box<dyn Error>> {
         let _len = returns.len();
-        let days = interval.to_days();
+        let days = interval.mode;
+        let annual_days = 365.0/interval.average;
         let risk_free_rate = risk_free_rate * 100.0;
         let cumulative_return = cumulative_return(&returns);
         let daily_return = returns.mean().ok_or("Error calculating mean return")?/days;
         let daily_volatility = std_dev(&returns);
-        let annualized_return = ((1.0 + daily_return/100.0).powf(252.0) - 1.0) * 100.0;
-        let annualized_volatility = daily_volatility * 252.0_f64.sqrt();
+        let annualized_return = ((1.0 + daily_return/100.0).powf(annual_days) - 1.0) * 100.0;
+        let annualized_volatility = daily_volatility * annual_days.sqrt();
         let (alpha, beta) = ols_regression(&returns.clone(), &benchmark_returns.clone());
         let sharpe_ratio = (annualized_return - risk_free_rate) / annualized_volatility;
         let downside_mask = &returns.lt_eq(0.0).unwrap();
         let downside_returns = returns.filter(downside_mask).unwrap();
-        let sortino_ratio = (annualized_return - risk_free_rate) / (std_dev( &downside_returns) * 252.0_f64.sqrt());
+        let sortino_ratio = (annualized_return - risk_free_rate) / (std_dev( &downside_returns) * annual_days.sqrt());
         let excess_returns = (returns.clone() - benchmark_returns.clone())?;
         let active_return = excess_returns.mean().ok_or("Error calculating active return")?;
-        let active_return = ((1.0 + active_return/100.0).powf(252.0) - 1.0) * 100.0;
-        let active_risk = std_dev(&excess_returns) * 252.0_f64.sqrt();
+        let active_return = ((1.0 + active_return/100.0).powf(annual_days) - 1.0) * 100.0;
+        let active_risk = std_dev(&excess_returns) * annual_days.sqrt();
         let information_ratio = active_return / active_risk;
         let (_, maximum_drawdown) = maximum_drawdown(&returns);
         let calmar_ratio = annualized_return / maximum_drawdown;
@@ -126,8 +105,7 @@ impl PerformanceStats {
 /// * `f64` - Standard deviation
 pub fn std_dev(series: &Series) -> f64 {
     let dev_vec = series.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-    let stddev = *&dev_vec.population_std_dev();
-    stddev
+    dev_vec.population_std_dev()
 }
 
 /// Computes the z-score corresponding to the confidence level
@@ -141,9 +119,7 @@ pub fn std_dev(series: &Series) -> f64 {
 /// * `f64` - Z-score
 pub fn z_score(confidence_level: f64) -> f64 {
     let normal = Normal::new(0.0, 1.0).unwrap(); // Mean=0, Standard Deviation=1 for standard normal distribution
-    let z_score = normal.inverse_cdf(confidence_level);
-
-    z_score
+    normal.inverse_cdf(confidence_level)
 }
 
 
@@ -170,7 +146,7 @@ pub fn ols_regression(x_series: &Series, y_series: &Series) -> (f64, f64) {
 
     // Get the intercept and slope
     let intercept = *model.intercept();
-    let slope = model.coefficients().iter().map(|x| *x).collect::<Vec<f64>>().pop().unwrap();
+    let slope = *model.coefficients().get((0,0));
 
     (intercept, slope)
 }
@@ -219,12 +195,13 @@ pub fn correlation_matrix(df: &DataFrame) -> Result<ndarray::Array2<f64>, Box<dy
     let mut correlation_matrix = ndarray::Array2::zeros((num_columns, num_columns));
 
     // Calculate standard deviations of each column
-    let mut std_devs = vec![0.0; num_columns];
-    for i in 0..num_columns {
-        let series = df.select_at_idx(i).unwrap().f64()?.to_vec().iter()
-            .map(|x| x.unwrap()).collect::<Vec<f64>>();
-        std_devs[i] = series.std_dev();
-    }
+    let std_devs= (0..num_columns)
+        .map(|i| {
+            let series = df.select_at_idx(i).unwrap().f64()?.into_iter()
+                .map(|x| x.unwrap()).collect::<Vec<f64>>();
+            Ok(series.std_dev())
+        })
+        .collect::<Result<Vec<f64>, PolarsError>>()?;
 
     // Compute the correlation matrix
     for i in 0..num_columns {
@@ -310,8 +287,7 @@ pub fn value_at_risk(returns: &Series, confidence_level: f64) -> f64 {
     let mut sorted_returns = returns.clone();
     sorted_returns.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
     let index = ((1.0 - confidence_level) * (returns.len() as f64 - 1.0)) as usize;
-    let var = sorted_returns[index];
-    var
+    sorted_returns[index]
 }
 
 /// computes the expected shortfall of a series of security returns
@@ -327,7 +303,7 @@ pub fn value_at_risk(returns: &Series, confidence_level: f64) -> f64 {
 pub fn expected_shortfall(returns: &Series, confidence_level: f64) -> f64 {
     let var = value_at_risk(returns, confidence_level);
     let returns = returns.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-    let loss_returns = returns.iter().filter(|&x| x < &var).map(|x| x.clone()).collect::<Vec<f64>>();
+    let loss_returns = returns.iter().filter(|&x| x < &var).cloned().collect::<Vec<f64>>();
     let es = loss_returns.iter().sum::<f64>() / (loss_returns.len() as f64);
     es
 }
@@ -342,9 +318,9 @@ pub fn expected_shortfall(returns: &Series, confidence_level: f64) -> f64 {
 ///
 /// * `Vec<f64>` - Vector of random weights
 pub fn rand_weights(num_assets: usize) -> Vec<f64> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let weights = (0..num_assets)
-        .map(|_| rng.gen_range(0.0..1.0))
+        .map(|_| rng.random_range(0.0..1.0))
         .collect::<Vec<f64>>();
     let sum: f64 = weights.iter().sum();
     let result = weights.iter().map(|&x| x / sum).collect::<Vec<f64>>();
@@ -365,8 +341,7 @@ pub fn mean_portfolio_return(weights: &Vec<f64>, mean_returns: &Vec<f64>) -> f64
     let weights = Series::new("Weights", weights);
     let mean_returns = Series::new("Mean Returns", mean_returns);
     let weighted_returns = mean_returns.mul(weights).unwrap();
-    let mean_portfolio_return = weighted_returns.sum().unwrap();
-    mean_portfolio_return
+    weighted_returns.sum().unwrap()
 }
 
 /// Computes the standard deviation of a portfolio
@@ -379,12 +354,11 @@ pub fn mean_portfolio_return(weights: &Vec<f64>, mean_returns: &Vec<f64>) -> f64
 /// # Returns
 ///
 /// * `f64` - Portfolio standard deviation
-pub fn portfolio_std_dev(weights: &Vec<f64>, cov_matrix: &ndarray::Array2<f64>) -> f64 {
+pub fn portfolio_std_dev(weights: &[f64], cov_matrix: &ndarray::Array2<f64>) -> f64 {
     let _len = weights.len();
-    let weights = ndarray::Array1::from(weights.clone());
+    let weights = ndarray::Array1::from(weights.to_vec());
     let portfolio_variance = weights.dot(cov_matrix).dot(&weights.t());
-    let portfolio_std_dev = portfolio_variance.sqrt();
-    portfolio_std_dev
+    portfolio_variance.sqrt()
 }
 
 /// Computes the daily/time_interval returns of a portfolio given the weights and asset returns
@@ -397,7 +371,7 @@ pub fn portfolio_std_dev(weights: &Vec<f64>, cov_matrix: &ndarray::Array2<f64>) 
 /// # Returns
 ///
 /// * `Series` - Portfolio returns
-pub fn daily_portfolio_returns(weights: &Vec<f64>, returns: &DataFrame) -> Series {
+pub fn daily_portfolio_returns(weights: &[f64], returns: &DataFrame) -> Series {
     let mut portfolio_returns = Series::new("Portfolio Returns", vec![0.0; returns.height()]);
     for (i, weight) in weights.iter().enumerate() {
         let col_str = returns.get_column_names()[i];

@@ -1,31 +1,33 @@
-use actix_web::{App, HttpServer};
-use env_logger::Env;
-use crate::router::index::index_html;
-use crate::router::portfolio::{portfolio, portfolio_report};
-use crate::router::symbols::get_all_symbols;
-use crate::router::ticker::{ticker, ticker_report};
-use crate::router::code::{get_code_examples};
+mod server;
+mod components;
+mod pages;
+mod app;
+mod forms;
+mod dashboards;
 
-mod router;
+use dioxus::prelude::*;
+use crate::app::App;
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
 
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+fn main() {
 
-    HttpServer::new( || {
-        App::new()
-            .service(actix_files::Files::new("/components", "src/components").show_files_listing())
-            .service(actix_files::Files::new("/images", "src/images").show_files_listing())
-            .service(index_html)
-            .service(ticker)
-            .service(ticker_report)
-            .service(portfolio)
-            .service(portfolio_report)
-            .service(get_all_symbols)
-            .service(get_code_examples)
-    })
-        .bind("0.0.0.0:8080")?
-        .run()
-        .await
+    #[cfg(feature = "web")]
+    LaunchBuilder::web().launch(App);
+
+    #[cfg(feature = "server")]
+    {
+        use axum::Router;
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async move {
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
+                let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+                let app = Router::new()
+                    .serve_dioxus_application(ServeConfig::new().unwrap(), App);
+                axum::serve(listener, app.into_make_service())
+                    .await
+                    .unwrap();
+            });
+    }
+
 }

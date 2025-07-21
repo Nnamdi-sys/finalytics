@@ -1,4 +1,4 @@
-use crate::data::config::Interval;
+use crate::prelude::{Interval, KLINE};
 
 
 pub struct TickerBuilder {
@@ -9,6 +9,14 @@ pub struct TickerBuilder {
     benchmark_symbol: String,
     confidence_level: f64,
     risk_free_rate: f64,
+    ticker_data: Option<KLINE>,
+    benchmark_data: Option<KLINE>,
+}
+
+impl Default for TickerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TickerBuilder {
@@ -20,7 +28,9 @@ impl TickerBuilder {
             interval: Interval::OneDay,
             benchmark_symbol: String::from("^GSPC"),
             confidence_level: 0.95,
-            risk_free_rate: 0.02,
+            risk_free_rate: 0.0,
+            ticker_data: None,
+            benchmark_data: None
         }
     }
 
@@ -59,15 +69,60 @@ impl TickerBuilder {
         self
     }
 
+    pub fn ticker_data(mut self, ticker_data: Option<KLINE>) -> TickerBuilder {
+        self.ticker_data = ticker_data;
+        self
+    }
+
+    pub fn benchmark_data(mut self, benchmark_data: Option<KLINE>) -> TickerBuilder {
+        self.benchmark_data = benchmark_data;
+        self
+    }
+
     pub fn build(self) -> Ticker {
+        let (ticker, start_date, end_date) = if let Some(ticker_data) = self.ticker_data.clone() {
+            (ticker_data.ticker.clone(),
+             ticker_data.start_date().clone(),
+             ticker_data.end_date().clone()
+            )
+        } else {
+            (self.ticker.clone(),
+            self.start_date,
+            self.end_date)
+        };
+
+        let (benchmark_symbol, benchmark_data) = if self.benchmark_data.is_none() && self.ticker_data.is_some() {
+            (self.ticker.clone(), self.ticker_data.clone())
+        } else if let Some(benchmark_data) =  self.benchmark_data {
+            (benchmark_data.ticker.clone(), Some(benchmark_data.clone()))
+        } else {
+            (self.benchmark_symbol.clone(), None)
+        };
+
+        let benchmark_ticker = Ticker {
+                ticker: benchmark_symbol.clone(),
+                start_date: start_date.clone(),
+                end_date: end_date.clone(),
+                interval: self.interval,
+                benchmark_symbol: benchmark_symbol.clone(),
+                confidence_level: self.confidence_level,
+                risk_free_rate: self.risk_free_rate,
+                ticker_data: benchmark_data.clone(),
+                benchmark_data: None,
+                benchmark_ticker: None
+            };
+
         Ticker {
-            ticker: self.ticker,
-            start_date: self.start_date,
-            end_date: self.end_date,
+            ticker,
+            start_date: start_date.clone(),
+            end_date: end_date.clone(),
             interval: self.interval,
-            benchmark_symbol: self.benchmark_symbol,
+            benchmark_symbol,
             confidence_level: self.confidence_level,
             risk_free_rate: self.risk_free_rate,
+            ticker_data: self.ticker_data,
+            benchmark_data,
+            benchmark_ticker: Some(benchmark_ticker.into())
         }
     }
 }
@@ -95,14 +150,14 @@ impl TickerBuilder {
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///
 ///  // Instantiate the Ticker Object
-/// let ticker = TickerBuilder::new().ticker("AAPL")
-///                                     .start_date("2023-01-01")
-///                                     .end_date("2023-12-31")
-///                                     .interval(Interval::OneDay)
-///                                     .benchmark_symbol("^GSPC")
-///                                     .confidence_level(0.95)
-///                                     .risk_free_rate(0.02)
-///                                     .build();
+/// let ticker = Ticker::builder().ticker("AAPL")
+///                             .start_date("2023-01-01")
+///                             .end_date("2023-12-31")
+///                             .interval(Interval::OneDay)
+///                             .benchmark_symbol("^GSPC")
+///                             .confidence_level(0.95)
+///                             .risk_free_rate(0.02)
+///                             .build();
 ///
 ///  // Display Ticker Reports
 ///  ticker.report(Some(ReportType::Performance)).await?.show()?;
@@ -124,7 +179,19 @@ pub struct Ticker {
     pub benchmark_symbol: String,
     pub confidence_level: f64,
     pub risk_free_rate: f64,
+    pub ticker_data: Option<KLINE>,
+    pub benchmark_data: Option<KLINE>,
+    pub benchmark_ticker: Option<Box<Ticker>>
 }
+
+impl  Ticker {
+    pub fn builder() -> TickerBuilder {
+        TickerBuilder::new()
+    }
+}
+
+
+
 
 
 

@@ -1,10 +1,53 @@
+use std::str::FromStr;
 use polars::export::chrono;
 use finalytics::prelude::*;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3_polars::PyDataFrame;
 use tokio::task;
 use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
 
+
+/// Create a new Portfolio object
+///
+/// # Arguments
+///
+/// * `ticker_symbols` - `list` - list of ticker symbols
+/// * `benchmark_symbol` - `str` - The ticker symbol of the benchmark to compare against
+/// * `start_date` - `str` - The start date of the time period in the format YYYY-MM-DD
+/// * `end_date` - `str` - The end date of the time period in the format YYYY-MM-DD
+/// * `interval` - `str` - The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo)
+/// * `confidence_level` - `float` - The confidence level for the VaR and ES calculations
+/// * `risk_free_rate` - `float` - The risk-free rate to use in the calculations
+/// * `objective_function` - `str` - The objective function to use in the optimization (max_sharpe, min_vol, max_return, nin_var, min_cvar, min_drawdown)
+/// * `constraints` - `list` - list of tuples with the lower and upper bounds for the weights
+///
+/// # Optional Arguments (For Custom Data)
+///
+/// * `tickers_data` - `List[DataFrame]` - A list of Polars DataFrames containing the ticker data for each symbol
+/// * `benchmark_data` - `DataFrame` - A Polars DataFrame containing the benchmark data
+///
+///
+/// # Returns
+///
+/// `Portfolio` object
+///
+/// # Example
+///
+/// ```
+/// import finalytics
+///
+/// portfolio = finalytics.Portfolio(ticker_symbols = ["AAPL", "GOOG", "MSFT", "ZN=F"],
+///                                  benchmark_symbol = "^GSPC",
+///                                  start_date = "2020-01-01",
+///                                  end_date = "2021-01-01",
+///                                  interval = "1d",
+///                                  confidence_level = 0.95,
+///                                  risk_free_rate = 0.02,
+///                                  max_iterations = 1000,
+///                                  objective_function = "max_sharpe"
+///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5)]
+/// ```
 #[pyclass]
 #[pyo3(name = "Portfolio")]
 pub struct PyPortfolio {
@@ -14,54 +57,29 @@ pub struct PyPortfolio {
 #[pymethods]
 impl PyPortfolio {
     #[new]
-    /// Create a new Portfolio object
-    ///
-    /// # Arguments
-    ///
-    /// * `ticker_symbols` - `list` - list of ticker symbols
-    /// * `benchmark_symbol` - `str` - The ticker symbol of the benchmark to compare against
-    /// * `start_date` - `str` - The start date of the time period in the format YYYY-MM-DD
-    /// * `end_date` - `str` - The end date of the time period in the format YYYY-MM-DD
-    /// * `interval` - `str` - The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo)
-    /// * `confidence_level` - `float` - The confidence level for the VaR and ES calculations
-    /// * `risk_free_rate` - `float` - The risk free rate to use in the calculations
-    /// * `objective_function` - `str` - The objective function to use in the optimization (max_sharpe, min_vol, max_return, nin_var, min_cvar, min_drawdown)
-    /// * `constraints` - `list` - list of tuples with the lower and upper bounds for the weights
-    ///
-    /// # Returns
-    ///
-    /// `Portfolio` object
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// import finalytics
-    ///
-    /// portfolio = finalytics.Portfolio(ticker_symbols = ["AAPL", "GOOG", "MSFT", "ZN=F"],
-    ///                                  benchmark_symbol = "^GSPC",
-    ///                                  start_date = "2020-01-01",
-    ///                                  end_date = "2021-01-01",
-    ///                                  interval = "1d",
-    ///                                  confidence_level = 0.95,
-    ///                                  risk_free_rate = 0.02,
-    ///                                  max_iterations = 1000,
-    ///                                  objective_function = "max_sharpe"
-    ///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5)]
-    /// ```
     #[pyo3(signature = (ticker_symbols, benchmark_symbol=None, start_date=None, end_date=None, interval=None,
-    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None))]
+    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None, tickers_data=None, benchmark_data=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(ticker_symbols: Vec<String>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
                interval: Option<String>, confidence_level: Option<f64>, risk_free_rate: Option<f64>,
-               objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>) -> Self {
-        let ticker_symbols = ticker_symbols.iter().map(|x| x.as_str()).collect();
+               objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>,
+               tickers_data: Option<Vec<PyDataFrame>>, benchmark_data: Option<PyDataFrame>) -> Self {
+        let ticker_symbols: Vec<&str> = ticker_symbols.iter().map(|x| x.as_str()).collect();
+        let tickers_data = tickers_data.map(|data: Vec<PyDataFrame>| {
+            ticker_symbols.clone().into_iter().zip(data).map(|(symbol, df)| {
+                KLINE::from_dataframe(symbol, &df.0).unwrap()
+            }).collect::<Vec<KLINE>>()
+        });
+        let benchmark_data = benchmark_data.map(|df| KLINE::from_dataframe(
+            &benchmark_symbol.clone().unwrap_or("Benchmark".to_string()), &df.0).unwrap());
         let default_start = chrono::Utc::now().checked_sub_signed(chrono::Duration::days(365))
             .unwrap().format("%Y-%m-%d").to_string();
         let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let interval = Interval::from_str(&interval.unwrap_or("1d".to_string()));
-        let objective_function = ObjectiveFunction::from_str(&objective_function.unwrap_or("max_sharpe".to_string()));
+        let interval = Interval::from_str(&interval.unwrap_or("1d".to_string())).unwrap();
+        let objective_function = ObjectiveFunction::from_str(&objective_function.unwrap_or("max_sharpe".to_string())).unwrap();
         task::block_in_place(move || {
             let portfolio = tokio::runtime::Runtime::new().unwrap().block_on(
-                PortfolioBuilder::new()
+                Portfolio::builder()
                     .ticker_symbols(ticker_symbols)
                     .benchmark_symbol(&benchmark_symbol.unwrap_or("^GSPC".to_string()))
                     .start_date(&start_date.unwrap_or(default_start))
@@ -71,6 +89,8 @@ impl PyPortfolio {
                     .risk_free_rate(risk_free_rate.unwrap_or(0.02))
                     .objective_function(objective_function)
                     .constraints(constraints)
+                    .tickers_data(tickers_data)
+                    .benchmark_data(benchmark_data)
                     .build()).unwrap();
             PyPortfolio {
                 portfolio
@@ -86,12 +106,12 @@ impl PyPortfolio {
     pub fn optimization_results(&self) -> PyObject {
         task::block_in_place(move || {
             Python::with_gil(|py| {
-                let py_dict = PyDict::new(py);
+                let py_dict = PyDict::new_bound(py);
                 py_dict.set_item("ticker_symbols", self.portfolio.performance_stats.ticker_symbols.clone()).unwrap();
                 py_dict.set_item("benchmark_symbol", self.portfolio.performance_stats.benchmark_symbol.clone()).unwrap();
                 py_dict.set_item("start_date", self.portfolio.performance_stats.start_date.clone()).unwrap();
                 py_dict.set_item("end_date", self.portfolio.performance_stats.end_date.clone()).unwrap();
-                py_dict.set_item("interval", self.portfolio.performance_stats.interval.to_string()).unwrap();
+                py_dict.set_item("interval", self.portfolio.performance_stats.interval.mode).unwrap();
                 py_dict.set_item("confidence_level", self.portfolio.performance_stats.confidence_level).unwrap();
                 py_dict.set_item("risk_free_rate", self.portfolio.performance_stats.risk_free_rate).unwrap();
                 py_dict.set_item("portfolio_returns", rust_df_to_py_df(&self.portfolio.performance_stats.portfolio_returns).unwrap()).unwrap();
@@ -210,7 +230,7 @@ impl PyPortfolio {
     pub fn report(&self, report_type: Option<String>) {
         task::block_in_place(move || {
             let report_type = match report_type {
-                Some(report_type) => ReportType::from_str(&report_type),
+                Some(report_type) => ReportType::from_str(&report_type).unwrap(),
                 None => ReportType::Performance
             };
             let report = tokio::runtime::Runtime::new().unwrap().block_on(

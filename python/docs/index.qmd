@@ -24,6 +24,8 @@ pip install finalytics
 - [Ticker Module](ticker.qmd)
 - [Tickers Module](tickers.qmd)
 - [Portfolio Module](portfolio.qmd)
+- [Screener Module](screener.qmd)
+- [DataFrame Interface](dataframe.qmd)
 
 
 ### Example
@@ -31,8 +33,21 @@ pip install finalytics
 ```python
 from finalytics import Tickers
 
+# Screen for the top 10 stocks by market cap on the NASDAQ exchange
+screener = Screener(
+        quote_type="EQUITY",
+        filters=[
+            '{"operator": "eq", "operands": ["exchange", "NMS"]}'
+        ],
+        sort_field="intradaymarketcap",
+        sort_descending=True,
+        offset=0,
+        size=10
+    )
+
 # Instantiate a Multiple Ticker Object
-tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
+symbols = screener.symbols()
+tickers = Tickers(symbols=symbols,
                   start_date="2023-01-01",
                   end_date="2024-12-31",
                   interval="1d",
@@ -40,7 +55,7 @@ tickers = Tickers(symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
                   risk_free_rate=0.02)
 
 # Generate a Single Ticker Report
-ticker = tickers.get_ticker("AAPL")
+ticker = tickers.get_ticker(symbols[0])
 ticker.report("performance")
 ticker.report("financials")
 ticker.report("options")

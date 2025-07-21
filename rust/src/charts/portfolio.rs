@@ -1,15 +1,13 @@
 use std::error::Error;
-use polars::prelude::{DataFrame, NamedFrom, Series};
+use polars::prelude::{col, lit, DataFrame, IntoLazy, NamedFrom, Series};
 use plotly::color::NamedColor;
-use plotly::{Bar, HeatMap, Histogram, Layout, Plot, Scatter};
+use plotly::{Bar, HeatMap, Histogram, Plot, Scatter};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, RowOrder};
 use plotly::common::{ColorScalePalette, Fill, Marker, MarkerSymbol, Mode, Title};
 
-use crate::prelude::TickersData;
-use crate::prelude::TickersBuilder;
+use crate::prelude::{DataTable, DataTableDisplay, DataTableFormat, TickersData};
 use crate::models::portfolio::Portfolio;
-use crate::reports::table::{DataTable, TableType};
-use crate::charts::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
+use crate::charts::base_layout;
 use crate::analytics::statistics::{correlation_matrix, cumulative_returns_list, maximum_drawdown};
 
 
@@ -51,21 +49,22 @@ impl PortfolioCharts for Portfolio {
     ///
     /// * `Plot` Plotly Chart struct
     fn optimization_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
-        let days = self.performance_stats.interval.to_days();
+        let days = self.performance_stats.interval.mode;
+        let annual_days = 365.0/self.performance_stats.interval.average;
 
         let ef_returns = self.performance_stats.efficient_frontier.clone().iter()
-            .map(|x| (1.0 + (x[0]/days)/100.0).powf(252.0) - 1.0).collect::<Vec<f64>>();
+            .map(|x| (1.0 + (x[0]/days)/100.0).powf(annual_days) - 1.0).collect::<Vec<f64>>();
 
         let ef_risk = self.performance_stats.efficient_frontier.clone().iter()
-            .map(|x| x[1]/100.0 * 252.0_f64.sqrt()).collect::<Vec<f64>>();
+            .map(|x| x[1]/100.0 * annual_days.sqrt()).collect::<Vec<f64>>();
 
         let ef_trace = Scatter::new(ef_risk, ef_returns)
             .name("Efficient Frontier")
             .mode(Mode::Markers)
             .marker(Marker::new().size(10));
 
-        let opt_return = (1.0 + (self.performance_stats.performance_stats.daily_return/days)/100.0).powf(252.0) - 1.0;
-        let opt_risk = self.performance_stats.performance_stats.daily_volatility/100.0 * 252.0_f64.sqrt();
+        let opt_return = self.performance_stats.performance_stats.annualized_return/100.0;
+        let opt_risk = self.performance_stats.performance_stats.annualized_volatility/100.0;
 
         let optimal_point = Scatter::new(vec![opt_risk],
                                          vec![opt_return])
@@ -91,7 +90,7 @@ impl PortfolioCharts for Portfolio {
             .name("Asset Allocation")
             .x_axis("x2")
             .y_axis("y2")
-            .text_array(filtered_weights.clone().iter().map(|w| format!("{:.2}%", w).to_string()).collect::<Vec<_>>());
+            .text_array(filtered_weights.clone().iter().map(|w| format!("{w:.2}%").to_string()).collect::<Vec<_>>());
 
 
         let mut plot = Plot::new();
@@ -100,9 +99,7 @@ impl PortfolioCharts for Portfolio {
         plot.add_trace(allocation_trace);
 
         // Set layout for the plot
-        let layout = Layout::new()
-            .height(height.unwrap_or(DEFAULT_HEIGHT))
-            .width(width.unwrap_or(DEFAULT_WIDTH))
+        let layout = base_layout(height, width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Optimization Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -200,9 +197,7 @@ impl PortfolioCharts for Portfolio {
         plot.add_trace(drawdown_trace);
 
         // Set layout for the plot
-        let layout = Layout::new()
-            .height(height.unwrap_or(DEFAULT_HEIGHT))
-            .width(width.unwrap_or(DEFAULT_WIDTH))
+        let layout = base_layout(height, width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Performance Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -247,52 +242,38 @@ impl PortfolioCharts for Portfolio {
     /// * `DataTable` Table Chart struct
     async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let symbols = self.optimal_symbols()?;
-
-        let tickers = TickersBuilder::new()
-            .tickers(symbols.iter().map(|x| x.as_str()).collect::<Vec<&str>>())
-            .start_date(&self.performance_stats.start_date)
-            .end_date(&self.performance_stats.end_date)
-            .interval(self.performance_stats.interval)
-            .benchmark_symbol(&self.performance_stats.benchmark_symbol)
-            .confidence_level(self.performance_stats.confidence_level)
-            .risk_free_rate(self.performance_stats.risk_free_rate)
-            .build();
-
-        let symbols_stats = tickers.performance_stats().await?;
+        let symbols_stats = self.tickers.performance_stats().await?;
+        let symbols_series = Series::new("", symbols);
+        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series))).collect()?;
 
         let stats = &self.performance_stats.performance_stats;
 
         let df = DataFrame::new(vec![
             Series::new("Symbol", &["Portfolio".to_string()]),
-            Series::new("Daily Return", &[format!("{:.2}%", stats.daily_return)]),
-            Series::new("Daily Volatility", &[format!("{:.2}%", stats.daily_volatility)]),
-            Series::new("Cumulative Return", &[format!("{:.2}%", stats.cumulative_return)]),
-            Series::new("Annualized Return", &[format!("{:.2}%", stats.annualized_return)]),
-            Series::new("Annualized Volatility", &[format!("{:.2}%", stats.annualized_volatility)]),
-            Series::new("Alpha", &[format!("{:.2}", stats.alpha)]),
-            Series::new("Beta", &[format!("{:.2}", stats.beta)]),
-            Series::new("Sharpe Ratio", &[format!("{:.2}", stats.sharpe_ratio)]),
-            Series::new("Sortino Ratio", &[format!("{:.2}", stats.sortino_ratio)]),
-            Series::new("Active Return", &[format!("{:.2}%", stats.active_return)]),
-            Series::new("Active Risk", &[format!("{:.2}%", stats.active_risk)]),
-            Series::new("Information Ratio", &[format!("{:.2}", stats.information_ratio)]),
-            Series::new("Calmar Ratio", &[format!("{:.2}", stats.calmar_ratio)]),
-            Series::new("Maximum Drawdown", &[format!("{:.2}%", stats.maximum_drawdown)]),
-            Series::new("Value at Risk", &[format!("{:.2}%", stats.value_at_risk)]),
-            Series::new("Expected Shortfall", &[format!("{:.2}%", stats.expected_shortfall)])
+            Series::new("Daily Return", &[stats.daily_return.to_string()]),
+            Series::new("Daily Volatility", &[stats.daily_volatility.to_string()]),
+            Series::new("Cumulative Return", &[stats.cumulative_return.to_string()]),
+            Series::new("Annualized Return", &[stats.annualized_return.to_string()]),
+            Series::new("Annualized Volatility", &[stats.annualized_volatility.to_string()]),
+            Series::new("Alpha", &[stats.alpha.to_string()]),
+            Series::new("Beta", &[stats.beta.to_string()]),
+            Series::new("Sharpe Ratio", &[stats.sharpe_ratio.to_string()]),
+            Series::new("Sortino Ratio", &[stats.sortino_ratio.to_string()]),
+            Series::new("Active Return", &[stats.active_return.to_string()]),
+            Series::new("Active Risk", &[stats.active_risk.to_string()]),
+            Series::new("Information Ratio", &[stats.information_ratio.to_string()]),
+            Series::new("Calmar Ratio", &[stats.calmar_ratio.to_string()]),
+            Series::new("Maximum Drawdown", &[stats.maximum_drawdown.to_string()]),
+            Series::new("Value at Risk", &[stats.value_at_risk.to_string()]),
+            Series::new("Expected Shortfall", &[stats.expected_shortfall.to_string()]),
         ])?;
 
-        let mut stats_df = symbols_stats.vstack(&df)?;
-
-        let columns = stats_df.column("Symbol")?.str()?.into_no_null_iter()
-            .map(|x| x.to_string()).collect::<Vec<String>>();
-        stats_df = stats_df.drop("Symbol")?;
-        let items = Series::new("Items", stats_df.get_column_names());
-        let mut stats_df = stats_df.transpose(None, None)?;
-        let _ =  stats_df.set_column_names(&columns)?;
-        let _ = stats_df.insert_column(0, items)?;
-
-        let data_table = DataTable::new(stats_df, TableType::PerformanceStats);
+        let stats_df = symbols_stats.vstack(&df)?;
+        let data_table = stats_df.to_datatable(
+            "performance_stats",
+            true,
+            DataTableFormat::Performance,
+        );
 
         Ok(data_table)
     }
@@ -305,7 +286,7 @@ impl PortfolioCharts for Portfolio {
         let mut returns = returns.select(&symbols)?;
         let _=  returns.insert_column(0, Series::new("Timestamp", dates))?;
         returns = returns.hstack(&[Series::new("Portfolio", optimal_returns)])?;
-        let table = DataTable::new(returns, TableType::Returns);
+        let table = returns.to_datatable("returns", true, DataTableFormat::Number);
         Ok(table)
     }
 
@@ -327,19 +308,17 @@ impl PortfolioCharts for Portfolio {
                         .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
                     let cum_returns = cumulative_returns_list(returns.clone());
                     let cum_returns_trace = Scatter::new(dates.clone(), cum_returns.clone())
-                        .name(format!("{}", symbol))
+                        .name(symbol)
                         .mode(Mode::Lines);
                     plot.add_trace(cum_returns_trace);
                 }
                 Err(e) => {
-                    eprintln!("Unable to fetch returns for {}: {}", symbol, e);
+                    eprintln!("Unable to fetch returns for {symbol}: {e}");
                 }
             }
         }
 
-        let layout = Layout::new()
-            .height(height.unwrap_or(DEFAULT_HEIGHT))
-            .width(width.unwrap_or(DEFAULT_WIDTH))
+        let layout = base_layout(height, width)
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"))
             .y_axis(
                 Axis::new()
@@ -378,10 +357,8 @@ impl PortfolioCharts for Portfolio {
         let mut plot = Plot::new();
         plot.add_trace(heatmap);
         plot.set_layout(
-            Layout::new()
+            base_layout(height, width)
                 .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Returns Correlation Matrix</span>"))
-                .height(height.unwrap_or(DEFAULT_HEIGHT))
-                .width(width.unwrap_or(DEFAULT_WIDTH))
         );
 
         Ok(plot)

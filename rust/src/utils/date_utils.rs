@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Timelike, Utc, Datelike};
 use std::error::Error;
 
@@ -22,12 +23,11 @@ pub fn to_datetime(date_str: &str) -> Result<NaiveDateTime, Box<dyn Error>> {
     Ok(datetime)
 }
 
-/// Computes the the time to maturity of an option in months
-pub fn time_to_maturity(timestamp: i64) -> f64{
+/// Computes the time to maturity of an option in months
+pub fn time_to_maturity(timestamp: i64) -> f64 {
     let current_date = chrono::Local::now().naive_local().date();
     let maturity_date = DateTime::from_timestamp_millis( timestamp * 1000).unwrap().date_naive();
-    let ttm = (maturity_date - current_date).num_days() as f64 / 30.44;
-    ttm
+    (maturity_date - current_date).num_days() as f64 / 30.44
 }
 
 pub fn round_datetime_to_day(datetime: DateTime<Utc>) -> NaiveDateTime {
@@ -53,7 +53,7 @@ pub fn convert_to_quarter(dates: Vec<&str>) -> Vec<String> {
             12 | 1 => 4,
             _ => unreachable!(),
         };
-        format!("{}Q{}", year, quarter)
+        format!("{year}Q{quarter}")
     }).collect()
 }
 
@@ -64,3 +64,50 @@ pub fn convert_to_year(dates: Vec<&str>) -> Vec<String> {
         year.to_string()
     }).collect()
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct IntervalDays {
+    pub average: f64,
+    pub mode: f64,
+}
+pub fn interval_days(timestamps: Vec<NaiveDateTime>) -> IntervalDays {
+    let mut intervals = Vec::new();
+    let mut total_seconds = 0.0;
+
+    // Calculate intervals using NaiveDateTime differences
+    for window in timestamps.windows(2) {
+        let duration = window[1] - window[0];
+        let diff_seconds = duration.num_seconds() as f64;
+        let days = diff_seconds / 86400.0;
+
+        intervals.push(days);
+        total_seconds += diff_seconds;
+    }
+
+    // Calculate average interval in days
+    let avg = total_seconds / (intervals.len() as f64 * 86400.0);
+
+    // Calculate modal interval with precision handling
+    let mut interval_counts = HashMap::new();
+    let mut max_count = 0;
+    let mut mode = 0.0;
+
+    for &interval in &intervals {
+        // Round to 4 decimal places for mode calculation
+        let key = (interval * 10000.0) as i64;
+        let count = interval_counts.entry(key).or_insert(0);
+        *count += 1;
+
+        // Update mode with tie-breaker for smaller intervals
+        if *count > max_count || (*count == max_count && key < (mode * 10000.0) as i64) {
+            max_count = *count;
+            mode = key as f64 / 10000.0;
+        }
+    }
+
+    IntervalDays {
+        average: avg,
+        mode,
+    }
+}
+

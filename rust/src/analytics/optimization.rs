@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use polars::frame::DataFrame;
 use optimization::{Minimizer, GradientDescent, NumericalDifferentiation, Func};
@@ -29,16 +30,18 @@ pub enum ObjectiveFunction {
     MinCVaR,
 }
 
-impl ObjectiveFunction {
-    pub fn from_str(s: &str) -> ObjectiveFunction {
+impl FromStr for ObjectiveFunction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "max_sharpe" => ObjectiveFunction::MaxSharpe,
-            "min_vol" => ObjectiveFunction::MinVol,
-            "max_return" => ObjectiveFunction::MaxReturn,
-            "min_drawdown" => ObjectiveFunction::MinDrawdown,
-            "min_var" => ObjectiveFunction::MinVar,
-            "min_cvar" => ObjectiveFunction::MinCVaR,
-            _ => ObjectiveFunction::MaxSharpe,
+            "max_sharpe" => Ok(ObjectiveFunction::MaxSharpe),
+            "min_vol" => Ok(ObjectiveFunction::MinVol),
+            "max_return" => Ok(ObjectiveFunction::MaxReturn),
+            "min_drawdown" => Ok(ObjectiveFunction::MinDrawdown),
+            "min_var" => Ok(ObjectiveFunction::MinVar),
+            "min_cvar" => Ok(ObjectiveFunction::MinCVaR),
+            _ => Err(format!("Unsupported objective function: {s}")),
         }
     }
 }
@@ -81,7 +84,7 @@ pub fn portfolio_optimization(
         if let Ok(mut guard) = efficient_frontier_clone.write() {
             guard.push(vec![_return, std_dev]);
         }
-        let objective = match objective {
+        match objective {
             ObjectiveFunction::MaxSharpe => {
                 let sharpe = (_return - risk_free_rate) / std_dev;
                 -sharpe
@@ -107,8 +110,7 @@ pub fn portfolio_optimization(
                 let es = expected_shortfall(&returns, confidence_level);
                 -es
             }
-        };
-        objective
+        }
     }));
 
     // We use a simple gradient descent scheme
@@ -126,11 +128,10 @@ pub fn portfolio_optimization(
     // Enforce the constraints on the solution
     let constrained_solution = enforce_constraints(&solution.position, &constraints);
     let efficient_frontier = efficient_frontier_points(efficient_frontier.read().unwrap().clone());
-    let result = OptResult {
+    OptResult {
         optimal_weights: constrained_solution,
         efficient_frontier: efficient_frontier.clone(),
-    };
-    result
+    }
 }
 
 fn enforce_constraints(weights: &[f64], constraints: &[(f64, f64)]) -> Vec<f64> {

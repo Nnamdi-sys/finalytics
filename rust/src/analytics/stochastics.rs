@@ -1,8 +1,8 @@
+use std::fmt;
 use std::error::Error;
 use polars::prelude::*;
 use statrs::distribution::Continuous;
 use statrs::distribution::{ContinuousCDF, Normal};
-
 use crate::models::ticker::Ticker;
 use crate::analytics::statistics::linear_interpolation;
 use crate::data::ticker::TickerData;
@@ -14,11 +14,11 @@ pub enum OptionType {
     Put,
 }
 
-impl OptionType {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for OptionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OptionType::Call => "Call".to_string(),
-            OptionType::Put => "Put".to_string(),
+            OptionType::Call => write!(f, "Call"),
+            OptionType::Put => write!(f, "Put"),
         }
     }
 }
@@ -48,9 +48,9 @@ impl BlackScholesModel {
     /// * `s` - Spot price
     /// * `k` - Strike price
     /// * `t` - Time to maturity (in years)
-    /// * `r` - Risk-free interest rate in decimal (e.g 0.02 for 2%)
-    /// * `v` - Implied volatility in decimal (e.g 0.30 for 30%)
-    /// * `option_type` - Option type enum (e.g OptionType::Call)
+    /// * `r` - Risk-free interest rate in decimal (e.g. 0.02 for 2%)
+    /// * `v` - Implied volatility in decimal (e.g. 0.30 for 30%)
+    /// * `option_type` - Option type enum (e.g. OptionType::Call)
     ///
     /// # Returns
     ///
@@ -61,10 +61,10 @@ impl BlackScholesModel {
     /// ```
     /// use finalytics::analytics::stochastics::{BlackScholesModel, OptionType};
     ///
-    /// fn main() {
-    ///     let result = BlackScholesModel::compute(100.0, 100.0, 1.0, 0.05, 0.2, OptionType::Call);
-    ///     println!("{:?}", result);
-    /// }
+    /// 
+    ///  let result = BlackScholesModel::compute(100.0, 100.0, 1.0, 0.05, 0.2, OptionType::Call);
+    ///  println!("{:?}", result);
+    /// 
     /// ```
     pub fn compute(
         s: f64,
@@ -151,7 +151,7 @@ impl BlackScholesModel {
 /// * `k` - Strike price
 /// * `t` - Time to maturity (in years)
 /// * `r` - Risk-free interest rate in decimal (e.g 0.02 for 2%)
-/// * `option_type` - Option type enum (e.g OptionType::Call)
+/// * `option_type` - Option type enum (e.g. OptionType::Call)
 ///
 /// # Returns
 ///
@@ -162,10 +162,9 @@ impl BlackScholesModel {
 /// ```
 /// use finalytics::analytics::stochastics::{implied_volatility_bisection, OptionType};
 ///
-/// fn main() {
-///     let result = implied_volatility_bisection(10.0, 100.0, 100.0, 1.0, 0.05, OptionType::Call);
-///     println!("{:?}", result);
-/// }
+///  let result = implied_volatility_bisection(10.0, 100.0, 100.0, 1.0, 0.05, OptionType::Call);
+///  println!("{:?}", result);
+/// 
 /// ```
 pub fn implied_volatility_bisection(
     option_price: f64,
@@ -236,7 +235,7 @@ impl VolatilitySurface for Ticker {
         let options_chain =  self.get_options().await?;
         let ticker_price = options_chain.ticker_price;
         let expiration_dates = options_chain.expiration_dates;
-        let ttms = options_chain.ttms.iter().filter(|x| *x >= &3.0).map(|x| *x).collect::<Vec<f64>>();
+        let ttms = options_chain.ttms.iter().filter(|x| *x >= &3.0).cloned().collect::<Vec<f64>>();
         let strikes = options_chain.strikes;
         let df = options_chain.chain;
         let atm_ser = Series::new("inTheMoney", vec![false; df.height()]);
@@ -273,7 +272,7 @@ impl VolatilitySurface for Ticker {
         let mut ivols_df = DataFrame::new(vec![Series::new("strike", &strikes)])?;
         for (i, ttm) in ttms.iter().enumerate() {
             let ttm = format!("{:.2}", *ttm);
-            let col = Series::new(&*format!("{}M", ttm), ivols[i].clone());
+            let col = Series::new(&format!("{ttm}M"), ivols[i].clone());
             ivols_df.hstack_mut(&[col])?;
         }
 

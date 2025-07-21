@@ -1,0 +1,111 @@
+---
+title: DataFrame Input Guide
+format:
+  html:
+    page-layout: full
+---
+
+### Using Polars DataFrames
+
+`finalytics` allows you to bypass online data fetching by passing your own **Polars DataFrames** for use with the `Ticker`, `Tickers`, and `Portfolio` modules.
+
+This is especially useful when:
+- You already have historical data from another source.
+- You want to use cleaned or adjusted data.
+- You need offline or reproducible analysis.
+
+---
+
+### 1. Single Ticker
+
+```python
+import polars as pl
+from finalytics import Ticker
+
+aapl = pl.read_csv("aapl.csv")
+gspc = pl.read_csv("gspc.csv")
+
+ticker = Ticker(
+    symbol="AAPL",
+    ticker_data=aapl,
+    benchmark_data=gspc,
+    confidence_level=0.95,
+    risk_free_rate=0.02
+)
+
+ticker.report("performance")
+```
+
+---
+
+### 2. Multiple Tickers
+
+```python
+nvda = pl.read_csv("nvda.csv")
+goog = pl.read_csv("goog.csv")
+aapl = pl.read_csv("aapl.csv")
+msft = pl.read_csv("msft.csv")
+btcusd = pl.read_csv("btcusd.csv")
+gspc = pl.read_csv("gspc.csv")
+
+tickers_data = [nvda, goog, aapl, msft, btcusd]
+
+from finalytics import Tickers
+
+tickers = Tickers(
+    symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
+    tickers_data=tickers_data,
+    benchmark_data=gspc,
+    benchmark_symbol="^GSPC",
+    confidence_level=0.95,
+    risk_free_rate=0.02
+)
+
+tickers.report("performance")
+```
+
+---
+
+### 3. Portfolio Optimization
+
+```python
+from finalytics import Portfolio
+
+portfolio = Portfolio(
+    ticker_symbols=["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"],
+    tickers_data=tickers_data,
+    benchmark_data=gspc,
+    benchmark_symbol="^GSPC",
+    confidence_level=0.95,
+    risk_free_rate=0.02,
+    objective_function="max_sharpe"
+)
+
+portfolio.report("performance")
+```
+
+---
+
+### 📘 DataFrame Format
+
+```python
+import polars as pl
+
+df = pl.DataFrame({
+    "timestamp": [1672704000, 1672790400],
+    "open": [130.28, 126.89],
+    "high": [130.90, 128.66],
+    "low": [124.17, 125.08],
+    "close": [125.07, 126.36],
+    "volume": [112117500.0, 89113600.0],
+    "adjclose": [124.82, 126.11],
+})
+```
+
+> ### 📘 Important Notes
+>
+> - The DataFrame must include at least the `timestamp` and `close` columns
+> - Column names are **case-sensitive** and must match exactly
+> - `timestamp` must be in **UNIX time format** (seconds since epoch)
+> - Any missing columns will be automatically filled with `None`
+> - You can find the example CSV files at [this link](https://github.com/Nnamdi-sys/finalytics/tree/main/examples/datasets)
