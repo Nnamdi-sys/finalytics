@@ -26,23 +26,7 @@ jobs:
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
 
-      # ✅ Enable Rust compiler cache (helps with slow MSVC builds)
-      - name: Set up sccache
-        if: matrix.os == 'windows-latest'
-        uses: mozilla-actions/sccache-action@v0.0.3
-
-      - name: Configure Rust for sccache on Windows
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
-          echo "CARGO_PROFILE_RELEASE_INCREMENTAL=false" >> $GITHUB_ENV
-          echo "RUSTFLAGS=-Ccodegen-units=1 -Copt-level=2" >> $GITHUB_ENV
-          sccache --start-server
-
       - name: Build wheels
-        timeout-minutes: 45
         run: python -m cibuildwheel --output-dir dist python
         env:
           # ------------------ LINUX: Install dependencies ------------------
@@ -67,11 +51,6 @@ jobs:
           CIBW_ARCHS_MACOS: universal2
           CIBW_ARCHS_WINDOWS: auto
           CIBW_BUILD_VERBOSITY: 1
-
-      - name: Show sccache stats (Windows only)
-        if: matrix.os == 'windows-latest'
-        run: sccache --show-stats
-        continue-on-error: true
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
