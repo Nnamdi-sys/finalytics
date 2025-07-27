@@ -45,6 +45,10 @@ jobs:
           CIBW_ARCHS_WINDOWS: auto
           CIBW_BUILD_VERBOSITY: 1
 
+          # Fix for macOS Rust target issues
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=10.12'
+          CIBW_ENVIRONMENT: 'RUSTUP_TOOLCHAIN=stable'
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
