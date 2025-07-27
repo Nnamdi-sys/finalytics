@@ -29,25 +29,28 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
-          # ----------------------------------------------------------------
-          # On Linux (manylinux) install system OpenSSL headers/libs and
-          # pkg-config (and Perl for good measure) so openssl-sys links
-          # against the distro OpenSSL rather than vendoring its own.
-          # Also install Chromium and Chromedriver for plotly_static
-          # ----------------------------------------------------------------
-          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd chromium && curl -sSLo /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/linux64/chromedriver-linux64.zip && unzip /tmp/chromedriver.zip -d /usr/bin && mv /usr/bin/chromedriver-linux64/chromedriver /usr/bin/chromedriver && chmod +x /usr/bin/chromedriver' || '' }}
+          # ------------------ LINUX: Install dependencies ------------------
+          CIBW_BEFORE_ALL: >-
+            ${{ matrix.os == 'ubuntu-latest' &&
+            'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd chromium &&
+            curl -sSLo /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/linux64/chromedriver-linux64.zip &&
+            unzip /tmp/chromedriver.zip -d /usr/bin &&
+            mv /usr/bin/chromedriver-linux64/chromedriver /usr/bin/chromedriver &&
+            chmod +x /usr/bin/chromedriver'
+            || '' }}
           WEBDRIVER_PATH: ${{ matrix.os == 'ubuntu-latest' && '/usr/bin/chromedriver' || '' }}
 
+          # ------------------ MACOS: Fix missing target error ------------------
+          CIBW_BEFORE_BUILD_MACOS: "rustup target add x86_64-apple-darwin"
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=10.12 RUSTUP_TOOLCHAIN=stable'
+
+          # ------------------ cibuildwheel config ------------------
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_ARCHS_LINUX: auto
           CIBW_ARCHS_MACOS: universal2
           CIBW_ARCHS_WINDOWS: auto
           CIBW_BUILD_VERBOSITY: 1
-
-          # Fix for macOS Rust target issues
-          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=10.12'
-          CIBW_ENVIRONMENT: 'RUSTUP_TOOLCHAIN=stable'
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
