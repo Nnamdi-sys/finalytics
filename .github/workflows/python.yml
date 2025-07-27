@@ -31,12 +31,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: mozilla-actions/sccache-action@v0.0.3
 
-      - name: Configure sccache for Rust
+      - name: Configure sccache and env vars for Rust on Windows
         if: matrix.os == 'windows-latest'
         shell: bash
-        run: echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CARGO_INCREMENTAL=1" >> $GITHUB_ENV
+          echo "RUSTFLAGS=-Ccodegen-units=1 -Copt-level=2" >> $GITHUB_ENV
 
       - name: Build wheels
+        timeout-minutes: 45
         run: python -m cibuildwheel --output-dir dist python
         env:
           # ------------------ LINUX: Install dependencies ------------------
@@ -52,7 +56,7 @@ jobs:
 
           # ------------------ MACOS: Fix missing target error ------------------
           CIBW_BEFORE_BUILD_MACOS: "rustup target add x86_64-apple-darwin"
-          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=10.12 RUSTUP_TOOLCHAIN=stable'
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=10.13 RUSTUP_TOOLCHAIN=stable'
 
           # ------------------ cibuildwheel config ------------------
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
