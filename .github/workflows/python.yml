@@ -35,7 +35,7 @@ jobs:
           # against the distro OpenSSL rather than vendoring its own.
           # Also install Chromium and Chromedriver for plotly_static
           # ----------------------------------------------------------------
-          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd chromium chromium-driver' || '' }}
+          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd chromium && curl -sSLo /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/linux64/chromedriver-linux64.zip && unzip /tmp/chromedriver.zip -d /usr/bin && mv /usr/bin/chromedriver-linux64/chromedriver /usr/bin/chromedriver && chmod +x /usr/bin/chromedriver' || '' }}
           WEBDRIVER_PATH: ${{ matrix.os == 'ubuntu-latest' && '/usr/bin/chromedriver' || '' }}
 
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
