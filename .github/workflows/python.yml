@@ -29,12 +29,8 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
-          # ----------------------------------------------------------------
-          # Install Perl + IPC::Cmd in the Linux manylinux container so
-          # openssl-sys can build OpenSSL from source.
-          # ----------------------------------------------------------------
-          CIBW_BEFORE_ALL: |
-            yum install -y perl perl-IPC-Cmd
+          # only install perl inside the Linux (manylinux) container:
+          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y perl perl-IPC-Cmd' || '' }}
 
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp* *-musllinux*"
