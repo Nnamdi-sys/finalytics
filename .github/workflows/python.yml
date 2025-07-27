@@ -27,8 +27,10 @@ jobs:
         run: python -m pip install cibuildwheel
 
       - name: Build wheels
-        working-directory: python
-        run: python -m cibuildwheel --output-dir ../dist
+        run: |
+          python -m cibuildwheel \
+            --project-dir python \
+            --output-dir dist
         env:
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp* *-musllinux*"
@@ -36,17 +38,12 @@ jobs:
           CIBW_ARCHS_MACOS: universal2
           CIBW_ARCHS_WINDOWS: auto
           CIBW_BUILD_VERBOSITY: 1
-          CIBW_ENVIRONMENT: "MATURIN_VERBOSE=1"
-          CIBW_BEFORE_BUILD: |
-            mkdir -p /tmp/workspace
-            cp -r /project/.. /tmp/workspace/
-            cd /tmp/workspace/python
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
-          path: dist/
+          path: dist/*.whl
 
   sdist:
     name: Build source distribution
@@ -65,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sdist
-          path: python/dist/
+          path: python/dist/*.tar.gz
 
   release:
     name: Publish to PyPI
@@ -78,11 +75,10 @@ jobs:
         with:
           path: artifacts
 
-      - name: Combine all wheels and sdist into dist/
+      - name: Gather into dist/
         run: |
           mkdir -p dist
-          find artifacts -name '*.whl' -exec cp {} dist/ \;
-          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          find artifacts -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} dist/ \;
 
       - name: Publish to PyPI with maturin
         uses: PyO3/maturin-action@v1
