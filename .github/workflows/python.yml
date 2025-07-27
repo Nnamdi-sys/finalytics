@@ -1,4 +1,4 @@
-name: Build and Release
+name: Python
 
 on:
   push:
@@ -29,8 +29,12 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
-          # only install perl inside the Linux (manylinux) container:
-          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y perl perl-IPC-Cmd' || '' }}
+          # ----------------------------------------------------------------
+          # On Linux (manylinux) install system OpenSSL headers/libs and
+          # pkg-config (and Perl for good measure) so openssl-sys links
+          # against the distro OpenSSL rather than vendoring its own.
+          # ----------------------------------------------------------------
+          CIBW_BEFORE_ALL: ${{ matrix.os == 'ubuntu-latest' && 'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd' || '' }}
 
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp* *-musllinux*"
