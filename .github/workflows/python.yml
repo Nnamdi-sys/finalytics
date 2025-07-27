@@ -30,7 +30,7 @@ jobs:
         working-directory: python
         run: python -m cibuildwheel --output-dir ../dist
         env:
-          CIBW_BUILD: "cp37-* cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
+          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp* *-musllinux*"
           CIBW_ARCHS_LINUX: auto
           CIBW_ARCHS_MACOS: universal2
