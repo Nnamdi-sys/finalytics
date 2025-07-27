@@ -1,15 +1,14 @@
 use std::error::Error;
-use polars::prelude::{col, lit, DataFrame, IntoLazy, NamedFrom, Series};
+use polars::prelude::{col, lit, Column, DataFrame, IntoLazy, NamedFrom, Series};
 use plotly::color::NamedColor;
-use plotly::{Bar, HeatMap, Histogram, Plot, Scatter};
+use plotly::{Bar, HeatMap, Histogram, Layout, Plot, Scatter};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, RowOrder};
 use plotly::common::{ColorScalePalette, Fill, Marker, MarkerSymbol, Mode, Title};
 
 use crate::prelude::{DataTable, DataTableDisplay, DataTableFormat, TickersData};
 use crate::models::portfolio::Portfolio;
-use crate::charts::base_layout;
 use crate::analytics::statistics::{correlation_matrix, cumulative_returns_list, maximum_drawdown};
-
+use crate::charts::set_layout;
 
 pub trait PortfolioCharts {
     fn optimal_symbols(&self) -> Result<Vec<String>, Box<dyn Error>>;
@@ -99,7 +98,7 @@ impl PortfolioCharts for Portfolio {
         plot.add_trace(allocation_trace);
 
         // Set layout for the plot
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Optimization Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -127,7 +126,7 @@ impl PortfolioCharts for Portfolio {
                     .title(Title::from("Asset Allocation"))
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
     }
@@ -197,7 +196,7 @@ impl PortfolioCharts for Portfolio {
         plot.add_trace(drawdown_trace);
 
         // Set layout for the plot
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Performance Chart</span>"))
             .grid(
                 LayoutGrid::new()
@@ -230,7 +229,7 @@ impl PortfolioCharts for Portfolio {
                     .tick_format(".0%")
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
     }
@@ -243,29 +242,29 @@ impl PortfolioCharts for Portfolio {
     async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let symbols = self.optimal_symbols()?;
         let symbols_stats = self.tickers.performance_stats().await?;
-        let symbols_series = Series::new("", symbols);
-        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series))).collect()?;
+        let symbols_series = Series::new("".into(), symbols);
+        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series), false)).collect()?;
 
         let stats = &self.performance_stats.performance_stats;
 
         let df = DataFrame::new(vec![
-            Series::new("Symbol", &["Portfolio".to_string()]),
-            Series::new("Daily Return", &[stats.daily_return.to_string()]),
-            Series::new("Daily Volatility", &[stats.daily_volatility.to_string()]),
-            Series::new("Cumulative Return", &[stats.cumulative_return.to_string()]),
-            Series::new("Annualized Return", &[stats.annualized_return.to_string()]),
-            Series::new("Annualized Volatility", &[stats.annualized_volatility.to_string()]),
-            Series::new("Alpha", &[stats.alpha.to_string()]),
-            Series::new("Beta", &[stats.beta.to_string()]),
-            Series::new("Sharpe Ratio", &[stats.sharpe_ratio.to_string()]),
-            Series::new("Sortino Ratio", &[stats.sortino_ratio.to_string()]),
-            Series::new("Active Return", &[stats.active_return.to_string()]),
-            Series::new("Active Risk", &[stats.active_risk.to_string()]),
-            Series::new("Information Ratio", &[stats.information_ratio.to_string()]),
-            Series::new("Calmar Ratio", &[stats.calmar_ratio.to_string()]),
-            Series::new("Maximum Drawdown", &[stats.maximum_drawdown.to_string()]),
-            Series::new("Value at Risk", &[stats.value_at_risk.to_string()]),
-            Series::new("Expected Shortfall", &[stats.expected_shortfall.to_string()]),
+            Column::new("Symbol".into(), &["Portfolio".to_string()]),
+            Column::new("Daily Return".into(), &[stats.daily_return.to_string()]),
+            Column::new("Daily Volatility".into(), &[stats.daily_volatility.to_string()]),
+            Column::new("Cumulative Return".into(), &[stats.cumulative_return.to_string()]),
+            Column::new("Annualized Return".into(), &[stats.annualized_return.to_string()]),
+            Column::new("Annualized Volatility".into(), &[stats.annualized_volatility.to_string()]),
+            Column::new("Alpha".into(), &[stats.alpha.to_string()]),
+            Column::new("Beta".into(), &[stats.beta.to_string()]),
+            Column::new("Sharpe Ratio".into(), &[stats.sharpe_ratio.to_string()]),
+            Column::new("Sortino Ratio".into(), &[stats.sortino_ratio.to_string()]),
+            Column::new("Active Return".into(), &[stats.active_return.to_string()]),
+            Column::new("Active Risk".into(), &[stats.active_risk.to_string()]),
+            Column::new("Information Ratio".into(), &[stats.information_ratio.to_string()]),
+            Column::new("Calmar Ratio".into(), &[stats.calmar_ratio.to_string()]),
+            Column::new("Maximum Drawdown".into(), &[stats.maximum_drawdown.to_string()]),
+            Column::new("Value at Risk".into(), &[stats.value_at_risk.to_string()]),
+            Column::new("Expected Shortfall".into(), &[stats.expected_shortfall.to_string()]),
         ])?;
 
         let stats_df = symbols_stats.vstack(&df)?;
@@ -284,8 +283,8 @@ impl PortfolioCharts for Portfolio {
         let dates = self.performance_stats.dates_array.clone();
         let symbols = self.optimal_symbols()?;
         let mut returns = returns.select(&symbols)?;
-        let _=  returns.insert_column(0, Series::new("Timestamp", dates))?;
-        returns = returns.hstack(&[Series::new("Portfolio", optimal_returns)])?;
+        let _=  returns.insert_column(0, Column::new("Timestamp".into(), dates))?;
+        returns = returns.hstack(&[Column::new("Portfolio".into(), optimal_returns)])?;
         let table = returns.to_datatable("returns", true, DataTableFormat::Number);
         Ok(table)
     }
@@ -318,7 +317,7 @@ impl PortfolioCharts for Portfolio {
             }
         }
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Portfolio Assets Cumulative Returns</span>"))
             .y_axis(
                 Axis::new()
@@ -326,7 +325,7 @@ impl PortfolioCharts for Portfolio {
                     .tick_format(".0%")
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
         Ok(plot)
     }
 
@@ -356,11 +355,9 @@ impl PortfolioCharts for Portfolio {
 
         let mut plot = Plot::new();
         plot.add_trace(heatmap);
-        plot.set_layout(
-            base_layout(height, width)
-                .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Returns Correlation Matrix</span>"))
-        );
-
+        let layout = Layout::new()
+            .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Returns Correlation Matrix</span>"));
+        let plot = set_layout(plot, layout, height, width);
         Ok(plot)
     }
 }

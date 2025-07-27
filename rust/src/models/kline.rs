@@ -229,13 +229,13 @@ impl KLINE {
 
         // Create series
         let cols = vec![
-            Series::new("timestamp", datetime_vec?),
-            Series::new("open", open_data),
-            Series::new("high", high_data),
-            Series::new("low", low_data),
-            Series::new("close", self.close.clone()),
-            Series::new("volume", volume_data),
-            Series::new("adjclose", adj_close_data),
+            Column::new("timestamp".into(), datetime_vec?),
+            Column::new("open".into(), open_data),
+            Column::new("high".into(), high_data),
+            Column::new("low".into(), low_data),
+            Column::new("close".into(), self.close.clone()),
+            Column::new("volume".into(), volume_data),
+            Column::new("adjclose".into(), adj_close_data),
         ];
 
         let df = DataFrame::new(cols)?;

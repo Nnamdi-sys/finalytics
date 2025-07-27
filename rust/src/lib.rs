@@ -16,7 +16,7 @@
 //! Or run the following command:
 //!
 //! ```bash
-//! cargo install finalytics
+//! cargo add finalytics
 //! ```
 //!
 //! ## Models
@@ -107,6 +107,7 @@ pub mod prelude {
     pub use crate::models::portfolio::Portfolio;
     pub use crate::models::screener::Screener;
     pub use crate::reports::table::DataTable;
+    pub use crate::utils::date_utils::IntervalDays;
 
 
     // Enums
@@ -149,14 +150,9 @@ pub mod prelude {
     pub use crate::analytics::performance::TickerPerformance;
     pub use crate::analytics::stochastics::VolatilitySurface;
     pub use crate::analytics::technicals::TechnicalIndicators;
+    pub use crate::reports::table::DataTableDisplay;
     pub use crate::reports::report::Report;
-
-    // Utils
-    #[cfg(feature = "kaleido")]
     pub use crate::utils::chart_utils::PlotImage;
-    pub use crate::utils::date_utils::IntervalDays;
-    pub use crate::utils::chart_utils::DataTableDisplay;
-
 }
 
 

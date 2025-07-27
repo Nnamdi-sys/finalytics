@@ -69,8 +69,8 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Simple Moving Average Indicator (e.g. 50)
-    /// * `col` - Column for the Simple Moving Average Indicator (e.g. Column::Close)
+    /// * `period` - Period for the Simple Moving Average Indicator (e.g., 50)
+    /// * `col` - Column for the Simple Moving Average Indicator (e.g., Column::Close)
     ///
     /// # Returns
     ///
@@ -84,10 +84,10 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("sma-{period}");
-        let sma_series = Series::new(&col, col_val.iter().map(|x| sma.next(*x)).collect::<Vec<f64>>());
+        let sma_series = Series::new(col.as_str().into(), col_val.iter().map(|x| sma.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df= df.with_column(sma_series)?.clone();
         Ok(df)
@@ -97,7 +97,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Exponential Moving Average Indicator (e.g. 3)
+    /// * `period` - Period for the Exponential Moving Average Indicator (e.g., 3)
     /// * `col` - Column for the Exponential Moving Average Indicator (default - Column::Close)
     ///
     /// # Returns
@@ -112,10 +112,10 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("ema-{period}");
-        let ema_series = Series::new(&col, col_val.iter().map(|x| ema.next(*x)).collect::<Vec<f64>>());
+        let ema_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ema.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df= df.with_column(ema_series)?.clone();
         Ok(df)
@@ -125,7 +125,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Relative Strength Index Indicator (e.g. 14)
+    /// * `period` - Period for the Relative Strength Index Indicator (e.g., 14)
     /// * `col` - Column for the Relative Strength Index Indicator (default - Column::Close)
     ///
     /// # Returns
@@ -140,10 +140,10 @@ impl TechnicalIndicators for Ticker {
         };
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let col = format!("rsi-{period}");
-        let rsi_series = Series::new(&col, col_val.iter().map(|x| rsi.next(*x)).collect::<Vec<f64>>());
+        let rsi_series = Series::new(col.as_str().into(), col_val.iter().map(|x| rsi.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(rsi_series)?.clone();
         Ok(df)
@@ -153,9 +153,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `fast_period` - Fast period for the Moving Average Convergence Divergence Indicator (e.g. 12)
-    /// * `slow_period` - Slow period for the Moving Average Convergence Divergence Indicator (e.g. 26)
-    /// * `signal_period` - Signal period for the Moving Average Convergence Divergence Indicator (e.g. 9)
+    /// * `fast_period` - Fast period for the Moving Average Convergence Divergence Indicator (e.g., 12)
+    /// * `slow_period` - Slow period for the Moving Average Convergence Divergence Indicator (e.g., 26)
+    /// * `signal_period` - Signal period for the Moving Average Convergence Divergence Indicator (e.g., 9)
     /// * `col` - Column for the Moving Average Convergence Divergence Indicator (default - Column::Close)
     ///
     /// # Returns
@@ -174,8 +174,8 @@ impl TechnicalIndicators for Ticker {
         let divergence_str = format!("macd_divergence-({fast_period},{slow_period},{signal_period})");
         let all_series:Vec<MovingAverageConvergenceDivergenceOutput> = col_val.iter().map(|x| macd.next(*x)).collect();
         let df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
             macd_str.as_str() => all_series.iter().map(|x| x.macd).collect::<Vec<f64>>(),
             signal_str.as_str() => all_series.iter().map(|x| x.signal).collect::<Vec<f64>>(),
             divergence_str.as_str() => all_series.iter().map(|x| x.histogram).collect::<Vec<f64>>()
@@ -187,9 +187,9 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `fast_period` - Fast period for the Percentage Price Oscillator Indicator (e.g. 12)
-    /// * `slow_period` - Slow period for the Percentage Price Oscillator Indicator (e.g. 26)
-    /// * `signal_period` - Signal period for the Percentage Price Oscillator Indicator (e.g. 9)
+    /// * `fast_period` - Fast period for the Percentage Price Oscillator Indicator (e.g., 12)
+    /// * `slow_period` - Slow period for the Percentage Price Oscillator Indicator (e.g., 26)
+    /// * `signal_period` - Signal period for the Percentage Price Oscillator Indicator (e.g., 9)
     /// * `col` - Column for the Percentage Price Oscillator Indicator (default - Column::Close)
     ///
     /// # Returns
@@ -208,8 +208,8 @@ impl TechnicalIndicators for Ticker {
         let divergence_str = format!("ppo_divergence-({fast_period},{slow_period},{signal_period})");
         let all_series:Vec<PercentagePriceOscillatorOutput> = col_val.iter().map(|x| ppo.next(*x)).collect();
         let df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
             ppo_str.as_str() => all_series.iter().map(|x| x.ppo).collect::<Vec<f64>>(),
             signal_str.as_str() => all_series.iter().map(|x| x.signal).collect::<Vec<f64>>(),
             divergence_str.as_str() => all_series.iter().map(|x| x.histogram).collect::<Vec<f64>>()
@@ -221,7 +221,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Money Flow Index Indicator (e.g. 14)
+    /// * `period` - Period for the Money Flow Index Indicator (e.g., 14)
     ///
     /// # Returns
     ///
@@ -279,8 +279,8 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Bollinger Bands (e.g. 20)
-    /// * `std_dev` - Standard deviation for the Bollinger Bands (e.g. 2.0)
+    /// * `period` - Period for the Bollinger Bands (e.g., 20)
+    /// * `std_dev` - Standard deviation for the Bollinger Bands (e.g., 2.0)
     /// * `col` - Column for the Bollinger Bands (default - Column::Close)
     ///
     /// # Returns
@@ -299,8 +299,8 @@ impl TechnicalIndicators for Ticker {
         let lower_str = format!("bb_lower-({period},{std_dev})");
         let all_series:Vec<BollingerBandsOutput> = col_val.iter().map(|x| bb.next(*x)).collect();
         let df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
             bb_str.as_str() => all_series.iter().map(|x| x.average).collect::<Vec<f64>>(),
             upper_str.as_str() => all_series.iter().map(|x| x.upper).collect::<Vec<f64>>(),
             lower_str.as_str() => all_series.iter().map(|x| x.lower).collect::<Vec<f64>>()
@@ -312,7 +312,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Fast Stochastic Oscillator (e.g. 14)
+    /// * `period` - Period for the Fast Stochastic Oscillator (e.g., 14)
     /// * `col` - Column for the Fast Stochastic Oscillator (default - Column::Close)
     ///
     /// # Returns
@@ -327,10 +327,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut fs = FastStochastic::new(period).unwrap();
         let col = format!("fs-{period}");
-        let fs_series = Series::new(&col, col_val.iter().map(|x| fs.next(*x)).collect::<Vec<f64>>());
+        let fs_series = Series::new(col.as_str().into(), col_val.iter().map(|x| fs.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(fs_series)?.clone();
         Ok(df)
@@ -340,8 +340,8 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `stochastic_period` - Stochastic period for the Slow Stochastic Oscillator (e.g. 7)
-    /// * `ema_period` - Exponential Moving Average period for the Slow Stochastic Oscillator (e.g. 3)
+    /// * `stochastic_period` - Stochastic period for the Slow Stochastic Oscillator (e.g., 7)
+    /// * `ema_period` - Exponential Moving Average period for the Slow Stochastic Oscillator (e.g., 3)
     /// * `col` - Column for the Slow Stochastic Oscillator (default - Column::Close)
     ///
     /// # Returns
@@ -356,10 +356,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut ss = SlowStochastic::new(stochastic_period, ema_period).unwrap();
         let col = format!("ss-({stochastic_period},{ema_period}`)");
-        let ss_series = Series::new(&col, col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
+        let ss_series = Series::new(col.as_str().into(), col_val.iter().map(|x| ss.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(ss_series)?.clone();
         Ok(df)
@@ -369,7 +369,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the rolling Standard Deviation (e.g. 20)
+    /// * `period` - Period for the rolling Standard Deviation (e.g., 20)
     /// * `col` - Column for the rolling Standard Deviation (default - Column::Close)
     ///
     /// # Returns
@@ -384,10 +384,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut sd = StandardDeviation::new(period).unwrap();
         let col = format!("sd-{period}");
-        let sd_series = Series::new(&col, col_val.iter().map(|x| sd.next(*x)).collect::<Vec<f64>>());
+        let sd_series = Series::new(col.as_str().into(), col_val.iter().map(|x| sd.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(sd_series)?.clone();
         Ok(df)
@@ -397,7 +397,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the rolling Mean Absolute Deviation (e.g. 20)
+    /// * `period` - Period for the rolling Mean Absolute Deviation (e.g., 20)
     /// * `col` - Column for the rolling Mean Absolute Deviation (default - Column::Close)
     ///
     /// # Returns
@@ -412,10 +412,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut mad = MeanAbsoluteDeviation::new(period).unwrap();
         let col = format!("mad-{period}");
-        let mad_series = Series::new(&col, col_val.iter().map(|x| mad.next(*x)).collect::<Vec<f64>>());
+        let mad_series = Series::new(col.as_str().into(), col_val.iter().map(|x| mad.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(mad_series)?.clone();
         Ok(df)
@@ -425,7 +425,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the rolling Maximum Values (e.g. 20)
+    /// * `period` - Period for the rolling Maximum Values (e.g., 20)
     /// * `col` - Column for the rolling Maximum Values (default - Column::High)
     ///
     /// # Returns
@@ -440,10 +440,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut max = Maximum::new(period).unwrap();
         let col = format!("max-{period}");
-        let max_series = Series::new(&col, col_val.iter().map(|x| max.next(*x)).collect::<Vec<f64>>());
+        let max_series = Series::new(col.as_str().into(), col_val.iter().map(|x| max.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(max_series)?.clone();
         Ok(df)
@@ -453,7 +453,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the rolling Minimum Values (e.g. 20)
+    /// * `period` - Period for the rolling Minimum Values (e.g., 20)
     /// * `col` - Column for the rolling Minimum Values (default - Column::Low)
     ///
     /// # Returns
@@ -468,10 +468,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut min = Minimum::new(period).unwrap();
         let col = format!("min-{period}");
-        let min_series = Series::new(&col, col_val.iter().map(|x| min.next(*x)).collect::<Vec<f64>>());
+        let min_series = Series::new(col.as_str().into(), col_val.iter().map(|x| min.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(min_series)?.clone();
         Ok(df)
@@ -481,7 +481,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Average True Range Indicator (e.g. 14)
+    /// * `period` - Period for the Average True Range Indicator (e.g., 14)
     ///
     /// # Returns
     ///
@@ -539,7 +539,7 @@ impl TechnicalIndicators for Ticker {
     ///
     /// # Arguments
     ///
-    /// * `period` - Period for the Rate of Change Indicator (e.g. 1)
+    /// * `period` - Period for the Rate of Change Indicator (e.g., 1)
     /// * `col` - Column for the Rate of Change Indicator (default - Column::AdjClose)
     ///
     /// # Returns
@@ -554,10 +554,10 @@ impl TechnicalIndicators for Ticker {
         let col_val = ohlcv.column(col_str)?.f64()?.to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
         let mut roc = RateOfChange::new(period).unwrap();
         let col = format!("roc-{period}");
-        let roc_series = Series::new(&col, col_val.iter().map(|x| roc.next(*x)).collect::<Vec<f64>>());
+        let roc_series = Series::new(col.as_str().into(), col_val.iter().map(|x| roc.next(*x)).collect::<Vec<f64>>());
         let mut df = df!(
-            "timestamp" => ohlcv.column("timestamp")?.clone(),
-            col_str => ohlcv.column(col_str)?.clone(),
+            "timestamp" => ohlcv.column("timestamp")?.as_series().unwrap(),
+            col_str => ohlcv.column(col_str)?.as_series().unwrap(),
         )?;
         let df = df.with_column(roc_series)?.clone();
         Ok(df)

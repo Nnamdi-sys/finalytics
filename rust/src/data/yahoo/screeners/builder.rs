@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
-use polars::prelude::{concat, DataFrame, IntoLazy, NamedFrom, Series};
+use polars::prelude::{concat, Column, DataFrame, IntoLazy};
 use serde_json::{json, Value};
 use crate::data::yahoo::screeners::{CryptoScreener, EquityScreener, EtfScreener, FieldMetadata, FutureScreener, IndexScreener, MutualFundScreener};
 use crate::data::yahoo::web::post_json_response;
@@ -352,16 +352,16 @@ fn json_to_df(json_array: &[Value]) -> Result<DataFrame, Box<dyn Error>> {
     Ok(df)
 }
 
-fn build_series(key: &str, col: &[Option<Value>]) -> Series {
+fn build_series(key: &str, col: &[Option<Value>]) -> Column {
     if col.iter().all(|v| v.as_ref().map(|v| v.is_number()).unwrap_or(true)) {
         let vals: Vec<Option<f64>> = col.iter().map(|v| v.as_ref().and_then(|v| v.as_f64())).collect();
-        Series::new(key, vals)
+        Column::new(key.into(), vals)
     } else if col.iter().all(|v| v.as_ref().map(|v| v.is_boolean()).unwrap_or(true)) {
         let vals: Vec<Option<bool>> = col.iter().map(|v| v.as_ref().and_then(|v| v.as_bool())).collect();
-        Series::new(key, vals)
+        Column::new(key.into(), vals)
     } else {
         let vals: Vec<Option<String>> = col.iter().map(|v| v.as_ref().map(|v| v.to_string())).collect();
-        Series::new(key, vals)
+        Column::new(key.into(), vals)
     }
 }
 

@@ -338,8 +338,8 @@ pub fn rand_weights(num_assets: usize) -> Vec<f64> {
 ///
 /// * `f64` - Mean portfolio return
 pub fn mean_portfolio_return(weights: &Vec<f64>, mean_returns: &Vec<f64>) -> f64 {
-    let weights = Series::new("Weights", weights);
-    let mean_returns = Series::new("Mean Returns", mean_returns);
+    let weights = Series::new("Weights".into(), weights);
+    let mean_returns = Series::new("Mean Returns".into(), mean_returns);
     let weighted_returns = mean_returns.mul(weights).unwrap();
     weighted_returns.sum().unwrap()
 }
@@ -372,12 +372,12 @@ pub fn portfolio_std_dev(weights: &[f64], cov_matrix: &ndarray::Array2<f64>) -> 
 ///
 /// * `Series` - Portfolio returns
 pub fn daily_portfolio_returns(weights: &[f64], returns: &DataFrame) -> Series {
-    let mut portfolio_returns = Series::new("Portfolio Returns", vec![0.0; returns.height()]);
+    let mut portfolio_returns = Series::new("Portfolio Returns".into(), vec![0.0; returns.height()]);
     for (i, weight) in weights.iter().enumerate() {
         let col_str = returns.get_column_names()[i];
         let security_returns = returns.column(col_str).unwrap().f64().unwrap().to_vec();
         let weighted_returns = security_returns.iter().map(|x| x.unwrap() * weight).collect::<Vec<f64>>();
-        portfolio_returns = (portfolio_returns + Series::new("Portfolio Returns", weighted_returns)).unwrap();
+        portfolio_returns = (portfolio_returns + Series::new("Portfolio Returns".into(), weighted_returns)).unwrap();
     }
     portfolio_returns
 }

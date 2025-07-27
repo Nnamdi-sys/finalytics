@@ -1,11 +1,10 @@
 use std::str::FromStr;
-use polars::export::chrono;
 use tokio::task;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3_polars::PyDataFrame;
+use pyo3_polars::{PyDataFrame, PySeries};
 use finalytics::prelude::*;
-use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
+use crate::ffi::rust_plot_to_py_plot;
 
 /// Create a new Ticker object
 ///
@@ -85,7 +84,7 @@ impl PyTicker {
         task::block_in_place(move || {
             let quote = tokio::runtime::Runtime::new().unwrap().block_on(self.ticker.get_quote()).unwrap();
             Python::with_gil(|py| {
-                let locals = PyDict::new_bound(py);
+                let locals = PyDict::new(py);
                 locals.set_item("Symbol", quote.symbol).unwrap();
                 locals.set_item("Name", quote.name).unwrap();
                 locals.set_item("Exchange", quote.exchange).unwrap();
@@ -107,12 +106,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `dict` - A dictionary containing the summary statistics
-    pub fn get_summary_stats(&self) -> PyObject {
+    pub fn get_summary_stats(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let ticker_stats = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_ticker_stats()
             ).unwrap().to_dataframe().unwrap();
-            rust_df_to_py_df(&ticker_stats).unwrap()
+            PyDataFrame(ticker_stats)
         })
     }
 
@@ -121,12 +120,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the ohlcv data
-    pub fn get_price_history(&self) -> PyObject {
+    pub fn get_price_history(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let price_history = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_chart()
             ).unwrap();
-            rust_df_to_py_df(&price_history).unwrap()
+            PyDataFrame(price_history)
         })
     }
 
@@ -135,12 +134,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the options chain
-    pub fn get_options_chain(&self) -> PyObject {
+    pub fn get_options_chain(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let options_chain = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_options()
             ).unwrap().chain;
-            rust_df_to_py_df(&options_chain).unwrap()
+            PyDataFrame(options_chain)
         })
     }
 
@@ -151,13 +150,13 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the ticker news headlines for given date range
-    pub fn get_news(&self) -> PyObject {
+    pub fn get_news(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let news = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_news()
             ).unwrap();
 
-            rust_df_to_py_df(&news).unwrap()
+            PyDataFrame(news)
         })
     }
 
@@ -170,12 +169,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Income Statement
-    pub fn get_income_statement(&self, frequency: &str) -> PyObject {
+    pub fn get_income_statement(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let income_statement = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_financials(StatementType::IncomeStatement, frequency)).unwrap();
-            rust_df_to_py_df(&income_statement).unwrap()
+            PyDataFrame(income_statement)
         })
     }
 
@@ -188,12 +187,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Balance Sheet
-    pub fn get_balance_sheet(&self, frequency: &str) -> PyObject {
+    pub fn get_balance_sheet(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let balance_sheet = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_financials(StatementType::BalanceSheet, frequency)).unwrap();
-            rust_df_to_py_df(&balance_sheet).unwrap()
+            PyDataFrame(balance_sheet)
         })
     }
 
@@ -206,12 +205,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Cashflow Statement
-    pub fn get_cashflow_statement(&self, frequency: &str) -> PyObject {
+    pub fn get_cashflow_statement(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let cashflow_statement = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_financials(StatementType::CashFlowStatement, frequency)).unwrap();
-            rust_df_to_py_df(&cashflow_statement).unwrap()
+            PyDataFrame(cashflow_statement)
         })
     }
 
@@ -224,12 +223,12 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the Financial Ratios
-    pub fn get_financial_ratios(&self, frequency: &str) -> PyObject {
+    pub fn get_financial_ratios(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let ratios = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.get_financials(StatementType::FinancialRatios, frequency)).unwrap();
-            rust_df_to_py_df(&ratios).unwrap()
+            PyDataFrame(ratios)
         })
     }
 
@@ -238,11 +237,11 @@ impl PyTicker {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the implied volatility surface
-    pub fn volatility_surface(&self) -> PyObject {
+    pub fn volatility_surface(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let volatility_surface = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.volatility_surface()).unwrap();
-            rust_df_to_py_df(&volatility_surface.ivols_df).unwrap()
+            PyDataFrame(volatility_surface.ivols_df)
         })
     }
 
@@ -256,7 +255,7 @@ impl PyTicker {
             let performance_stats = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.ticker.performance_stats()).unwrap();
             Python::with_gil(|py| {
-                let locals = PyDict::new_bound(py);
+                let locals = PyDict::new(py);
                 locals.set_item("Symbol", performance_stats.ticker_symbol).unwrap();
                 locals.set_item("Benchmark", performance_stats.benchmark_symbol).unwrap();
                 locals.set_item("Start Date", performance_stats.start_date).unwrap();
@@ -280,9 +279,9 @@ impl PyTicker {
                 locals.set_item("Maximum Drawdown", performance_stats.performance_stats.maximum_drawdown).unwrap();
                 locals.set_item("Value at Risk", performance_stats.performance_stats.value_at_risk).unwrap();
                 locals.set_item("Expected Shortfall", performance_stats.performance_stats.expected_shortfall).unwrap();
-                locals.set_item("Security Prices", rust_series_to_py_series(&performance_stats.security_prices).unwrap()).unwrap();
-                locals.set_item("Security Returns", rust_series_to_py_series(&performance_stats.security_returns).unwrap()).unwrap();
-                locals.set_item("Benchmark Returns", rust_series_to_py_series(&performance_stats.benchmark_returns).unwrap()).unwrap();
+                locals.set_item("Security Prices", PySeries(performance_stats.security_prices)).unwrap();
+                locals.set_item("Security Returns", PySeries(performance_stats.security_returns)).unwrap();
+                locals.set_item("Benchmark Returns", PySeries(performance_stats.benchmark_returns)).unwrap();
                 locals.into()
             })
         })

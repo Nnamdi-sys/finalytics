@@ -122,7 +122,7 @@ pub async fn get_chart(symbol: &str, start_date: &str, end_date: &str, interval:
 )?;
 
     // check if any adjclose values are 0.0
-    let mask = df.column("adjclose")?.gt(0.0)?;
+    let mask = df.column("adjclose")?.as_series().unwrap().gt(0.0)?;
     let df = df.filter(&mask)?;
 
     // check id any returned dates greater than end date

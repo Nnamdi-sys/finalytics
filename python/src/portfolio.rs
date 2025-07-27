@@ -1,11 +1,10 @@
 use std::str::FromStr;
-use polars::export::chrono;
 use finalytics::prelude::*;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use pyo3_polars::PyDataFrame;
+use pyo3_polars::{PyDataFrame, PySeries};
 use tokio::task;
-use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot, rust_series_to_py_series};
+use crate::ffi::rust_plot_to_py_plot;
 
 
 /// Create a new Portfolio object
@@ -106,7 +105,7 @@ impl PyPortfolio {
     pub fn optimization_results(&self) -> PyObject {
         task::block_in_place(move || {
             Python::with_gil(|py| {
-                let py_dict = PyDict::new_bound(py);
+                let py_dict = PyDict::new(py);
                 py_dict.set_item("ticker_symbols", self.portfolio.performance_stats.ticker_symbols.clone()).unwrap();
                 py_dict.set_item("benchmark_symbol", self.portfolio.performance_stats.benchmark_symbol.clone()).unwrap();
                 py_dict.set_item("start_date", self.portfolio.performance_stats.start_date.clone()).unwrap();
@@ -114,8 +113,8 @@ impl PyPortfolio {
                 py_dict.set_item("interval", self.portfolio.performance_stats.interval.mode).unwrap();
                 py_dict.set_item("confidence_level", self.portfolio.performance_stats.confidence_level).unwrap();
                 py_dict.set_item("risk_free_rate", self.portfolio.performance_stats.risk_free_rate).unwrap();
-                py_dict.set_item("portfolio_returns", rust_df_to_py_df(&self.portfolio.performance_stats.portfolio_returns).unwrap()).unwrap();
-                py_dict.set_item("benchmark_returns", rust_series_to_py_series(&self.portfolio.performance_stats.benchmark_returns).unwrap()).unwrap();
+                py_dict.set_item("portfolio_returns", PyDataFrame(self.portfolio.performance_stats.portfolio_returns.clone())).unwrap();
+                py_dict.set_item("benchmark_returns", PySeries(self.portfolio.performance_stats.benchmark_returns.clone())).unwrap();
                 py_dict.set_item("objective_function", match self.portfolio.performance_stats.objective_function{
                     ObjectiveFunction::MaxSharpe => "Maximize Sharpe Ratio",
                     ObjectiveFunction::MinVol => "Minimize Volatility",
@@ -127,7 +126,7 @@ impl PyPortfolio {
                 py_dict.set_item("optimization_method", self.portfolio.performance_stats.optimization_method.clone()).unwrap();
                 py_dict.set_item("constraints", self.portfolio.performance_stats.constraints.clone()).unwrap();
                 py_dict.set_item("optimal_weights", self.portfolio.performance_stats.optimal_weights.clone()).unwrap();
-                py_dict.set_item("optimal_portfolio_returns", rust_series_to_py_series(&self.portfolio.performance_stats.optimal_portfolio_returns).unwrap()).unwrap();
+                py_dict.set_item("optimal_portfolio_returns", PySeries(self.portfolio.performance_stats.optimal_portfolio_returns.clone())).unwrap();
                 py_dict.set_item("Daily Return", self.portfolio.performance_stats.performance_stats.daily_return).unwrap();
                 py_dict.set_item("Daily Volatility", self.portfolio.performance_stats.performance_stats.daily_volatility).unwrap();
                 py_dict.set_item("Cumulative Return", self.portfolio.performance_stats.performance_stats.cumulative_return).unwrap();

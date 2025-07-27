@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 use polars::frame::DataFrame;
-use polars::prelude::{NamedFrom, Series};
+use polars::prelude::Column;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -547,8 +547,8 @@ impl TickerSummaryStats {
         ];
 
         let df = DataFrame::new(vec![
-            Series::new("Metric", fields),
-            Series::new("Value", values),
+            Column::new("Metric".into(), fields),
+            Column::new("Value".into(), values),
         ])?;
 
         Ok(df)

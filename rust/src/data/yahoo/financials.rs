@@ -26,7 +26,7 @@ pub async fn get_fundamentals(
     let result = get_json_response(url).await?;
     let data: FundamentalsResponse = serde_json::from_value(result)
         .map_err(|e| format!("Failed to deserialize into FundamentalsResponse: {e}"))?;
-    let mut columns: Vec<Series> = vec![];
+    let mut columns: Vec<Column> = vec![];
     let mut temp_items: HashMap<String, Value> = HashMap::new();
     let mut init = 0;
     for item in &data.timeseries.result{
@@ -41,19 +41,19 @@ pub async fn get_fundamentals(
                     break;
                 }
                 if init == 0 {
-                    let date_series = Series::new("asOfDate", &date_vec);
+                    let date_series = Column::new("asOfDate".into(), &date_vec);
                     columns.push(date_series);
                     init += 1;
                 }
 
                 if items.len() == columns[0].len(){
                     let vars_vec = items.iter().map(|x| x.reportedValue.raw).collect::<Vec<f64>>();
-                    let vars_series = Series::new(&key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
+                    let vars_series = Column::new(key.as_str().replace(&frequency.to_string(), "").into(), &vars_vec);
                     columns.push(vars_series);
                 }
                 else {
                     let mut vars_vec: Vec<f64> = vec![];
-                    for d in columns[0].iter(){
+                    for d in columns[0].as_series().unwrap().iter(){
                         let mut found = false;
                         for item in items.iter() {
                             if item.asOfDate == d.to_string(){
@@ -66,7 +66,7 @@ pub async fn get_fundamentals(
                             vars_vec.push(0.0);
                         }
                     }
-                    let vars_series = Series::new(&key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
+                    let vars_series = Column::new(key.as_str().replace(&frequency.to_string(), "").into(), &vars_vec);
                     columns.push(vars_series);
                 }
 
@@ -79,7 +79,7 @@ pub async fn get_fundamentals(
             let items: Vec<Object> = serde_json::from_value(value.to_string().parse()?)
                 .map_err(|e| format!("Failed to deserialize into Object: {e}"))?;
             let mut vars_vec: Vec<f64> = vec![];
-            for d in columns[0].iter(){
+            for d in columns[0].as_series().unwrap().iter(){
                 let mut found = false;
                 for item in items.iter() {
                     if format!("\"{}\"", item.asOfDate) == d.to_string(){
@@ -92,7 +92,7 @@ pub async fn get_fundamentals(
                     vars_vec.push(0.0);
                 }
             }
-            let vars_series = Series::new(&key.as_str().replace(&frequency.to_string(), ""), &vars_vec);
+            let vars_series = Column::new(key.as_str().replace(&frequency.to_string(), "").into(), &vars_vec);
             columns.push(vars_series);
         }
     }
@@ -104,30 +104,30 @@ pub async fn financial_ratios(symbol: &str, frequency: StatementFrequency) -> Re
     let income_statement = get_fundamentals(symbol, StatementType::IncomeStatement, frequency).await?;
     let balance_sheet = get_fundamentals(symbol, StatementType::BalanceSheet, frequency).await?;
     let cash_flow = get_fundamentals(symbol, StatementType::CashFlowStatement, frequency).await?;
-    let zero_series = Series::new("zero", vec![0.0; income_statement.height()]);
+    let zero_series = Column::new("zero".into(), vec![0.0; income_statement.height()]);
     let ratios = vec![
-        Series::new("date", income_statement.column("asOfDate")?),
-        Series::new("Gross Profit Margin", (income_statement.column("GrossProfit")? / income_statement.column("TotalRevenue")?)?),
-        Series::new("Operating Profit Margin", (income_statement.column("EBIT")? / income_statement.column("TotalRevenue")?)?),
-        Series::new("Net Profit Margin", (income_statement.column("NetIncome")? / income_statement.column("TotalRevenue")?)?),
-        Series::new("Return on Assets", (income_statement.column("NetIncome")? / balance_sheet.column("TotalAssets")?)?),
-        Series::new("Return on Equity", (income_statement.column("NetIncome")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
-        Series::new("Quick Ratio", (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?),
-        Series::new("Current Ratio", (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?),
-        Series::new("Debt to Equity", (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
-        Series::new("Debt to Assets", (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalAssets")?)?),
-        Series::new("Interest Coverage", (income_statement.column("EBIT")? / income_statement.column("InterestExpense").unwrap_or(&zero_series))?),
-        Series::new("Asset Turnover", (income_statement.column("TotalRevenue")? / balance_sheet.column("TotalAssets")?)?),
-        Series::new("Inventory Turnover", (income_statement.column("CostOfRevenue")? / balance_sheet.column("Inventory")?)?),
-        Series::new("Days Receivable", (balance_sheet.column("AccountsReceivable")? / income_statement.column("TotalRevenue")?)? * 365.0),
-        Series::new("Days Inventory", (balance_sheet.column("Inventory")? / income_statement.column("CostOfRevenue")?)? * 365.0),
-        Series::new("Days Payable", (balance_sheet.column("AccountsPayable")? / income_statement.column("CostOfRevenue")?)? * 365.0),
-        Series::new("Earnings per Share", income_statement.column("DilutedEPS")?),
-        Series::new("Price to Earnings", (balance_sheet.column("TotalCapitalization")? / income_statement.column("NetIncome")?)?),
-        Series::new("Price to Book", (balance_sheet.column("TotalCapitalization")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?),
-        Series::new("Price to Sales", (balance_sheet.column("TotalCapitalization")? / income_statement.column("TotalRevenue")?)?),
-        Series::new("Price to Cashflow", (balance_sheet.column("TotalCapitalization")? / cash_flow.column("OperatingCashFlow")?)?),
-        Series::new("Price to Free Cashflow", (balance_sheet.column("TotalCapitalization")? / cash_flow.column("FreeCashFlow")?)?),
+        income_statement.column("asOfDate")?.clone().with_name("date".into()),
+        (income_statement.column("GrossProfit")? / income_statement.column("TotalRevenue")?)?.with_name("Gross Profit Margin".into()),
+        (income_statement.column("EBIT")? / income_statement.column("TotalRevenue")?)?.with_name("Operating Profit Margin".into()),
+        (income_statement.column("NetIncome")? / income_statement.column("TotalRevenue")?)?.with_name("Net Profit Margin".into()),
+        (income_statement.column("NetIncome")? / balance_sheet.column("TotalAssets")?)?.with_name("Return on Assets".into()),
+        (income_statement.column("NetIncome")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Return on Equity".into()),
+        (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?.with_name("Quick Ratio".into()),
+        (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?.with_name("Current Ratio".into()),
+        (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Debt to Equity".into()),
+        (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalAssets")?)?.with_name("Debt to Assets".into()),
+        (income_statement.column("EBIT")? / income_statement.column("InterestExpense").unwrap_or(&zero_series))?.with_name("Interest Coverage".into()),
+        (income_statement.column("TotalRevenue")? / balance_sheet.column("TotalAssets")?)?.with_name("Asset Turnover".into()),
+        (income_statement.column("CostOfRevenue")? / balance_sheet.column("Inventory")?)?.with_name("Inventory Turnover".into()),
+        ((balance_sheet.column("AccountsReceivable")? / income_statement.column("TotalRevenue")?)? * 365.0).with_name("Days Receivable".into()),
+        ((balance_sheet.column("Inventory")? / income_statement.column("CostOfRevenue")?)? * 365.0).with_name("Days Inventory".into()),
+        ((balance_sheet.column("AccountsPayable")? / income_statement.column("CostOfRevenue")?)? * 365.0).with_name("Days Payable".into()),
+        income_statement.column("DilutedEPS")?.clone().with_name("Earnings per Share".into()),
+        (balance_sheet.column("TotalCapitalization")? / income_statement.column("NetIncome")?)?.with_name("Price to Earnings".into()),
+        (balance_sheet.column("TotalCapitalization")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Price to Book".into()),
+        (balance_sheet.column("TotalCapitalization")? / income_statement.column("TotalRevenue")?)?.with_name("Price to Sales".into()),
+        (balance_sheet.column("TotalCapitalization")? / cash_flow.column("OperatingCashFlow")?)?.with_name("Price to Cashflow".into()),
+        (balance_sheet.column("TotalCapitalization")? / cash_flow.column("FreeCashFlow")?)?.with_name("Price to Free Cashflow".into()),
     ];
 
     let df = DataFrame::new(ratios)?;
@@ -140,7 +140,7 @@ pub async fn financial_ratios(symbol: &str, frequency: StatementFrequency) -> Re
         StatementFrequency::Annual => convert_to_year(dates),
     };
     let mut df = df.drop("date").unwrap();
-    let items = Series::new("Items", df.get_column_names());
+    let items = Series::new("Items".into(), df.get_column_names_str());
     let mut transposed_df = df.transpose(None, None)?;
     transposed_df.set_column_names(&dates)?;
     let _ = transposed_df.insert_column(0, items)?;
@@ -174,14 +174,14 @@ pub async fn income_statement(symbol: &str, frequency: StatementFrequency) -> Re
     // remove item from cols if it doesn't exist in the income statement dataframe
     cols.retain(|x| income_statement.column(x).is_ok());
 
-    let df = income_statement.clone().select(&cols)?;
+    let df = income_statement.clone().select(cols.clone())?;
 
     // Create a vector of expressions for renaming and selecting columns
     let expressions: Vec<Expr> = cols
         .iter()
         .map(|old_name| {
             let new_name = ifrs_mapping.get(*old_name).unwrap_or(old_name);
-            col(old_name).alias(new_name)
+            col(*old_name).alias(*new_name)
         })
         .collect();
 
@@ -195,7 +195,7 @@ pub async fn income_statement(symbol: &str, frequency: StatementFrequency) -> Re
         StatementFrequency::Quarterly => convert_to_quarter(dates),
         StatementFrequency::Annual => convert_to_year(dates),
     };
-    let items = Series::new("Items", renamed_df.get_column_names());
+    let items = Series::new("Items".into(), renamed_df.get_column_names_str());
     let mut transposed_df = renamed_df.transpose(None, None)?;
     transposed_df.set_column_names(&dates)?;
     let _ = transposed_df.insert_column(0, items)?;
@@ -253,14 +253,14 @@ pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency) -> Resul
     cols.retain(|x| balance_sheet.column(x).is_ok());
 
 
-    let df = balance_sheet.clone().select(&cols)?;
+    let df = balance_sheet.clone().select(cols.clone())?;
 
     // Create a vector of expressions for renaming and selecting columns
     let expressions: Vec<Expr> = cols
         .iter()
         .map(|old_name| {
             let new_name = ifrs_mapping.get(*old_name).unwrap_or(old_name);
-            col(old_name).alias(new_name)
+            col(*old_name).alias(*new_name)
         })
         .collect();
 
@@ -274,7 +274,7 @@ pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency) -> Resul
         StatementFrequency::Quarterly => convert_to_quarter(dates),
         StatementFrequency::Annual => convert_to_year(dates),
     };
-    let items = Series::new("Items", renamed_df.get_column_names());
+    let items = Column::new("Items".into(), renamed_df.get_column_names_str());
     let mut transposed_df = renamed_df.transpose(None, None)?;
     transposed_df.set_column_names(&dates)?;
     let _ = transposed_df.insert_column(0, items)?;
@@ -347,14 +347,14 @@ pub async fn cashflow_statement(symbol: &str, frequency: StatementFrequency) -> 
     cols.retain(|x| cash_flow.column(x).is_ok());
 
 
-    let df = cash_flow.clone().select(&cols)?;
+    let df = cash_flow.clone().select(cols.clone())?;
 
     // Create a vector of expressions for renaming and selecting columns
     let expressions: Vec<Expr> = cols
         .iter()
         .map(|old_name| {
             let new_name = ifrs_mapping.get(*old_name).unwrap_or(old_name);
-            col(old_name).alias(new_name)
+            col(*old_name).alias(*new_name)
         })
         .collect();
 
@@ -368,7 +368,7 @@ pub async fn cashflow_statement(symbol: &str, frequency: StatementFrequency) -> 
         StatementFrequency::Quarterly => convert_to_quarter(dates),
         StatementFrequency::Annual => convert_to_year(dates),
     };
-    let items = Series::new("Items", renamed_df.get_column_names());
+    let items = Column::new("Items".into(), renamed_df.get_column_names_str());
     let mut transposed_df = renamed_df.transpose(None, None)?;
     transposed_df.set_column_names(&dates)?;
     let _ = transposed_df.insert_column(0, items)?;

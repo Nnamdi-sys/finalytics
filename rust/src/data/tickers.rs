@@ -24,7 +24,7 @@ macro_rules! fetch_all {
                 let result = ticker.$method($($param), *).await;
                 match result {
                     Ok(mut df) => {
-                        let symbol_series = Series::new("symbol", vec![ticker.ticker.clone(); df.height()]);
+                        let symbol_series = Series::new("symbol".into(), vec![ticker.ticker.clone(); df.height()]);
                         if df.width() > $idx {
                             let _ = df.insert_column($idx, symbol_series);
                             Ok(df)
@@ -138,7 +138,7 @@ impl TickersData for Tickers {
         for (ticker, stats) in all_stats {
 
             let mut fmt_df = stats.to_dataframe()?;
-            fmt_df.rename("Value", &ticker)?;
+            fmt_df.rename("Value", ticker.as_str().into())?;
             formatted_dfs.push(fmt_df);
         }
 
@@ -154,7 +154,9 @@ impl TickersData for Tickers {
         let columns = stats.column("Metric")?.str()?.into_no_null_iter()
             .map(|x| x.to_string()).collect::<Vec<String>>();
         stats = stats.drop("Metric")?;
-        let symbols = Series::new("Symbol", stats.get_column_names());
+        let column_names = stats.get_column_names().iter()
+            .map(|&name| name.to_string()).collect::<Vec<String>>();
+        let symbols = Series::new("Symbol".into(), column_names);
         let mut stats_df = stats.transpose(None, None)?;
         stats_df.set_column_names(&columns)?;
         let _ = stats_df.insert_column(0, symbols)?;
@@ -200,7 +202,7 @@ impl TickersData for Tickers {
                 match ticker.get_options().await {
                     Ok(options) => {
                         let mut df = options.chain;
-                        let symbol_series = Series::new("symbol", vec![ticker.ticker.clone(); df.height()]);
+                        let symbol_series = Series::new("symbol".into(), vec![ticker.ticker.clone(); df.height()]);
                         if df.width() > 3 {
                             let _ = df.insert_column(3, symbol_series);
                             Ok(df)
@@ -252,8 +254,8 @@ impl TickersData for Tickers {
             let fut = tokio::task::spawn(async move {
                 match ticker.performance_stats().await {
                     Ok(stats) => {
-                        let date_series = Series::new("timestamp", stats.dates_array);
-                        let returns_series = Series::new(&ticker.ticker, stats.security_returns);
+                        let date_series = Column::new("timestamp".into(), stats.dates_array);
+                        let returns_series = Column::new(ticker.ticker.as_str().into(), stats.security_returns);
                         if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
                             Ok(df)
                         } else {
@@ -283,9 +285,10 @@ impl TickersData for Tickers {
                         joint_df = joint_df
                             .join(
                                 &df,
-                                &["timestamp"],
-                                &["timestamp"],
+                                ["timestamp"],
+                                ["timestamp"],
                                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
+                                None
                             )?;
                     }
                 }
@@ -365,23 +368,23 @@ impl TickersData for Tickers {
         }
 
         let df = DataFrame::new(vec![
-            Series::new("Symbol", ticker_symbols),
-            Series::new("Daily Return", numeric_fields[0].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Daily Volatility", numeric_fields[1].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Cumulative Return", numeric_fields[2].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Annualized Return", numeric_fields[3].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Annualized Volatility", numeric_fields[4].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Alpha", numeric_fields[5].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Beta", numeric_fields[6].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Sharpe Ratio", numeric_fields[7].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Sortino Ratio", numeric_fields[8].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Active Return", numeric_fields[9].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Active Risk", numeric_fields[10].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Information Ratio", numeric_fields[11].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Calmar Ratio", numeric_fields[12].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Maximum Drawdown", numeric_fields[13].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Value at Risk", numeric_fields[14].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Series::new("Expected Shortfall", numeric_fields[15].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Symbol".into(), ticker_symbols),
+            Column::new("Daily Return".into(), numeric_fields[0].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Daily Volatility".into(), numeric_fields[1].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Cumulative Return".into(), numeric_fields[2].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Annualized Return".into(), numeric_fields[3].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Annualized Volatility".into(), numeric_fields[4].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Alpha".into(), numeric_fields[5].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Beta".into(), numeric_fields[6].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Sharpe Ratio".into(), numeric_fields[7].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Sortino Ratio".into(), numeric_fields[8].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Active Return".into(), numeric_fields[9].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Active Risk".into(), numeric_fields[10].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Information Ratio".into(), numeric_fields[11].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Calmar Ratio".into(), numeric_fields[12].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Maximum Drawdown".into(), numeric_fields[13].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Value at Risk".into(), numeric_fields[14].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new("Expected Shortfall".into(), numeric_fields[15].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
         ])?;
 
         pb.finish_with_message("Done");

@@ -238,7 +238,7 @@ impl VolatilitySurface for Ticker {
         let ttms = options_chain.ttms.iter().filter(|x| *x >= &3.0).cloned().collect::<Vec<f64>>();
         let strikes = options_chain.strikes;
         let df = options_chain.chain;
-        let atm_ser = Series::new("inTheMoney", vec![false; df.height()]);
+        let atm_ser = Column::new("inTheMoney".into(), vec![false; df.height()]);
         let mask = df.column("inTheMoney")?.equal(&atm_ser)?;
         let df = df.filter(&mask)?;
         let mut ivols: Vec<Vec<f64>> = Vec::new();
@@ -246,8 +246,8 @@ impl VolatilitySurface for Ticker {
         for x in &ttms {
             let mut vols: Vec<f64> = Vec::new();
             for y in &strikes {
-                let mask1 = df.column("ttm")?.equal(*x)?;
-                let mask2 = df.column("strike")?.equal(*y)?;
+                let mask1 = df.column("ttm")?.as_series().unwrap().equal(*x)?;
+                let mask2 = df.column("strike")?.as_series().unwrap().equal(*y)?;
                 let mask = mask1 & mask2;
                 let vol_df = df.filter(&mask)?;
                 if vol_df.height() > 0 {
@@ -269,10 +269,10 @@ impl VolatilitySurface for Ticker {
             ivols.push(vols_adj);
         }
 
-        let mut ivols_df = DataFrame::new(vec![Series::new("strike", &strikes)])?;
+        let mut ivols_df = DataFrame::new(vec![Column::new("strike".into(), &strikes)])?;
         for (i, ttm) in ttms.iter().enumerate() {
             let ttm = format!("{:.2}", *ttm);
-            let col = Series::new(&format!("{ttm}M"), ivols[i].clone());
+            let col = Column::new(format!("{ttm}M").as_str().into(), ivols[i].clone());
             ivols_df.hstack_mut(&[col])?;
         }
 

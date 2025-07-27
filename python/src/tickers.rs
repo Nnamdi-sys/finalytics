@@ -1,10 +1,9 @@
 use std::str::FromStr;
 use tokio::task;
 use pyo3::prelude::*;
-use polars::export::chrono;
 use pyo3_polars::PyDataFrame;
 use finalytics::prelude::*;
-use crate::ffi::{rust_df_to_py_df, rust_plot_to_py_plot};
+use crate::ffi::rust_plot_to_py_plot;
 use crate::ticker::PyTicker;
 use crate::portfolio::PyPortfolio;
 
@@ -93,22 +92,22 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the summary statistics for each ticker
-    pub fn get_summary_stats(&self) -> PyObject {
+    pub fn get_summary_stats(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_ticker_stats()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
     /// Fetch the OHLCV Data for all tickers
-    pub fn get_price_history(&self) -> PyObject {
+    pub fn get_price_history(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_chart()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -117,12 +116,12 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the options chain data for all tickers
-    pub fn get_options_chain(&self) -> PyObject {
+    pub fn get_options_chain(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_options()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -131,12 +130,12 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the news headlines for all tickers
-    pub fn get_news(&self) -> PyObject {
+    pub fn get_news(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_news()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -149,13 +148,13 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the income statement data for all tickers
-    pub fn get_income_statement(&self, frequency: &str) -> PyObject {
+    pub fn get_income_statement(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_financials(StatementType::IncomeStatement, frequency)
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -168,13 +167,13 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the balance sheet data for all tickers
-    pub fn get_balance_sheet(&self, frequency: &str) -> PyObject {
+    pub fn get_balance_sheet(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_financials(StatementType::BalanceSheet, frequency)
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -187,13 +186,13 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the cash flow statement data for all tickers
-    pub fn get_cashflow_statement(&self, frequency: &str) -> PyObject {
+    pub fn get_cashflow_statement(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_financials(StatementType::CashFlowStatement, frequency)
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -206,13 +205,13 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the financial ratios data for all tickers
-    pub fn get_financial_ratios(&self, frequency: &str) -> PyObject {
+    pub fn get_financial_ratios(&self, frequency: &str) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.get_financials(StatementType::FinancialRatios, frequency)
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -221,12 +220,12 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the returns data for all tickers
-    pub fn returns(&self) -> PyObject {
+    pub fn returns(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.returns()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 
@@ -235,12 +234,12 @@ impl PyTickers {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the performance statistics for all tickers
-    pub fn performance_stats(&self) -> PyObject {
+    pub fn performance_stats(&self) -> PyDataFrame {
         task::block_in_place(move || {
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
                 self.tickers.performance_stats()
             ).unwrap();
-            rust_df_to_py_df(&df).unwrap()
+            PyDataFrame(df)
         })
     }
 

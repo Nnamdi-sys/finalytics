@@ -3,19 +3,17 @@ pub mod ticker;
 pub mod tickers;
 
 
-use plotly::Layout;
+use plotly::{Configuration, Layout, Plot};
 
-pub fn base_layout(height: Option<usize>, width: Option<usize>) -> Layout {
-    let mut layout = Layout::new();
-
-    match (height, width) {
-        (Some(h), Some(w)) => {
-            layout = layout.height(h).width(w);
-        }
-        _ => {
-            layout = layout.height(800).width(1200);
-        }
-    }
-
-    layout
+pub fn set_layout(mut plot: Plot, mut layout: Layout, height: Option<usize>, width: Option<usize>) -> Plot {
+    let plot = if let (Some(h), Some(w)) = (height, width) {
+        layout = layout.height(h).width(w);
+        plot.set_layout(layout);
+        plot
+    } else {
+        plot.set_layout(layout);
+        plot.set_configuration(Configuration::default().responsive(true).fill_frame(true));
+        plot
+    };
+    plot
 }

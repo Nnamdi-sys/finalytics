@@ -2,7 +2,7 @@ use std::error::Error;
 use polars::prelude::*;
 use chrono::{DateTime, NaiveDateTime};
 use plotly::common::{AxisSide, Fill, Line, LineShape, Mode, Title};
-use plotly::{Bar, Candlestick, Histogram, Plot, Scatter, Surface};
+use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface};
 use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
 
 use crate::models::ticker::Ticker;
@@ -12,8 +12,7 @@ use crate::prelude::TechnicalIndicators;
 use crate::analytics::performance::TickerPerformance;
 use crate::analytics::stochastics::VolatilitySurface;
 use crate::analytics::statistics::{cumulative_returns_list, maximum_drawdown};
-use crate::charts::base_layout;
-
+use crate::charts::set_layout;
 
 pub struct FinancialsTables {
     pub income_statement: DataTable,
@@ -114,7 +113,7 @@ impl TickerCharts for Ticker {
             .mode(Mode::Lines)
             .line(Line::new().shape(LineShape::Spline));
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
             .grid(
                 LayoutGrid::new()
@@ -181,7 +180,8 @@ impl TickerCharts for Ticker {
         plot.add_trace(ma50_trace);
         plot.add_trace(ma200_trace);
         plot.add_trace(rsi_trace);
-        plot.set_layout(layout);
+        
+        let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
 
@@ -252,7 +252,7 @@ impl TickerCharts for Ticker {
         plot.add_trace(drawdown_trace);
 
         // Set layout for the plot
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Chart</span>",
                                          self.ticker)))
             .grid(
@@ -286,7 +286,7 @@ impl TickerCharts for Ticker {
                     .tick_format(".0%")
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
     }
@@ -350,8 +350,8 @@ impl TickerCharts for Ticker {
         ];
 
         let df = DataFrame::new(vec![
-            Series::new("Metric", fields),
-            Series::new("Value", values),
+            Column::new("Metric".into(), fields),
+            Column::new("Value".into(), values),
         ])?;
 
         let table = df.to_datatable("performance_stats", false, DataTableFormat::Number);
@@ -426,7 +426,7 @@ impl TickerCharts for Ticker {
         let mut surface_plot = Plot::new();
         surface_plot.add_trace(trace);
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Surface</span>")))
             .scene(
                 LayoutScene::new()
@@ -442,7 +442,7 @@ impl TickerCharts for Ticker {
                         .title(Title::from("Implied Volatility")))
 
             );
-        surface_plot.set_layout(layout);
+        let surface_plot = set_layout(surface_plot, layout, height, width);
 
         // Volatility Smile
         let mut traces = Vec::new();
@@ -457,7 +457,7 @@ impl TickerCharts for Ticker {
             traces.push(trace);
         }
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Smile</span>")))
             .x_axis(Axis::new().title(Title::from("Strike")))
             .y_axis(Axis::new().title(Title::from("Implied Volatility")));
@@ -466,7 +466,7 @@ impl TickerCharts for Ticker {
         for trace in traces {
             smile_plot.add_trace(trace);
         }
-        smile_plot.set_layout(layout);
+        let smile_plot = set_layout(smile_plot, layout, height, width);
 
 
         // Volatility Term Structure
@@ -492,7 +492,7 @@ impl TickerCharts for Ticker {
             traces.push(trace);
         }
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{symbol} Volatility Term Structure</span>")))
             .x_axis(Axis::new().title(Title::from("Time to Maturity (Months)")))
             .y_axis(Axis::new().title(Title::from("Implied Volatility")));
@@ -501,7 +501,7 @@ impl TickerCharts for Ticker {
         for trace in traces {
             term_plot.add_trace(trace);
         }
-        term_plot.set_layout(layout);
+        let term_plot = set_layout(term_plot, layout, height, width);
 
 
         Ok(OptionsCharts {
@@ -579,7 +579,7 @@ impl TickerCharts for Ticker {
         plot.add_trace(line_trace);
 
         // Set the layout
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} News Sentiment Chart</span>", &self.ticker)))
             //.bar_mode(BarMode::Group)
             .x_axis(Axis::new()
@@ -598,7 +598,7 @@ impl TickerCharts for Ticker {
                 .side(AxisSide::Right)
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
     }
@@ -610,7 +610,7 @@ impl TickerCharts for Ticker {
     async fn news_sentiment_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let mut news = self.get_news().await?;
         let _ = news.drop_in_place("Title")?;
-        news.rename("Link", "Title")?;
+        news.rename("Link", "Title".into())?;
         let news_table = news.to_datatable("News", true, DataTableFormat::Number);
         Ok(news_table)
     }

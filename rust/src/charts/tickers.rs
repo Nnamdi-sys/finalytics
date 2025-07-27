@@ -1,10 +1,10 @@
 use std::error::Error;
 use plotly::layout::Axis;
-use plotly::{HeatMap, Plot, Scatter};
+use plotly::{HeatMap, Layout, Plot, Scatter};
 use plotly::common::{ColorScalePalette, Mode, Title};
 use crate::prelude::{DataTableDisplay, DataTableFormat, Tickers, TickersData};
 use crate::analytics::statistics::{correlation_matrix, cumulative_returns_list};
-use crate::charts::base_layout;
+use crate::charts::set_layout;
 use crate::reports::table::DataTable;
 
 pub trait TickersCharts {
@@ -72,7 +72,7 @@ impl TickersCharts for Tickers {
             }
         }
 
-        let layout = base_layout(height, width)
+        let layout = Layout::new()
             .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Tickers Cumulative Returns</span>"))
             .y_axis(
                 Axis::new()
@@ -80,7 +80,7 @@ impl TickersCharts for Tickers {
                     .tick_format(".0%")
             );
 
-        plot.set_layout(layout);
+        let plot = set_layout(plot, layout, height, width);
         Ok(plot)
     }
 
@@ -100,11 +100,9 @@ impl TickersCharts for Tickers {
 
         let mut plot = Plot::new();
         plot.add_trace(heatmap);
-        plot.set_layout(
-            base_layout(height, width)
-                .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Returns Correlation Matrix</span>"))
-        );
-
+        let layout = Layout::new()
+            .title(Title::from("<span style=\"font-weight:bold; color:darkgreen;\">Returns Correlation Matrix</span>"));
+        let plot = set_layout(plot, layout, height, width);
         Ok(plot)
     }
 }

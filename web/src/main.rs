@@ -20,7 +20,7 @@ fn main() {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(async move {
-                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
+                let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));   // [127, 0, 0, 1] in dev environment
                 let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
                 let app = Router::new()
                     .serve_dioxus_application(ServeConfig::new().unwrap(), App);

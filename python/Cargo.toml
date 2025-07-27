@@ -1,6 +1,6 @@
 [package]
 name = "finalytics-py"
-version = "0.8.0"
+version = "0.8.1"
 edition = "2021"
 readme = "README.md"
 
@@ -9,9 +9,9 @@ name = "finalytics"
 crate-type = ["cdylib"]
 
 [dependencies]
-finalytics = { path = "../rust", features = ["kaleido"] }
-polars = { version = "0.41.3", default-features = false }
-tokio = { version = "1.42.0", features = ["full"] }
-pyo3 = { version = "0.21.0", features = ["extension-module", "generate-import-lib"] }
-pyo3-polars = "0.15.0"
-plotly = "0.12.1"
+finalytics = { path = "../rust" }
+tokio = { version = "1.47.0", features = ["full"] }
+pyo3 = { version = "0.25.1", features = ["extension-module", "generate-import-lib"] }
+pyo3-polars = "0.22.0"
+plotly = "0.13.4"
+chrono = "0.4.41"

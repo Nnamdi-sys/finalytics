@@ -35,17 +35,18 @@ impl TickerPerformance for Ticker {
     /// * `TickerPerformanceStats` struct
     async fn performance_stats(&self) -> Result<TickerPerformanceStats, Box<dyn Error>> {
         let security_df = self.roc(1, Some(Column::AdjClose)).await?;
-        let security_prices = security_df.column(Column::AdjClose.as_str())?.clone();
+        let security_prices = security_df.column(Column::AdjClose.as_str())?.as_series().unwrap();
         let security_returns = DataFrame::new(vec![
             security_df.column("timestamp")?.clone(),
-            security_df.column("roc-1")?.clone().with_name(&self.ticker)
+            security_df.column("roc-1")?.clone().with_name(self.ticker.as_str().into())
         ])?;
         let benchmark_returns = self.benchmark_ticker.clone().unwrap().roc(1, Some(Column::AdjClose)).await?;
         let benchmark_returns = security_returns.join(
             &benchmark_returns,
-            &["timestamp"],
-            &["timestamp"],
+            ["timestamp"],
+            ["timestamp"],
             JoinArgs::new(JoinType::Left),
+            None
         )?;
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
         let benchmark_returns = benchmark_returns.fill_null(FillNullStrategy::Forward(None))?;
@@ -55,8 +56,8 @@ impl TickerPerformance for Ticker {
             .naive_local()).collect::<Vec<NaiveDateTime>>();
         let interval = interval_days(dates_array.clone());
         let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let security_returns = benchmark_returns.column(&self.ticker)?.clone();
-        let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
+        let security_returns = benchmark_returns.column(&self.ticker)?.as_series().unwrap();
+        let benchmark_returns = benchmark_returns.column("roc-1")?.as_series().unwrap();
 
         let performance_stats = PerformanceStats::compute_stats(
             security_returns.clone(), benchmark_returns.clone(),
@@ -130,14 +131,15 @@ impl PortfolioPerformanceStats {
             .map(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%d %H:%M:%S").unwrap())
             .collect::<Vec<NaiveDateTime>>();
         let _ = portfolio_returns.drop_in_place("timestamp")?;
-        let _=  portfolio_returns.insert_column(0, Series::new("timestamp", portfolio_dates))?;
+        let _=  portfolio_returns.insert_column(0, Series::new("timestamp".into(), portfolio_dates))?;
 
         let benchmark_returns = benchmark_ticker.roc(1, Some(Column::AdjClose)).await?;
         let benchmark_returns =  portfolio_returns.join(
             &benchmark_returns,
-            &["timestamp"],
-            &["timestamp"],
+            ["timestamp"],
+            ["timestamp"],
             JoinArgs::new(JoinType::Left),
+            None
         )?;
 
         let benchmark_returns = benchmark_returns.sort(["timestamp"], SortMultipleOptions::new().with_order_descending(false))?;
@@ -147,7 +149,7 @@ impl PortfolioPerformanceStats {
             .naive_local()).collect::<Vec<NaiveDateTime>>();
         let interval = interval_days(dates_array.clone());
         let dates_array = dates_array.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let benchmark_returns = benchmark_returns.column("roc-1")?.clone();
+        let benchmark_returns = benchmark_returns.column("roc-1")?.as_series().unwrap();
 
         let _ = portfolio_returns.drop_in_place("timestamp")?;
 

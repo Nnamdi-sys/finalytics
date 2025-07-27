@@ -1,10 +1,10 @@
 use std::str::FromStr;
 use pyo3::prelude::*;
+use pyo3_polars::PyDataFrame;
 use tokio::task;
 use finalytics::data::yahoo::screeners::builder::ScreenerBuilder;
 use finalytics::prelude::{CryptoScreener, EquityScreener, EtfScreener, FutureScreener, IndexScreener,
                           MutualFundScreener, QuoteType, Screener, ScreenerFilter, ScreenerMetric};
-use crate::ffi::rust_df_to_py_df;
 
 
 /// Create a new Screener object
@@ -113,9 +113,9 @@ impl PyScreener {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame with overview data
-    pub fn overview(&self) -> PyObject {
-        let overview = &self.screener.result;
-        rust_df_to_py_df(overview).unwrap()
+    pub fn overview(&self) -> PyDataFrame {
+        let overview = self.screener.result.clone();
+        PyDataFrame(overview)
     }
 
     /// Get a Polars DataFrame containing detailed metrics for screened instruments
@@ -123,9 +123,9 @@ impl PyScreener {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame with detailed metrics
-    pub fn metrics(&self) -> PyObject {
+    pub fn metrics(&self) -> PyDataFrame {
         let metrics = tokio::runtime::Runtime::new().unwrap().block_on(self.screener.metrics()).unwrap().data;
-        rust_df_to_py_df(&metrics).unwrap()
+        PyDataFrame(metrics)
     }
 
     /// Display the overview and metrics DataFrames as DataTables in the web browser

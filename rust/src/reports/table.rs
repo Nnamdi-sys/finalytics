@@ -1,9 +1,21 @@
 use std::error::Error;
 use std::{fmt, fs};
+use std::io::Cursor;
 use chrono::DateTime;
 use webbrowser;
 use polars::prelude::*;
-use serde_json::Value;
+use serde_json::{json, Value};
+
+
+pub trait DataTableDisplay {
+    fn to_datatable(&self, id: &str, ordering: bool, format: DataTableFormat ) -> DataTable;
+}
+
+impl DataTableDisplay for DataFrame {
+    fn to_datatable(&self, id: &str, ordering: bool, format: DataTableFormat ) -> DataTable {
+        DataTable::new(self.clone(), id.to_string(), ordering, format)
+    }
+}
 
 pub enum DataTableFormat {
     Currency,
@@ -152,16 +164,48 @@ impl DataTable {
     pub fn to_html(&self) -> Result<String, Box<dyn Error>> {
         let df = &mut self.data.clone();
 
-        let json_data = serde_json::to_string(df)?;
 
-        let parsed_json: Value = serde_json::from_str(&json_data)?;
+        let mut buffer = Cursor::new(Vec::new());
+        JsonWriter::new(&mut buffer)
+            .with_json_format(JsonFormat::Json)
+            .finish(df)?;
+
+        let json_data = String::from_utf8(buffer.into_inner())?;
+
+        let parsed_rows: Vec<Value> = serde_json::from_str(&json_data)?;
+
+        let column_names = df.get_column_names_str();
+        let mut values_per_column = vec![Vec::new(); column_names.len()];
+
+        for row in &parsed_rows {
+            if let Value::Object(map) = row {
+                for (i, name) in column_names.iter().enumerate() {
+                    values_per_column[i].push(map.get(*name).cloned().unwrap_or(Value::Null));
+                }
+            }
+        }
+
+        let parsed_json = {
+            let cols = column_names.iter()
+                .zip(values_per_column.iter())
+                .map(|(name, vals)| {
+                    json!({
+                "name": name,
+                "values": vals,
+            })
+                })
+                .collect::<Vec<_>>();
+            Value::Object(serde_json::Map::from_iter([
+                ("columns".to_string(), Value::Array(cols))
+            ]))
+        };
 
         let columns = match parsed_json.get("columns") {
             Some(Value::Array(cols)) => cols,
             _ => return Err("Failed to find columns in JSON.".into()),
         };
 
-        let column_names = df.get_column_names();
+        let column_names = df.get_column_names_str();
 
         let values: Vec<Vec<Value>> = columns
             .iter()

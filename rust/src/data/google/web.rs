@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::time::Duration;
 use chrono::{NaiveDate, NaiveDateTime};
 use once_cell::sync::Lazy;
 use polars::prelude::*;
@@ -85,15 +86,15 @@ fn extract_news_details(body: String, compute_sentiment: bool) -> DataFrame {
     }
 
     let df = DataFrame::new(vec![
-        Series::new("Published Date", pub_dates),
-        Series::new("Source", sources),
-        Series::new("Title", titles),
-        Series::new("Link", links),
+        Column::new("Published Date".into(), pub_dates),
+        Column::new("Source".into(), sources),
+        Column::new("Title".into(), titles),
+        Column::new("Link".into(), links),
     ]).unwrap();
 
     if compute_sentiment {
         let mut new_df = df.clone();
-        match new_df.with_column(Series::new("Sentiment Score", sentiment_scores)) {
+        match new_df.with_column(Series::new("Sentiment Score".into(), sentiment_scores)) {
             Ok(_) => new_df,
             Err(e) => {
                 eprintln!("Error Computing Sentiment Scores: {e}");

@@ -1,154 +1,87 @@
-name: Python
+name: Build and Release
 
 on:
   push:
-    branches:
-      - main
-      - master
-    tags:
-      - '*'
+    branches: [main, master]
+    tags: ['*']
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  linux:
-    runs-on: ubuntu-latest
+  build:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target: [x86_64]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Install Perl and cpanm
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y perl
-          sudo apt-get install -y cpanminus
-      - name: Install libipc-cmd-perl
-        run: sudo cpanm IPC::Cmd
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          working-directory: python
-          sccache: 'true'
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          path: python/dist
-          name: linux-wheels-${{ matrix.target }}
-          overwrite: false
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x64, x86]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          architecture: ${{ matrix.target }}
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_PYTHON: C:\hostedtoolcache\windows\Python\3.10.15\${{ matrix.target }}\python.exe
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          working-directory: python
-          sccache: 'true'
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          path: python/dist
-          name: windows-wheels-${{ matrix.target }}
-          overwrite: false
 
-  macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target: [x86_64, aarch64]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+
       - name: Build wheels
-        uses: PyO3/maturin-action@v1
+        run: python -m cibuildwheel --output-dir dist
         env:
-          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          working-directory: python
-          sccache: 'true'
+          CIBW_BUILD: "cp37-* cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
+          CIBW_SKIP: "pp* *-musllinux*"
+          CIBW_ARCHS_LINUX: auto
+          CIBW_ARCHS_MACOS: universal2
+          CIBW_ARCHS_WINDOWS: auto
+          CIBW_BUILD_VERBOSITY: 1
+
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          path: python/dist
-          name: macos-wheels-${{ matrix.target }}
-          overwrite: false
+          name: wheels-${{ matrix.os }}
+          path: dist/
 
   sdist:
+    name: Build source distribution
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+
+      - name: Install maturin
+        run: pip install maturin
+
       - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
-        with:
-          command: sdist
-          args: --out dist
-          working-directory: python
+        run: maturin sdist -o dist
+        working-directory: python  # change this if your `pyproject.toml` is at root
+
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          path: python/dist
           name: sdist
-          overwrite: false
+          path: python/dist/
 
   release:
-    name: Release
-    runs-on: ubuntu-latest
+    name: Publish to PyPI
     #if: "startsWith(github.ref, 'refs/tags/')"  #nb: asterisk this line to release to pypi
-    needs: [linux, windows, macos, sdist]
-    env:
-      NODE_OPTIONS: --max-old-space-size=16384
+    needs: [build, sdist]
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: linux-wheels-x86_64
-      - uses: actions/download-artifact@v4
-        with:
-          name: macos-wheels-x86_64
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-wheels-x64
-      - name: Publish to PyPI
+          path: artifacts
+
+      - name: Combine all wheels and sdist into dist/
+        run: |
+          mkdir -p dist
+          find artifacts -name '*.whl' -exec cp {} dist/ \;
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+
+      - name: Publish to PyPI with maturin
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-          PYO3_PYTHON: /opt/hostedtoolcache/Python/3.10.15/x64/bin/python3.10
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
         with:
           command: upload
-          args: --non-interactive --skip-existing *
+          args: --non-interactive --skip-existing dist/*
