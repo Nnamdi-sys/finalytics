@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "finalytics"
 version = "0.8.1"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
