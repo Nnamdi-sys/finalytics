@@ -51,6 +51,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
+          CIBW_ENVIRONMENT: 'CARGO_MANIFEST_PATH=python/Cargo.toml'
           # ------------------ LINUX: Install dependencies ------------------
           CIBW_BEFORE_ALL: >-
             ${{ matrix.os == 'ubuntu-latest' &&
