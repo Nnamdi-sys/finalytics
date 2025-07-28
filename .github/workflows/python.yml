@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-2022, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v3
@@ -26,32 +26,19 @@ jobs:
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
 
-      # Set up Rust sccache (Windows only)
-      - name: Set up sccache
-        if: matrix.os == 'windows-2022'
-        uses: mozilla-actions/sccache-action@v0.0.3
-
-      - name: Configure Rust for Windows
-        if: matrix.os == 'windows-2022'
-        shell: bash
-        run: |
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
-          echo "SCCACHE_CACHE_SIZE=1G" >> $GITHUB_ENV
-          echo "RUSTFLAGS=-Copt-level=1" >> $GITHUB_ENV
-          echo "CARGO_BUILD_JOBS=1" >> $GITHUB_ENV
-
-      # Optional: check memory usage
-      - name: Show memory usage (Windows only)
-        if: matrix.os == 'windows-2022'
-        run: |
-          Get-Process | Sort-Object -Descending WorkingSet | Select-Object -First 10 | Format-Table -AutoSize
+      - name: Install WebDriver (Windows only)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/win32/chromedriver-win32.zip" -OutFile "chromedriver.zip"
+          Expand-Archive chromedriver.zip -DestinationPath "C:\chromedriver"
+          echo "C:\chromedriver\chromedriver-win32" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
           CIBW_ENVIRONMENT: 'CARGO_MANIFEST_PATH=python/Cargo.toml'
+
           # ------------------ LINUX: Install dependencies ------------------
           CIBW_BEFORE_ALL: >-
             ${{ matrix.os == 'ubuntu-latest' &&
@@ -61,7 +48,12 @@ jobs:
             mv /usr/bin/chromedriver-linux64/chromedriver /usr/bin/chromedriver &&
             chmod +x /usr/bin/chromedriver'
             || '' }}
-          WEBDRIVER_PATH: ${{ matrix.os == 'ubuntu-latest' && '/usr/bin/chromedriver' || '' }}
+
+          # ------------------ WebDriver paths ------------------
+          WEBDRIVER_PATH: >-
+            ${{ matrix.os == 'ubuntu-latest' && '/usr/bin/chromedriver' ||
+                matrix.os == 'windows-latest' && 'C:\\chromedriver\\chromedriver-win32\\chromedriver.exe' ||
+                '' }}
 
           # ------------------ MACOS: Fix missing target error ------------------
           CIBW_BEFORE_BUILD_MACOS: "rustup target add x86_64-apple-darwin"
