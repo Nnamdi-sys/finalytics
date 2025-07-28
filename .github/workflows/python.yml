@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-unix:
+  build:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-2022, macos-latest]
 
     steps:
       - uses: actions/checkout@v3
@@ -25,6 +25,28 @@ jobs:
 
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
+
+      # Set up Rust sccache (Windows only)
+      - name: Set up sccache
+        if: matrix.os == 'windows-2022'
+        uses: mozilla-actions/sccache-action@v0.0.3
+
+      - name: Configure Rust for Windows
+        if: matrix.os == 'windows-2022'
+        shell: bash
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=1G" >> $GITHUB_ENV
+          echo "RUSTFLAGS=-Copt-level=1" >> $GITHUB_ENV
+          echo "CARGO_BUILD_JOBS=1" >> $GITHUB_ENV
+
+      # Optional: check memory usage
+      - name: Show memory usage (Windows only)
+        if: matrix.os == 'windows-2022'
+        run: |
+          Get-Process | Sort-Object -Descending WorkingSet | Select-Object -First 10 | Format-Table -AutoSize
+        shell: pwsh
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
@@ -49,6 +71,7 @@ jobs:
           CIBW_SKIP: "*-musllinux*"
           CIBW_ARCHS_LINUX: auto
           CIBW_ARCHS_MACOS: universal2
+          CIBW_ARCHS_WINDOWS: auto
           CIBW_BUILD_VERBOSITY: 1
 
       - name: Upload wheels
@@ -56,35 +79,6 @@ jobs:
         with:
           name: wheels-${{ matrix.os }}
           path: dist/*.whl
-
-  build-windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [ x64, x86 ]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          architecture: ${{ matrix.target }}
-      - name: Build wheels on windows
-        uses: PyO3/maturin-action@v1
-        env:
-          PYO3_PYTHON: C:\hostedtoolcache\windows\Python\3.10.15\${{ matrix.target }}\python.exe
-          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
-          working-directory: python
-          sccache: 'true'
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          path: python/dist
-          name: windows-wheels-${{ matrix.target }}
-          overwrite: false
 
   sdist:
     name: Build source distribution
@@ -108,7 +102,7 @@ jobs:
   release:
     name: Publish to PyPI
     # if: startsWith(github.ref, 'refs/tags/') #nb: comment this line to release to pypi
-    needs: [build-unix, build-windows, sdist]
+    needs: [build, sdist]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
