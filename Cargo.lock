@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "finalytics"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "anyhow",
  "cached",
@@ -1104,7 +1104,7 @@ dependencies = [
 
 [[package]]
 name = "finalytics-py"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "chrono",
  "finalytics",

@@ -26,14 +26,6 @@ jobs:
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
 
-      - name: Install WebDriver (Windows only)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/win32/chromedriver-win32.zip" -OutFile "chromedriver.zip"
-          Expand-Archive chromedriver.zip -DestinationPath "C:\chromedriver"
-          echo "C:\chromedriver\chromedriver-win32" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-
       - name: Build wheels
         run: python -m cibuildwheel --output-dir dist python
         env:
@@ -42,18 +34,8 @@ jobs:
           # ------------------ LINUX: Install dependencies ------------------
           CIBW_BEFORE_ALL: >-
             ${{ matrix.os == 'ubuntu-latest' &&
-            'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd chromium &&
-            curl -sSLo /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.207/linux64/chromedriver-linux64.zip &&
-            unzip /tmp/chromedriver.zip -d /usr/bin &&
-            mv /usr/bin/chromedriver-linux64/chromedriver /usr/bin/chromedriver &&
-            chmod +x /usr/bin/chromedriver'
+            'yum install -y openssl-devel pkgconfig perl perl-IPC-Cmd'
             || '' }}
-
-          # ------------------ WebDriver paths ------------------
-          WEBDRIVER_PATH: >-
-            ${{ matrix.os == 'ubuntu-latest' && '/usr/bin/chromedriver' ||
-                matrix.os == 'windows-latest' && 'C:\\chromedriver\\chromedriver-win32\\chromedriver.exe' ||
-                '' }}
 
           # ------------------ MACOS: Fix missing target error ------------------
           CIBW_BEFORE_BUILD_MACOS: "rustup target add x86_64-apple-darwin"

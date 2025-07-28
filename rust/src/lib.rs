@@ -152,6 +152,7 @@ pub mod prelude {
     pub use crate::analytics::technicals::TechnicalIndicators;
     pub use crate::reports::table::DataTableDisplay;
     pub use crate::reports::report::Report;
+    #[cfg(feature = "plotly_static")]
     pub use crate::utils::chart_utils::PlotImage;
 }
 

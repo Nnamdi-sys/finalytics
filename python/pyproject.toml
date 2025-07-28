@@ -4,7 +4,8 @@ build-backend = "maturin"
 
 [project]
 name = "finalytics"
-version = "0.8.1"
+version = "0.8.2"
+readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
