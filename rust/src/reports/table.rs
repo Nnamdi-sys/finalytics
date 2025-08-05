@@ -329,7 +329,10 @@ impl DataTable {
         let filename = format!("{}_table.html", self.id);
         let temp_file_path = std::env::temp_dir().join(filename);
         fs::write(&temp_file_path, html_content)?;
-        webbrowser::open(temp_file_path.to_str().unwrap())?;
+        let _ = webbrowser::open(temp_file_path.to_str().unwrap()).map_err(|e| {
+            println!("Error opening html file with webbrowser: {e:?}");
+            println!("Open the file manually at: {temp_file_path:?}");
+        });
         Ok(())
     }
 }

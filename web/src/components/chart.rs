@@ -8,7 +8,7 @@ pub fn ChartContainer(html: String) -> Element {
         regex
             .captures(&html)
             .and_then(|caps| caps.get(1)
-                .map(|m| m.as_str().trim().to_string()))
+                .map(|m| m.as_str().trim().replace(r#","config":{"fillFrame":true,"responsive":true}"#, "")))
             .unwrap_or_default()
     } else {
         String::new()
@@ -23,7 +23,6 @@ pub fn ChartContainer(html: String) -> Element {
             class: "tab-pane fade show active",
             style: "padding: 5px;",
             div {
-                style: "height:100%; width:100%;",
                 script {
                     src: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"
                 }
@@ -33,7 +32,7 @@ pub fn ChartContainer(html: String) -> Element {
                 div {
                     id: "plotly-html-element",
                     class: "plotly-graph-div",
-                    style: "height:100%; width:100%;"
+                    style: "position:relative; top:0; left:0; width:100%; height:80vh;"
                 }
             }
         }

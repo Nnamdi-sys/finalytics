@@ -42,6 +42,9 @@ WORKDIR /web
 COPY --from=builder /src/web/dist /web/dist
 COPY --from=builder /src/web/target/release/finalytics-web /web/dist
 
+# Set environment variable for production
+ENV ENV=prod
+
 EXPOSE 8080
 
 # Define the command to run your application

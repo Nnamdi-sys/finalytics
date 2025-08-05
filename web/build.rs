@@ -20,8 +20,8 @@ pub async fn save_code_images()  {
         .risk_free_rate(0.02)
         .build();
 
-    ticker.performance_chart(Some(800), Some(1200)).await.unwrap()
-        .to_png("./public/images/ticker.png", 1000, 800, 1.0);
+    ticker.performance_chart(Some(1000), Some(1200)).await.unwrap()
+        .to_png("./public/images/ticker.png", 1200, 1000, 1.0);
 
     println!("Ticker Performance Chart Saved");
 
@@ -36,13 +36,14 @@ pub async fn save_code_images()  {
         .objective_function(ObjectiveFunction::MaxSharpe)
         .build().await.unwrap();
 
-    portfolio.optimization_chart(Some(800), Some(1200)).unwrap()
-        .to_png("./public/images/portfolio.png", 1000, 800, 1.0);
+    portfolio.optimization_chart(Some(1000), Some(1200)).unwrap()
+        .to_png("./public/images/portfolio.png", 1200, 1000, 1.0);
 
     println!("Portfolio Optimization Chart Saved");
 
 }
 
+#[allow(unused)]
 async fn update_symbols() {
     let tickers = get_symbols(AssetClass::All, Category::All, Exchange::All).await.unwrap();
 
@@ -59,6 +60,6 @@ async fn update_symbols() {
 
 #[tokio::main]
 async fn main() {
-    update_symbols().await;
+    //update_symbols().await;
     //save_code_images().await;
 }

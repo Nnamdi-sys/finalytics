@@ -1,7 +1,7 @@
-pub mod ticker;
+pub mod home;
+pub mod performance;
 pub mod portfolio;
 pub mod screener;
-mod performance;
-mod financials;
-mod options;
-mod news;
+pub mod financials;
+pub mod options;
+pub mod news;

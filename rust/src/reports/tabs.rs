@@ -118,8 +118,10 @@ impl TabbedHtml {
         let temp_file_path = std::env::temp_dir().join(filename);
         let mut file = File::create(&temp_file_path)?;
         file.write_all(html_content.as_bytes())?;
-        webbrowser::open(temp_file_path.to_str().unwrap())?;
-
+        let _ = webbrowser::open(temp_file_path.to_str().unwrap()).map_err(|e| {
+            println!("Error opening html file with webbrowser: {e:?}");
+            println!("Open the file manually at: {temp_file_path:?}");
+        });
         Ok(())
     }
 }

@@ -155,18 +155,26 @@ portfolio.report("performance")
 ```
 
 
-## Sample Applications
+## Web Application
 
-<h3><a href="https://finalytics.rs/ticker">Ticker Dashboard</a></h3>
+The Finalytics web application integrates the Ticker, Portfolio, and Screener dashboards, built with the Finalytics Rust Library using the [Dioxus Web Framework](https://dioxuslabs.com/). It allows users to perform security analysis, portfolio optimization, and screen for securities, all accessible at [finalytics.rs](https://finalytics.rs).
 
-This sample application allows you to perform security analysis based on the Finalytics Library.
+### Running Locally
 
-<h3><a href="https://finalytics.rs/portfolio">Portfolio Dashboard</a></h3>
+To run the web application locally, follow these steps:
 
-This sample application enables you to perform portfolio optimization based on the Finalytics Library.
+```bash
+# Install the Dioxus CLI
+cargo install dioxus-cli
 
-<h3><a href="https://finalytics.rs/screener">Screener Dashboard</a></h3>
+# Clone the repository
+git clone https://github.com/Nnamdi-sys/finalytics.git
 
-This sample application allows you to screen for securities based on the Finalytics Library.
+# Navigate to the web directory
+cd finalytics/web
+
+# Serve the application
+dx serve --platform web
+```
 
 

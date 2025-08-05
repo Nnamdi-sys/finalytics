@@ -111,24 +111,24 @@ pub async fn get_ticker_charts(
     confidence_level: f64,
     risk_free_rate: f64,
     report_type: String,
+    frequency: String,
     active_tab: usize
 ) -> Result<String, ServerFnError<String>> {
     let chart = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();
 
         rt.block_on(async {
-            let ticker = Ticker::builder()
-                .ticker(&symbol)
-                .start_date(&start_date)
-                .end_date(&end_date)
-                .interval(Interval::from_str(&interval).unwrap())
-                .benchmark_symbol(&benchmark_symbol)
-                .confidence_level(confidence_level)
-                .risk_free_rate(risk_free_rate)
-                .build();
-            
             let chart = match &*report_type {
                 "performance" => {
+                    let ticker = Ticker::builder()
+                        .ticker(&symbol)
+                        .start_date(&start_date)
+                        .end_date(&end_date)
+                        .interval(Interval::from_str(&interval).unwrap())
+                        .benchmark_symbol(&benchmark_symbol)
+                        .confidence_level(confidence_level)
+                        .risk_free_rate(risk_free_rate)
+                        .build();
                     match active_tab {
                         1 => ticker.ohlcv_table().await.unwrap().to_html().unwrap(),
                         2 => ticker.candlestick_chart(None, None).await.unwrap().to_html(),
@@ -138,31 +138,24 @@ pub async fn get_ticker_charts(
                     }
                 },
                 "financials" => {
+                    let ticker = Ticker::builder()
+                        .ticker(&symbol)
+                        .build();
+                    let frequency = StatementFrequency::from_str(&frequency).unwrap();
+                    let financials = ticker.financials_tables(frequency).await.unwrap();
                     match active_tab {
-                        1 | 3 | 5 | 7 => {
-                            let quarterly = ticker.financials_tables(StatementFrequency::Quarterly).await.unwrap();
-                            match active_tab {
-                                1 => quarterly.income_statement.to_html().unwrap(),
-                                3 => quarterly.balance_sheet.to_html().unwrap(),
-                                5 => quarterly.cashflow_statement.to_html().unwrap(),
-                                7 => quarterly.financial_ratios.to_html().unwrap(),
-                                _ => unreachable!(),
-                            }
-                        }
-                        2 | 4 | 6 | 8 => {
-                            let annual = ticker.financials_tables(StatementFrequency::Annual).await.unwrap();
-                            match active_tab {
-                                2 => annual.income_statement.to_html().unwrap(),
-                                4 => annual.balance_sheet.to_html().unwrap(),
-                                6 => annual.cashflow_statement.to_html().unwrap(),
-                                8 => annual.financial_ratios.to_html().unwrap(),
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => "".to_string(),
+                        1 => financials.income_statement.to_html().unwrap(),
+                        2 => financials.balance_sheet.to_html().unwrap(),
+                        3 => financials.cashflow_statement.to_html().unwrap(),
+                        4 => financials.financial_ratios.to_html().unwrap(),
+                        _ => unreachable!(),
                     }
                 },
                 "options" => {
+                    let ticker = Ticker::builder()
+                        .ticker(&symbol)
+                        .risk_free_rate(risk_free_rate)
+                        .build();
                     match active_tab {
                         1 | 2 => {
                             let tables = ticker.options_tables().await.unwrap();
@@ -184,7 +177,12 @@ pub async fn get_ticker_charts(
                         _ => "".to_string(),
                     }
                 },
-                "news" => { 
+                "news" => {
+                    let ticker = Ticker::builder()
+                        .ticker(&symbol)
+                        .start_date(&start_date)
+                        .end_date(&end_date)
+                        .build();
                     match active_tab {
                         1 => ticker.news_sentiment_table().await.unwrap().to_html().unwrap(),
                         2 => ticker.news_sentiment_chart(None, None).await.unwrap().to_html(),

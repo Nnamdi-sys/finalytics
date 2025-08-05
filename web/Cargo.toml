@@ -31,5 +31,5 @@ save_images = ["dep:finalytics", "dep:tokio"]
 tokio = { version = "1.47.0", features=["macros", "rt-multi-thread"] }
 bincode = "1.3.3"
 yahoo-finance-symbols = "0.1.4"
-finalytics = { path = "../rust", features = ["plotly_static"] }
+finalytics = { path = "../rust", features = ["kaleido"] }
 

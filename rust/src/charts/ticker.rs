@@ -370,28 +370,28 @@ impl TickerCharts for Ticker {
     async fn financials_tables(&self, frequency: StatementFrequency) -> Result<FinancialsTables, Box<dyn Error>> {
         let data = self.get_financials(StatementType::IncomeStatement, frequency).await?;
         let income_statement = data.to_datatable(
-            &*format!("{}IncomeStatement", frequency.to_string()), 
+            &format!("{frequency}IncomeStatement"),
             false, 
             DataTableFormat::Currency
         );
 
         let data = self.get_financials(StatementType::BalanceSheet, frequency).await?;
         let balance_sheet = data.to_datatable(
-            &*format!("{}BalanceSheet", frequency.to_string()), 
+            &format!("{frequency}BalanceSheet"),
             false, 
             DataTableFormat::Currency
         );
 
         let data = self.get_financials(StatementType::CashFlowStatement, frequency).await?;
         let cashflow_statement = data.to_datatable(
-            &*format!("{}CashFlowStatement", frequency.to_string()), 
+            &format!("{frequency}CashFlowStatement"),
             false, 
             DataTableFormat::Currency
         );
 
         let data = self.get_financials(StatementType::FinancialRatios, frequency).await?;
         let financial_ratios = data.to_datatable(
-            &*format!("{}FinancialRatios", frequency.to_string()), 
+            &format!("{frequency}FinancialRatios"),
             false, 
             DataTableFormat::Number
         );

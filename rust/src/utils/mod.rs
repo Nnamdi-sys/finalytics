@@ -1,3 +1,3 @@
 pub mod date_utils;
-#[cfg(feature = "plotly_static")]
+#[cfg(feature = "kaleido")]
 pub mod chart_utils;
