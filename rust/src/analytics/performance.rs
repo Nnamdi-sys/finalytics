@@ -100,7 +100,7 @@ pub struct PortfolioPerformanceStats {
     pub optimal_weights: Vec<f64>,
     pub optimal_portfolio_returns: Series,
     pub performance_stats: PerformanceStats,
-    pub efficient_frontier: Vec<Vec<f64>>,
+    pub efficient_frontier: Option<Vec<Vec<f64>>>,
 }
 
 
@@ -119,7 +119,8 @@ impl PortfolioPerformanceStats {
         confidence_level: f64,
         risk_free_rate: f64,
         objective_function: ObjectiveFunction,
-        constraints: Option<Vec<(f64, f64)>>
+        constraints: Option<Vec<(f64, f64)>>,
+        weights: Option<Vec<f64>>,
     ) -> Result<PortfolioPerformanceStats, Box<dyn Error>> {
         let ticker_symbols = tickers.tickers.clone().iter().map(|x| x.ticker.clone()).collect::<Vec<String>>();
         let benchmark_symbol = benchmark_ticker.ticker.clone();
@@ -181,9 +182,32 @@ impl PortfolioPerformanceStats {
             .collect::<Vec<f64>>();
         let cov_matrix = covariance_matrix(&portfolio_returns)?;
 
-        let opt_result = portfolio_optimization(&mean_returns, &cov_matrix, &portfolio_returns, risk_free_rate,
+        let (efficient_frontier, optimal_weights) = if let Some(weights) = weights {
+            // If weights are provided, use them directly
+            if weights.len() != fetched_symbols.len() {
+                let fetched_symbols_set: std::collections::HashSet<_> = fetched_symbols.iter().collect();
+                let requested_symbols_set: std::collections::HashSet<_> = ticker_symbols.iter().collect();
+                let not_fetched_symbols: Vec<_> = requested_symbols_set.difference(&fetched_symbols_set)
+                    .cloned().collect();
+                return if !not_fetched_symbols.is_empty() {
+                    Err(Box::from(format!(
+                        "The following ticker symbols were not fetched: {not_fetched_symbols:?}. Please provide new weights for the available symbols."
+                    )))
+                } else {
+                    Err(Box::from("Weights length must match the number of symbols"))
+                }
+            }
+            if weights.iter().sum::<f64>() != 1.0 {
+                return Err(Box::from("Weights must sum to 1.0"));
+            }
+            (None, weights)
+        } else {
+            // If no weights are provided, use the optimization method to find optimal weights
+            let opt_result = portfolio_optimization(&mean_returns, &cov_matrix, &portfolio_returns, risk_free_rate,
                                                      confidence_level, objective_function, constraints.clone());
-        let optimal_weights = opt_result.optimal_weights;
+            (Some(opt_result.efficient_frontier), opt_result.optimal_weights)
+        };
+
         let daily_portfolio_returns = daily_portfolio_returns(&optimal_weights, &portfolio_returns);
 
         let performance_stats = PerformanceStats::compute_stats(
@@ -208,7 +232,7 @@ impl PortfolioPerformanceStats {
             optimal_weights: optimal_weights.clone(),
             optimal_portfolio_returns: daily_portfolio_returns.clone(),
             performance_stats,
-            efficient_frontier: opt_result.efficient_frontier,
+            efficient_frontier,
         })
     }
 }

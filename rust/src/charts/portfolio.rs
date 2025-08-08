@@ -48,13 +48,18 @@ impl PortfolioCharts for Portfolio {
     ///
     /// * `Plot` Plotly Chart struct
     fn optimization_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+        let efficient_frontier = if let Some(ef) = &self.performance_stats.efficient_frontier {
+            ef.clone()
+        } else {
+            return Err("Efficient Frontier data is not available".into());
+        };
         let days = self.performance_stats.interval.mode;
         let annual_days = 365.0/self.performance_stats.interval.average;
 
-        let ef_returns = self.performance_stats.efficient_frontier.clone().iter()
+        let ef_returns = efficient_frontier.clone().iter()
             .map(|x| (1.0 + (x[0]/days)/100.0).powf(annual_days) - 1.0).collect::<Vec<f64>>();
 
-        let ef_risk = self.performance_stats.efficient_frontier.clone().iter()
+        let ef_risk = efficient_frontier.clone().iter()
             .map(|x| x[1]/100.0 * annual_days.sqrt()).collect::<Vec<f64>>();
 
         let ef_trace = Scatter::new(ef_risk, ef_returns)

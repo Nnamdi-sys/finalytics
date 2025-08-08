@@ -1,38 +1,46 @@
 use dioxus::prelude::*;
 use dioxus::logger::tracing::info;
-use crate::server::get_ticker_charts;
-use crate::components::utils::Loading;
+use crate::server::{get_ticker_charts, OptionsTabs, TickerTabs};
 use crate::components::symbols::Symbol;
-use crate::components::chart::ChartContainer;
-use crate::components::table::TableContainer;
+use crate::components::display::OptionsDisplay;
 
 #[component]
 pub fn Options() -> Element {
     let mut symbol = use_signal(|| "AAPL".to_string());
     let mut risk_free_rate = use_signal(|| 0.02);
-    let mut active_tab = use_signal(|| 1);
 
     info!("symbol: {:?}", symbol());
     info!("risk_free: {:?}", risk_free_rate());
-    info!("active_tab: {:?}", active_tab());
 
-    let mut chart = use_server_future(move || async move {
+    let mut charts = use_server_future(move || async move {
         match get_ticker_charts(
             symbol(),
             String::new(),
             String::new(),
-            String::new(), 
+            String::new(),
             String::new(),
             f64::default(),
             risk_free_rate(),
             String::from("options"),
             String::new(),
-            active_tab(),
         )
             .await
         {
-            Ok(chart) => chart,
-            Err(e) => format!("Error: {e}"),
+            Ok(TickerTabs::Options(tabs)) => tabs,
+            Ok(_) => OptionsTabs {
+                options_chain: String::from("Invalid report type"),
+                volatility_surface_table: String::from("Invalid report type"),
+                volatility_smile: String::from("Invalid report type"),
+                volatility_term_structure: String::from("Invalid report type"),
+                volatility_surface_chart: String::from("Invalid report type"),
+            },
+            Err(e) => OptionsTabs {
+                options_chain: format!("Error: {e}"),
+                volatility_surface_table: format!("Error: {e}"),
+                volatility_smile: format!("Error: {e}"),
+                volatility_term_structure: format!("Error: {e}"),
+                volatility_surface_chart: format!("Error: {e}"),
+            },
         }
     })?;
 
@@ -77,16 +85,14 @@ pub fn Options() -> Element {
                             align-items: flex-end;
                         "#,
                         onsubmit: move |e| {
-                            chart.clear();
-                            symbol.set(e.values()["symbol"].as_value());
+                            charts.clear();
                             risk_free_rate.set(
                                 e.values()["risk_free_rate"]
                                     .as_value()
                                     .parse::<f64>()
                                     .unwrap()
                             );
-                            active_tab.set(1);
-                            chart.restart();
+                            charts.restart();
                         },
 
                         // Symbol input
@@ -120,71 +126,8 @@ pub fn Options() -> Element {
                 }
             }
 
-            // Dashboard below form
-            div {
-                style: r#"
-                    flex: 1;
-                    width: 100%;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    padding: 16px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                    box-sizing: border-box;
-                "#,
-                // Nav tabs
-                nav {
-                    style: r#"margin-bottom: 16px;"#,
-                    div {
-                        class: "nav nav-tabs",
-                        style: r#"gap: 8px;"#,
-                        button {
-                            class: if *active_tab.read() == 1 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(1); chart.clear(); chart.restart(); },
-                            "Options Chain"
-                        }
-                        button {
-                            class: if *active_tab.read() == 2 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(2); chart.clear(); chart.restart(); },
-                            "Volatility Surface Data"
-                        }
-                        button {
-                            class: if *active_tab.read() == 3 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(3); chart.clear(); chart.restart(); },
-                            "Volatility Smile Chart"
-                        }
-                        button {
-                            class: if *active_tab.read() == 4 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(4); chart.clear(); chart.restart(); },
-                            "Volatility Skew Chart"
-                        }
-                        button {
-                            class: if *active_tab.read() == 5 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(5); chart.clear(); chart.restart(); },
-                            "Volatility Surface Chart"
-                        }
-                    }
-                }
-                // Content
-                div {
-                    style: r#"flex:1; overflow:auto;"#,
-                    div {
-                        class: "tab-content",
-                        style: r#"height:100%;"#,
-                        match &*chart.value().read_unchecked() {
-                            Some(content) => match *active_tab.read() {
-                                1 | 2 => rsx! { TableContainer { html: content.clone() } },
-                                3..=5 => rsx! { ChartContainer { html: content.clone() } },
-                                _ => rsx! { },
-                            },
-                            _ => rsx! { Loading {} }
-                        }
-                    }
-                }
-            }
+            // OptionsDisplay
+            OptionsDisplay { charts: charts }
         }
     }
 }
-

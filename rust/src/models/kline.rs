@@ -77,7 +77,7 @@ pub struct IntervalDays {
 ///     tickers.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///     // Portfolio optimization
-///     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+///     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
 ///     portfolio.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///     Ok(())

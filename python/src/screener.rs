@@ -128,12 +128,41 @@ impl PyScreener {
         PyDataFrame(metrics)
     }
 
-    /// Display the overview and metrics DataFrames as DataTables in the web browser
-    pub fn display(&self) {
-        let overview = self.screener.overview();
-        overview.show().unwrap();
-        let metrics = tokio::runtime::Runtime::new().unwrap().block_on(self.screener.metrics()).unwrap();
-        metrics.show().unwrap();
+    /// Display the overview and metrics DataFrames as DataTables in the web browser or Jupyter Notebook
+    ///
+    /// # Arguments
+    ///
+    /// * `display` - Optional str - Display mode ("notebook" to display in Jupyter, else uses default web browser)
+    #[pyo3(signature = (display=None))]
+    pub fn display(&self, display: Option<String>) {
+        task::block_in_place(move || {
+            let overview = self.screener.overview();
+            let metrics = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(self.screener.metrics())
+                .unwrap();
+
+            if display.as_deref() == Some("notebook") {
+                Python::with_gil(|py| {
+                    let ipython_display = py.import("IPython.display").unwrap();
+                    let html_class = ipython_display.getattr("HTML").unwrap();
+                    let display_fn = ipython_display.getattr("display").unwrap();
+
+                    // Display overview HTML
+                    let overview_html = overview.to_html().unwrap();
+                    let overview_html_obj = html_class.call1((overview_html,)).unwrap();
+                    display_fn.call1((overview_html_obj,)).unwrap();
+
+                    // Display metrics HTML
+                    let metrics_html = metrics.to_html().unwrap();
+                    let metrics_html_obj = html_class.call1((metrics_html,)).unwrap();
+                    display_fn.call1((metrics_html_obj,)).unwrap();
+                });
+            } else {
+                overview.show().unwrap();
+                metrics.show().unwrap();
+            }
+        });
     }
 }
 

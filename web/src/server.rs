@@ -21,31 +21,16 @@ pub static ALL_SYMBOLS_DATALIST: Lazy<Mutex<HashMap<String, String>>> = Lazy::ne
     Mutex::new(map)
 });
 
-#[cfg(feature = "server")]
-use finalytics::data::yahoo::screeners::screeners::FieldMetadata;
-
-#[cfg(not(feature = "server"))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FieldMetadata {
-    pub name: String,
-    pub description: String,
-    pub data_type: String,
-    pub unit: String,
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct PortfolioTabs {
+    pub optimization_chart: Option<String>,
+    pub performance_chart: String,
+    pub performance_stats_table: String,
+    pub returns_table: String,
+    pub returns_chart: String,
+    pub returns_matrix: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct ScreenerMetadata {
-    pub exchange: Vec<(String, String)>,
-    pub region: Vec<(String, String)>,
-    pub sector: Vec<String>,
-    pub industry: Vec<String>,
-    pub peer_group: Vec<String>,
-    pub fund_family: Vec<String>,
-    pub fund_category: Vec<String>,
-    pub metrics: HashMap<String, HashMap<String, FieldMetadata>>,
-}
-
-#[allow(clippy::too_many_arguments)]
 #[server]
 pub async fn get_portfolio_charts(
     symbols: Vec<String>,
@@ -56,8 +41,9 @@ pub async fn get_portfolio_charts(
     confidence_level: f64,
     risk_free_rate: f64,
     objective_function: String,
-    active_tab : usize,
-) -> Result<String, ServerFnError<String>> {
+    constraints: Option<Vec<(f64, f64)>>,
+    weights: Option<Vec<f64>>,
+) -> Result<PortfolioTabs, ServerFnError<String>> {
     let report_html = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();
 
@@ -71,34 +57,105 @@ pub async fn get_portfolio_charts(
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
                 .objective_function(ObjectiveFunction::from_str(&objective_function).unwrap())
+                .constraints(constraints.clone())
+                .weights(weights.clone())
                 .build()
                 .await
-                .map_err(|e| format!("PortfolioBuilder error: {e}"));
+                .map_err(|e| format!("PortfolioBuilder error: {e}"))?;
 
-            match portfolio {
-                Ok(portfolio) => {
-                    let chart = match active_tab {
-                        1 => portfolio.optimization_chart(None, None).map_err(|e| format!("Optimization Chart error: {e}")).unwrap().to_html(),
-                        2 => portfolio.performance_chart(None, None).map_err(|e| format!("Performance Chart error: {e}")).unwrap().to_html(),
-                        3 => portfolio.performance_stats_table().await.map_err(|e| format!("Performance Stats Table error: {e}")).unwrap().to_html().unwrap(),
-                        4 => portfolio.returns_table().map_err(|e| format!("Returns Table error: {e}")).unwrap().to_html().unwrap(),
-                        5 => portfolio.returns_chart(None, None).map_err(|e| format!("Returns Chart error: {e}")).unwrap().to_html(),
-                        6 => portfolio.returns_matrix(None, None).map_err(|e| format!("Returns Matrix error: {e}")).unwrap().to_html(),
-                        _ => "".to_string(),
-                    };
+            let optimization_chart = if constraints.is_some() || weights.is_none() {
+                Some(
+                    portfolio
+                        .optimization_chart(None, None)
+                        .map_err(|e| format!("Optimization Chart error: {e}"))?
+                        .to_html(),
+                )
+            } else {
+                None
+            };
 
-                    Ok(chart)
-                }
-                Err(e) => Err(e),
-            }
+            let performance_chart = portfolio
+                .performance_chart(None, None)
+                .map_err(|e| format!("Performance Chart error: {e}"))?
+                .to_html();
+
+            let performance_stats_table = portfolio
+                .performance_stats_table()
+                .await
+                .map_err(|e| format!("Performance Stats Table error: {e}"))?
+                .to_html()
+                .unwrap();
+
+            let returns_table = portfolio
+                .returns_table()
+                .map_err(|e| format!("Returns Table error: {e}"))?
+                .to_html()
+                .unwrap();
+
+            let returns_chart = portfolio
+                .returns_chart(None, None)
+                .map_err(|e| format!("Returns Chart error: {e}"))?
+                .to_html();
+
+            let returns_matrix = portfolio
+                .returns_matrix(None, None)
+                .map_err(|e| format!("Returns Matrix error: {e}"))?
+                .to_html();
+
+            Ok(PortfolioTabs {
+                optimization_chart,
+                performance_chart,
+                performance_stats_table,
+                returns_table,
+                returns_chart,
+                returns_matrix,
+            })
         })
     })
         .await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))??;
+        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
-    Ok(report_html)
+    report_html
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PerformanceTabs {
+    pub ohlcv_table: String,
+    pub candlestick_chart: String,
+    pub performance_chart: String,
+    pub performance_stats_table: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FinancialsTabs {
+    pub income_statement: String,
+    pub balance_sheet: String,
+    pub cashflow_statement: String,
+    pub financial_ratios: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct OptionsTabs {
+    pub options_chain: String,
+    pub volatility_surface_table: String,
+    pub volatility_smile: String,
+    pub volatility_term_structure: String,
+    pub volatility_surface_chart: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct NewsTabs {
+    pub news_sentiment_table: String,
+    pub news_sentiment_chart: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum TickerTabs {
+    Performance(PerformanceTabs),
+    Financials(FinancialsTabs),
+    Options(OptionsTabs),
+    News(NewsTabs),
+}
 
 #[allow(clippy::too_many_arguments)]
 #[server]
@@ -112,13 +169,12 @@ pub async fn get_ticker_charts(
     risk_free_rate: f64,
     report_type: String,
     frequency: String,
-    active_tab: usize
-) -> Result<String, ServerFnError<String>> {
-    let chart = tokio::task::spawn_blocking(move || {
+) -> Result<TickerTabs, ServerFnError<String>> {
+    let charts = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();
 
         rt.block_on(async {
-            let chart = match &*report_type {
+            match &*report_type {
                 "performance" => {
                     let ticker = Ticker::builder()
                         .ticker(&symbol)
@@ -129,13 +185,16 @@ pub async fn get_ticker_charts(
                         .confidence_level(confidence_level)
                         .risk_free_rate(risk_free_rate)
                         .build();
-                    match active_tab {
-                        1 => ticker.ohlcv_table().await.unwrap().to_html().unwrap(),
-                        2 => ticker.candlestick_chart(None, None).await.unwrap().to_html(),
-                        3 => ticker.performance_chart(None, None).await.unwrap().to_html(),
-                        4 => ticker.performance_stats_table().await.unwrap().to_html().unwrap(),
-                        _ => "".to_string(),
-                    }
+                    let ohlcv_table = ticker.ohlcv_table().await.unwrap().to_html().unwrap();
+                    let candlestick_chart = ticker.candlestick_chart(None, None).await.unwrap().to_html();
+                    let performance_chart = ticker.performance_chart(None, None).await.unwrap().to_html();
+                    let performance_stats_table = ticker.performance_stats_table().await.unwrap().to_html().unwrap();
+                    Ok(TickerTabs::Performance(PerformanceTabs {
+                        ohlcv_table,
+                        candlestick_chart,
+                        performance_chart,
+                        performance_stats_table,
+                    }))
                 },
                 "financials" => {
                     let ticker = Ticker::builder()
@@ -143,39 +202,36 @@ pub async fn get_ticker_charts(
                         .build();
                     let frequency = StatementFrequency::from_str(&frequency).unwrap();
                     let financials = ticker.financials_tables(frequency).await.unwrap();
-                    match active_tab {
-                        1 => financials.income_statement.to_html().unwrap(),
-                        2 => financials.balance_sheet.to_html().unwrap(),
-                        3 => financials.cashflow_statement.to_html().unwrap(),
-                        4 => financials.financial_ratios.to_html().unwrap(),
-                        _ => unreachable!(),
-                    }
+                    let income_statement = financials.income_statement.to_html().unwrap();
+                    let balance_sheet = financials.balance_sheet.to_html().unwrap();
+                    let cashflow_statement = financials.cashflow_statement.to_html().unwrap();
+                    let financial_ratios = financials.financial_ratios.to_html().unwrap();
+                    Ok(TickerTabs::Financials(FinancialsTabs {
+                        income_statement,
+                        balance_sheet,
+                        cashflow_statement,
+                        financial_ratios,
+                    }))
                 },
                 "options" => {
                     let ticker = Ticker::builder()
                         .ticker(&symbol)
                         .risk_free_rate(risk_free_rate)
                         .build();
-                    match active_tab {
-                        1 | 2 => {
-                            let tables = ticker.options_tables().await.unwrap();
-                            match active_tab {
-                                1 => tables.options_chain.to_html().unwrap(),
-                                2 => tables.volatility_surface.to_html().unwrap(),
-                                _ => unreachable!(),
-                            }
-                        }
-                        3..=5 => {
-                            let charts = ticker.options_charts(None, None).await.unwrap();
-                            match active_tab {
-                                3 => charts.volatility_smile.to_html(),
-                                4 => charts.volatility_term_structure.to_html(),
-                                5 => charts.volatility_surface.to_html(),
-                                _ => unreachable!(),
-                            }
-                        }
-                        _ => "".to_string(),
-                    }
+                    let tables = ticker.options_tables().await.unwrap();
+                    let charts = ticker.options_charts(None, None).await.unwrap();
+                    let options_chain = tables.options_chain.to_html().unwrap();
+                    let volatility_surface_table = tables.volatility_surface.to_html().unwrap();
+                    let volatility_smile = charts.volatility_smile.to_html();
+                    let volatility_term_structure = charts.volatility_term_structure.to_html();
+                    let volatility_surface_chart = charts.volatility_surface.to_html();
+                    Ok(TickerTabs::Options(OptionsTabs {
+                        options_chain,
+                        volatility_surface_table,
+                        volatility_smile,
+                        volatility_term_structure,
+                        volatility_surface_chart,
+                    }))
                 },
                 "news" => {
                     let ticker = Ticker::builder()
@@ -183,21 +239,21 @@ pub async fn get_ticker_charts(
                         .start_date(&start_date)
                         .end_date(&end_date)
                         .build();
-                    match active_tab {
-                        1 => ticker.news_sentiment_table().await.unwrap().to_html().unwrap(),
-                        2 => ticker.news_sentiment_chart(None, None).await.unwrap().to_html(),
-                        _ => "".to_string()
-                    }
+                    let news_sentiment_table = ticker.news_sentiment_table().await.unwrap().to_html().unwrap();
+                    let news_sentiment_chart = ticker.news_sentiment_chart(None, None).await.unwrap().to_html();
+                    Ok(TickerTabs::News(NewsTabs {
+                        news_sentiment_table,
+                        news_sentiment_chart,
+                    }))
                 },
-                _ => "".to_string()
-            };
-            
-            chart
+                _ => Err(ServerFnError::ServerError("Invalid report type".to_string())),
+            }
         })
-    }).await
+    })
+        .await
         .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
-    
-    Ok(chart)
+
+    charts
 }
 
 #[server]
@@ -250,6 +306,31 @@ pub async fn get_screener_data(
         .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(screener)
+}
+
+
+#[cfg(feature = "server")]
+use finalytics::data::yahoo::screeners::screeners::FieldMetadata;
+
+#[cfg(not(feature = "server"))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FieldMetadata {
+    pub name: String,
+    pub description: String,
+    pub data_type: String,
+    pub unit: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ScreenerMetadata {
+    pub exchange: Vec<(String, String)>,
+    pub region: Vec<(String, String)>,
+    pub sector: Vec<String>,
+    pub industry: Vec<String>,
+    pub peer_group: Vec<String>,
+    pub fund_family: Vec<String>,
+    pub fund_category: Vec<String>,
+    pub metrics: HashMap<String, HashMap<String, FieldMetadata>>,
 }
 
 

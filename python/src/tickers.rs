@@ -287,17 +287,31 @@ impl PyTickers {
     ///
     /// # Arguments
     ///
-    /// * `report_type` - `optional str` - The type of report to display (performance)
-    #[pyo3(signature = (report_type=None))]
-    pub fn report(&self, report_type: Option<String>) {
+    /// * `report_type` - Optional str - The type of report to display (performance)
+    /// * `display` - Optional str - Display mode ("notebook" to display in Jupyter, else displays to default web browser)
+    #[pyo3(signature = (report_type=None, display=None))]
+    pub fn report(&self, report_type: Option<String>, display: Option<String>) {
         task::block_in_place(move || {
             let report_type = match report_type {
                 Some(report_type) => ReportType::from_str(&report_type).unwrap(),
-                None => ReportType::Performance
+                None => ReportType::Performance,
             };
-            let report = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.report(Some(report_type))).unwrap();
-            report.show().unwrap();
+            let report = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(self.tickers.report(Some(report_type)))
+                .unwrap();
+            if display.as_deref() == Some("notebook") {
+                let html_content = report.to_html();
+                Python::with_gil(|py| {
+                    let ipython_display = py.import("IPython.display").unwrap();
+                    let html_class = ipython_display.getattr("HTML").unwrap();
+                    let display_fn = ipython_display.getattr("display").unwrap();
+                    let html_obj = html_class.call1((html_content,)).unwrap();
+                    display_fn.call1((html_obj,)).unwrap();
+                });
+            } else {
+                report.show().unwrap();
+            }
         });
     }
 
@@ -330,12 +344,13 @@ impl PyTickers {
     ///
     /// * `objective_function` - `optional str` - The objective function to optimize the portfolio ("max_sharpe", "min_vol", "max_return", "min_drawdown", "min_var", "min_cvar")
     /// * `constraints` - `optional List[Tuple[float, float]]` - A list of tuples representing the constraints for the optimization (e.g., [(0.1, 0.5), (0.2, 0.8)])
+    /// * `weights` - `optional List[float]` - A list of weights for the tickers in the portfolio (if provided, will use these weights instead of optimizing)
     ///
     /// # Returns
     ///
     /// `Portfolio` - A Portfolio object containing the optimized portfolio
-    #[pyo3(signature = (objective_function=None, constraints=None))]
-    pub fn optimize(&self, objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>) -> PyPortfolio {
+    #[pyo3(signature = (objective_function=None, constraints=None, weights=None))]
+    pub fn optimize(&self, objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>, weights: Option<Vec<f64>>) -> PyPortfolio {
         PyPortfolio::new(
             self.tickers.tickers.clone().iter().map(|x| x.ticker.to_string()).collect(),
             Some(self.tickers.benchmark_symbol.clone()),
@@ -346,8 +361,9 @@ impl PyTickers {
             Some(self.tickers.risk_free_rate),
             objective_function,
             constraints,
+            weights,
             None,
-            None
+            None,
         )
     }
 }

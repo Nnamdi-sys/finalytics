@@ -343,11 +343,13 @@ Generate a report for the ticker.
 
 **Parameters:**
 
-- `report_type` (str): Type of report to generate (performance, financials, options, news_sentiment).
+- `report_type` (Optional[str]): Type of report to generate (performance, financials, options, news_sentiment).
+- display (Optional[str]): The display mode for the report. set to "notebook" for Jupyter Notebook display, defaults to "browser".
 
 **Example:**
 
-```{python}
-ticker.report(report_type="performance")
+```python
+ticker.report("performance")
 ```
+
 </details>

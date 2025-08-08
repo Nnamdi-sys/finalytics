@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "finalytics"
-version = "0.8.3"
+version = "0.8.4"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
@@ -12,4 +12,4 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["polars==1.31.0", "pyarrow==21.0.0", "plotly==6.2.0"]
+dependencies = ["polars>=1.1.0", "pyarrow>=14.0.0", "plotly>=5.22.0", "ipython>=7.0.0"]

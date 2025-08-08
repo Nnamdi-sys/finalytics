@@ -123,15 +123,3 @@ metrics_df = screener.metrics()
 print(metrics_df)
 ```
 </details>
-
-<details>
-<summary>`display`</summary>
-
-Display the overview and metrics DataFrames as interactive DataTables in the web browser.
-
-**Example:**
-
-```{python}
-screener.display()
-```
-</details>

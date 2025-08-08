@@ -1,10 +1,8 @@
 use dioxus::prelude::*;
 use dioxus::logger::tracing::info;
-use crate::server::get_ticker_charts;
-use crate::components::utils::Loading;
+use crate::server::{get_ticker_charts, PerformanceTabs, TickerTabs};
 use crate::components::symbols::Symbol;
-use crate::components::chart::ChartContainer;
-use crate::components::table::TableContainer;
+use crate::components::display::PerformanceDisplay;
 
 #[component]
 pub fn Performance() -> Element {
@@ -15,7 +13,6 @@ pub fn Performance() -> Element {
     let mut interval = use_signal(|| "1d".to_string());
     let mut confidence_level = use_signal(|| 0.95);
     let mut risk_free_rate = use_signal(|| 0.02);
-    let mut active_tab = use_signal(|| 1);
 
     info!("symbol: {:?}", symbol());
     info!("benchmark: {:?}", benchmark_symbol());
@@ -24,9 +21,8 @@ pub fn Performance() -> Element {
     info!("interval: {:?}", interval());
     info!("confidence: {:?}", confidence_level());
     info!("risk_free: {:?}", risk_free_rate());
-    info!("active_tab: {:?}", active_tab());
 
-    let mut chart = use_server_future(move || async move {
+    let mut charts = use_server_future(move || async move {
         match get_ticker_charts(
             symbol(),
             start_date(),
@@ -37,12 +33,22 @@ pub fn Performance() -> Element {
             risk_free_rate(),
             String::from("performance"),
             String::new(),
-            active_tab(),
         )
             .await
         {
-            Ok(chart) => chart,
-            Err(e) => format!("Error: {e}"),
+            Ok(TickerTabs::Performance(tabs)) => tabs,
+            Ok(_) => PerformanceTabs {
+                ohlcv_table: String::from("Invalid report type"),
+                candlestick_chart: String::from("Invalid report type"),
+                performance_chart: String::from("Invalid report type"),
+                performance_stats_table: String::from("Invalid report type"),
+            },
+            Err(e) => PerformanceTabs {
+                ohlcv_table: format!("Error: {e}"),
+                candlestick_chart: format!("Error: {e}"),
+                performance_chart: format!("Error: {e}"),
+                performance_stats_table: format!("Error: {e}"),
+            },
         }
     })?;
 
@@ -87,7 +93,7 @@ pub fn Performance() -> Element {
                             align-items: flex-end;
                         "#,
                         onsubmit: move |e| {
-                            chart.clear();
+                            charts.clear();
                             start_date.set(e.values()["start_date"].as_value());
                             end_date.set(e.values()["end_date"].as_value());
                             interval.set(e.values()["interval"].as_value());
@@ -103,8 +109,7 @@ pub fn Performance() -> Element {
                                     .parse::<f64>()
                                     .unwrap()
                             );
-                            active_tab.set(1);
-                            chart.restart();
+                            charts.restart();
                         },
 
                         // Symbol input
@@ -225,65 +230,8 @@ pub fn Performance() -> Element {
                 }
             }
 
-            // Dashboard below form
-            div {
-                style: r#"
-                    flex: 1;
-                    width: 100%;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    padding: 16px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                    box-sizing: border-box;
-                "#,
-                // Nav tabs
-                nav {
-                    style: r#"margin-bottom: 16px;"#,
-                    div {
-                        class: "nav nav-tabs",
-                        style: r#"gap: 8px;"#,
-                        button {
-                            class: if *active_tab.read() == 1 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(1); chart.clear(); chart.restart(); },
-                            "Price Data"
-                        }
-                        button {
-                            class: if *active_tab.read() == 2 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(2); chart.clear(); chart.restart(); },
-                            "Candlestick Chart"
-                        }
-                        button {
-                            class: if *active_tab.read() == 3 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(3); chart.clear(); chart.restart(); },
-                            "Performance Chart"
-                        }
-                        button {
-                            class: if *active_tab.read() == 4 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(4); chart.clear(); chart.restart(); },
-                            "Performance Stats Table"
-                        }
-                    }
-                }
-                // Content
-                div {
-                    style: r#"flex:1; overflow:auto;"#,
-                    div {
-                        class: "tab-content",
-                        style: r#"height:100%;"#,
-                        match &*chart.value().read_unchecked() {
-                            Some(content) => match *active_tab.read() {
-                                1 | 4 => rsx! { TableContainer { html: content.clone() } },
-                                2 | 3 => rsx! { ChartContainer { html: content.clone() } },
-                                _ => rsx! {},
-                            },
-                            _ => rsx! { Loading {} }
-                        }
-                    }
-                }
-            }
+            // PerformanceDisplay
+            PerformanceDisplay { charts: charts }
         }
     }
 }

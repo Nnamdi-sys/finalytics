@@ -31,7 +31,7 @@ pip install finalytics
 ### Example
 
 ```python
-from finalytics import Tickers
+from finalytics import Screener, Tickers
 
 # Screen for the top 10 stocks by market cap on the NASDAQ exchange
 screener = Screener(

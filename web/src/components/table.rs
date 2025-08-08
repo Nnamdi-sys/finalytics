@@ -1,22 +1,36 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn TableContainer(html: String) -> Element {
-    let class = html.clone()
+pub fn TableContainer(html: String, title: String) -> Element {
+    let class = html
+        .clone()
         .split("class=\"")
         .nth(1)
         .and_then(|s| s.split('\"').next())
         .unwrap_or("display nowrap cell-border")
         .to_string();
 
-    let script = html.clone()
+    let mut script = html
+        .clone()
         .split("<script>")
         .nth(1)
         .and_then(|s| s.split("</script>").next())
         .unwrap_or("")
         .trim()
         .to_string();
-    
+
+    // Modify script to include title and use class-based selector
+    if !script.is_empty() {
+        script = script.replace(
+            &format!("$('table.{}').DataTable({{", class),
+            &format!(
+                r#"$('table.{}').DataTable({{
+                    title: '{}',"#,
+                class, title
+            )
+        );
+    }
+
     use_effect(move || {
         document::eval(&script);
     });
@@ -25,6 +39,17 @@ pub fn TableContainer(html: String) -> Element {
         div {
             class: "tab-pane fade show active",
             style: "padding: 5px;",
+            // Fallback title above the table
+            div {
+                style: r#"
+                    font-weight: bold;
+                    color: #006400;
+                    font-size: 18px;
+                    margin-bottom: 10px;
+                    text-align: center;
+                "#,
+                "{title}"
+            }
             // Required CSS
             link { rel: "stylesheet", href: "https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" }
             link { rel: "stylesheet", href: "https://cdn.datatables.net/2.2.0/css/dataTables.dataTables.css" }

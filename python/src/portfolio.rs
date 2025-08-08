@@ -20,6 +20,7 @@ use crate::ffi::rust_plot_to_py_plot;
 /// * `risk_free_rate` - `float` - The risk-free rate to use in the calculations
 /// * `objective_function` - `str` - The objective function to use in the optimization (max_sharpe, min_vol, max_return, nin_var, min_cvar, min_drawdown)
 /// * `constraints` - `list` - list of tuples with the lower and upper bounds for the weights
+/// * `weights` - `list` - weights for the assets in the portfolio, if provided, it will override the optimization process
 ///
 /// # Optional Arguments (For Custom Data)
 ///
@@ -44,8 +45,9 @@ use crate::ffi::rust_plot_to_py_plot;
 ///                                  confidence_level = 0.95,
 ///                                  risk_free_rate = 0.02,
 ///                                  max_iterations = 1000,
-///                                  objective_function = "max_sharpe"
-///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5)]
+///                                  objective_function = "max_sharpe",
+///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5),
+/// ///                              weights = None)
 /// ```
 #[pyclass]
 #[pyo3(name = "Portfolio")]
@@ -56,12 +58,14 @@ pub struct PyPortfolio {
 #[pymethods]
 impl PyPortfolio {
     #[new]
-    #[pyo3(signature = (ticker_symbols, benchmark_symbol=None, start_date=None, end_date=None, interval=None,
-    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None, tickers_data=None, benchmark_data=None))]
+    #[pyo3(signature = (
+    ticker_symbols, benchmark_symbol=None, start_date=None, end_date=None, interval=None,
+    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None, 
+    weights=None, tickers_data=None, benchmark_data=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(ticker_symbols: Vec<String>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
                interval: Option<String>, confidence_level: Option<f64>, risk_free_rate: Option<f64>,
-               objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>,
+               objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>, weights: Option<Vec<f64>>,
                tickers_data: Option<Vec<PyDataFrame>>, benchmark_data: Option<PyDataFrame>) -> Self {
         let ticker_symbols: Vec<&str> = ticker_symbols.iter().map(|x| x.as_str()).collect();
         let tickers_data = tickers_data.map(|data: Vec<PyDataFrame>| {
@@ -88,6 +92,7 @@ impl PyPortfolio {
                     .risk_free_rate(risk_free_rate.unwrap_or(0.02))
                     .objective_function(objective_function)
                     .constraints(constraints)
+                    .weights(weights)
                     .tickers_data(tickers_data)
                     .benchmark_data(benchmark_data)
                     .build()).unwrap();
@@ -225,16 +230,30 @@ impl PyPortfolio {
     /// # Arguments
     ///
     /// * `report_type` - `optional str` - The type of report to display (performance)
-    #[pyo3(signature = (report_type=None))]
-    pub fn report(&self, report_type: Option<String>) {
+    /// * `display` - Optional str - Display mode ("notebook" to display in Jupyter, else displays to default web browser)
+    #[pyo3(signature = (report_type=None, display=None))]
+    pub fn report(&self, report_type: Option<String>, display: Option<String>) {
         task::block_in_place(move || {
             let report_type = match report_type {
                 Some(report_type) => ReportType::from_str(&report_type).unwrap(),
-                None => ReportType::Performance
+                None => ReportType::Performance,
             };
-            let report = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.portfolio.report(Some(report_type))).unwrap();
-            report.show().unwrap();
+            let report = tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(self.portfolio.report(Some(report_type)))
+                .unwrap();
+            if display.as_deref() == Some("notebook") {
+                let html_content = report.to_html();
+                Python::with_gil(|py| {
+                    let ipython_display = py.import("IPython.display").unwrap();
+                    let html_class = ipython_display.getattr("HTML").unwrap();
+                    let display_fn = ipython_display.getattr("display").unwrap();
+                    let html_obj = html_class.call1((html_content,)).unwrap();
+                    display_fn.call1((html_obj,)).unwrap();
+                });
+            } else {
+                report.show().unwrap();
+            }
         });
     }
 }

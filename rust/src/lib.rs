@@ -80,7 +80,7 @@
 //!         tickers.report(Some(ReportType::Performance)).await?.show()?;
 //!
 //!         // Perform a Portfolio Optimization
-//!         let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+//!         let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
 //!
 //!         // Generate a Portfolio Report
 //!        portfolio.report(Some(ReportType::Performance)).await?.show()?;
@@ -162,7 +162,7 @@ mod tests {
     use crate::prelude::*;
     use std::error::Error;
 
-    #[ignore]
+    #[ignore]   
     #[tokio::test]
     async fn finalytics_test() -> Result<(), Box<dyn Error>> {
         // Screen for Large-Cap NASDAQ Stocks
@@ -209,7 +209,7 @@ mod tests {
         tickers.report(Some(ReportType::Performance)).await?.show()?;
 
         // Perform a Portfolio Optimization
-        let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+        let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
 
         // Generate a Portfolio Report
         portfolio.report(Some(ReportType::Performance)).await?.show()?;

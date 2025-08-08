@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tickers.report(Some(ReportType::Performance)).await?.show()?;
 
     // Perform a Portfolio Optimization
-    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
 
     // Generate a Portfolio Report
     portfolio.report(Some(ReportType::Performance)).await?.show()?;

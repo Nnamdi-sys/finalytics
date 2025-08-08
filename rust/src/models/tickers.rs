@@ -165,15 +165,19 @@ impl Tickers {
     /// ### Arguments
     /// - `objective_function` - The Objective Function to optimize the Portfolio
     /// - `constraints` - The Portfolio Constraints
+    /// - `weights` - The Portfolio Weights (If weights are provided, they will be used instead of the optimization algorithm)
     ///
     /// ### Returns
     ///
     /// - A `Portfolio` Struct
-    pub async fn optimize(&self, objective_function: Option<ObjectiveFunction>, constraints: Option<Vec<(f64, f64)>>) -> Result<Portfolio, Box<dyn Error>> {
+    pub async fn optimize(&self,
+                          objective_function: Option<ObjectiveFunction>,
+                          constraints: Option<Vec<(f64, f64)>>,
+                          weights: Option<Vec<f64>>) -> Result<Portfolio, Box<dyn Error>> {
         let objective_function = objective_function.unwrap_or(ObjectiveFunction::MaxSharpe);
         let performance_stats = PortfolioPerformanceStats::performance_stats(
             self.clone(), self.benchmark_ticker.clone(), &self.start_date, &self.end_date,
-            self.confidence_level, self.risk_free_rate, objective_function, constraints).await?;
+            self.confidence_level, self.risk_free_rate, objective_function, constraints, weights).await?;
         Ok(Portfolio {
             tickers: self.clone(),
             performance_stats,
@@ -223,7 +227,7 @@ impl Tickers {
 ///    tickers.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///    // Perform a Portfolio Optimization
-///    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+///    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
 ///
 ///    // Generate a Portfolio Report
 ///    portfolio.report(Some(ReportType::Performance)).await?.show()?;

@@ -26,6 +26,7 @@ Create a new Portfolio object.
 - `risk_free_rate` (float): The risk-free rate for calculations.
 - `objective_function` (Optional[str]): The objective function for optimization.
 - `constraints` (Optional[List[Tuple[float, float]]]): Constraints for optimization.
+- `weights` (Optional[List[float]]): Weights for the assets in the portfolio. If provided, it will override the optimization process.
 
 **Returns:**
 
@@ -167,10 +168,11 @@ Generate a report for the portfolio.
 **Parameters:**
 
 - `report_type` (Optional[str]): The type of report to generate. Options are "performance".
+- display (Optional[str]): The display mode for the report. set to "notebook" for Jupyter Notebook display, defaults to "browser".
 
 **Example:**
 
-```{python}
+```python
 portfolio.report("performance")
 ```
 </details>

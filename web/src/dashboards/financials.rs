@@ -1,21 +1,18 @@
 use dioxus::prelude::*;
 use dioxus::logger::tracing::info;
-use crate::server::get_ticker_charts;
-use crate::components::utils::Loading;
+use crate::server::{get_ticker_charts, FinancialsTabs, TickerTabs};
 use crate::components::symbols::Symbol;
-use crate::components::table::TableContainer;
+use crate::components::display::FinancialsDisplay;
 
 #[component]
 pub fn Financials() -> Element {
     let mut symbol = use_signal(|| "AAPL".to_string());
     let mut frequency = use_signal(|| "quarterly".to_string());
-    let mut active_tab = use_signal(|| 1);
 
     info!("symbol: {:?}", symbol());
     info!("frequency: {:?}", frequency());
-    info!("active_tab: {:?}", active_tab());
 
-    let mut chart = use_server_future(move || async move {
+    let mut charts = use_server_future(move || async move {
         match get_ticker_charts(
             symbol(),
             String::new(),
@@ -26,12 +23,22 @@ pub fn Financials() -> Element {
             f64::default(),
             String::from("financials"),
             frequency(),
-            active_tab(),
         )
             .await
         {
-            Ok(chart) => chart,
-            Err(e) => format!("Error: {e}"),
+            Ok(TickerTabs::Financials(tabs)) => tabs,
+            Ok(_) => FinancialsTabs {
+                income_statement: String::from("Invalid report type"),
+                balance_sheet: String::from("Invalid report type"),
+                cashflow_statement: String::from("Invalid report type"),
+                financial_ratios: String::from("Invalid report type"),
+            },
+            Err(e) => FinancialsTabs {
+                income_statement: format!("Error: {e}"),
+                balance_sheet: format!("Error: {e}"),
+                cashflow_statement: format!("Error: {e}"),
+                financial_ratios: format!("Error: {e}"),
+            },
         }
     })?;
 
@@ -76,11 +83,9 @@ pub fn Financials() -> Element {
                             align-items: flex-end;
                         "#,
                         onsubmit: move |e| {
-                            chart.clear();
-                            symbol.set(e.values()["symbol"].as_value());
+                            charts.clear();
                             frequency.set(e.values()["frequency"].as_value());
-                            active_tab.set(1);
-                            chart.restart();
+                            charts.restart();
                         },
 
                         // Symbol input
@@ -115,63 +120,8 @@ pub fn Financials() -> Element {
                 }
             }
 
-            // Dashboard below form
-            div {
-                style: r#"
-                    flex: 1;
-                    width: 100%;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    padding: 16px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                    box-sizing: border-box;
-                "#,
-                // Nav tabs
-                nav {
-                    style: r#"margin-bottom: 16px;"#,
-                    div {
-                        class: "nav nav-tabs",
-                        style: r#"gap: 8px;"#,
-                        button {
-                            class: if *active_tab.read() == 1 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(1); chart.clear(); chart.restart(); },
-                            "Income Statement"
-                        }
-                        button {
-                            class: if *active_tab.read() == 2 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(2); chart.clear(); chart.restart(); },
-                            "Balance Sheet"
-                        }
-                        button {
-                            class: if *active_tab.read() == 3 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(3); chart.clear(); chart.restart(); },
-                            "Cash Flow Statement"
-                        }
-                        button {
-                            class: if *active_tab.read() == 4 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(4); chart.clear(); chart.restart(); },
-                            "Financial Ratios"
-                        }
-                    }
-                }
-                // Content
-                div {
-                    style: r#"flex:1; overflow:auto;"#,
-                    div {
-                        class: "tab-content",
-                        style: r#"height:100%;"#,
-                        match &*chart.value().read_unchecked() {
-                            Some(content) =>  {
-                                rsx! { TableContainer { html: content.clone() } }
-                            },
-                            _ => rsx! { Loading {} }
-                        }
-                    }
-                }
-            }
+            // FinancialsDisplay
+            FinancialsDisplay { charts: charts }
         }
     }
 }

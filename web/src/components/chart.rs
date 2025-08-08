@@ -2,7 +2,8 @@ use dioxus::prelude::*;
 use regex::Regex;
 
 #[component]
-pub fn ChartContainer(html: String) -> Element {
+pub fn ChartContainer(html: String, id: String) -> Element {
+    let html = html.replace("plotly-html-element", id.as_str());
     let regex = Regex::new(r#"<script\s+type="module">\s*(?s)(.*?)</script>"#);
     let script = if let Ok(regex) = regex {
         regex
@@ -13,7 +14,7 @@ pub fn ChartContainer(html: String) -> Element {
     } else {
         String::new()
     };
-    
+
     use_effect(move || {
         document::eval(&script);
     });
@@ -30,9 +31,9 @@ pub fn ChartContainer(html: String) -> Element {
                     src: "https://cdn.plot.ly/plotly-2.12.1.min.js"
                 }
                 div {
-                    id: "plotly-html-element",
+                    id: "{id}",
                     class: "plotly-graph-div",
-                    style: "position:relative; top:0; left:0; width:100%; height:80vh;"
+                    style: "position:relative; top:0; left:0; width:100%; height:100vh;"
                 }
             }
         }

@@ -3,6 +3,7 @@ use dioxus::logger::tracing::info;
 use chrono::{Local, Duration};
 use std::collections::HashMap;
 use crate::components::chart::ChartContainer;
+use crate::components::symbols::Symbol;
 use crate::components::utils::Loading;
 use crate::components::table::TableContainer;
 use crate::server::{get_screener_metadata, ScreenerMetadata};
@@ -292,8 +293,10 @@ pub fn ScreenerDisplay(
             match &*screener_data.value().read_unchecked() {
                 Some(content) =>  {
                     match *active_tab.read() {
-                        1..=3 => rsx! { TableContainer { html: content.clone() } },
-                        4 => rsx! { ChartContainer { html: content.clone() } },
+                        1 => rsx! { TableContainer { html: content.clone(), title: "Screener Overview" } },
+                        2 => rsx! { TableContainer { html: content.clone(), title: "Screener Metrics" } },
+                        3 => rsx! { TableContainer { html: content.clone(), title: "Screener Performance" } },
+                        4 => rsx! { ChartContainer { html: content.clone(), id: "plotly-html-element" } },
                         _ => rsx! {}
                     }
                 },
@@ -829,7 +832,6 @@ pub fn ScreenerTickersForm(
                 style: "width: 100%; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;",
                 onsubmit: move |e| {
                     screener_data.clear();
-                    benchmark_symbol.set(e.values()["benchmark_symbol"].as_value());
                     start_date.set(e.values()["start_date"].as_value());
                     end_date.set(e.values()["end_date"].as_value());
                     risk_free_rate.set(
@@ -872,19 +874,7 @@ pub fn ScreenerTickersForm(
 
 
                 // Benchmark
-                div {
-                    style: "flex: 1; min-width: 200px;",
-                    label { r#for: "benchmark_symbol", "Benchmark" }
-                    input {
-                        class: "form-control",
-                        id: "benchmark_symbol",
-                        name: "benchmark_symbol",
-                        r#type: "text",
-                        list: "all_symbols",
-                        required: true,
-                        value: "{benchmark_symbol}",
-                    }
-                }
+                Symbol { symbol: benchmark_symbol, title: "Benchmark Symbol" }
 
 
                 // Risk-Free Rate

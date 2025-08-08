@@ -13,6 +13,7 @@ pub struct PortfolioBuilder {
     pub risk_free_rate: f64,
     pub objective_function: ObjectiveFunction,
     pub constraints: Option<Vec<(f64, f64)>>,
+    pub weights: Option<Vec<f64>>,
     pub tickers_data: Option<Vec<KLINE>>,
     pub benchmark_data: Option<KLINE>,
 
@@ -37,6 +38,7 @@ impl PortfolioBuilder {
             risk_free_rate: 0.0,
             objective_function: ObjectiveFunction::MaxSharpe,
             constraints: None,
+            weights: None,
             tickers_data: None,
             benchmark_data: None,
         }
@@ -87,6 +89,11 @@ impl PortfolioBuilder {
         self
     }
 
+    pub fn weights(mut self, weights: Option<Vec<f64>>) -> PortfolioBuilder {
+        self.weights = weights;
+        self
+    }
+
     pub fn tickers_data(mut self, tickers_data: Option<Vec<KLINE>>) -> PortfolioBuilder {
         self.tickers_data = tickers_data;
         self
@@ -119,7 +126,7 @@ impl PortfolioBuilder {
 
         let performance_stats = PortfolioPerformanceStats::performance_stats(
             tickers.clone(), tickers.benchmark_ticker.clone(), &tickers.start_date, &tickers.end_date,
-            tickers.confidence_level, tickers.risk_free_rate, self.objective_function, self.constraints.clone()).await?;
+            tickers.confidence_level, tickers.risk_free_rate, self.objective_function, self.constraints.clone(), self.weights).await?;
         Ok(Portfolio {
             tickers,
             performance_stats,

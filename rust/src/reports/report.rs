@@ -108,9 +108,11 @@ impl Report for Portfolio {
         let report = match report_type {
             ReportType::Performance => {
                 let mut tabs: Vec<(String, String)> = Vec::new();
-                let optimization_chart = self.optimization_chart(None, None)?
-                    .to_html().replace("plotly-html-element", "optimization_chart");
-                tabs.push(("Optimization Chart".to_string(), optimization_chart));
+                if let Ok(oc) = self.optimization_chart(None, None) {
+                    let optimization_chart = oc.to_html().replace(
+                        "plotly-html-element", "optimization_chart");
+                    tabs.push(("Optimization Chart".to_string(), optimization_chart));
+                }
                 let performance_chart = self.performance_chart(None, None)?
                     .to_html().replace("plotly-html-element", "performance_chart");
                 tabs.push(("Performance Chart".to_string(), performance_chart));

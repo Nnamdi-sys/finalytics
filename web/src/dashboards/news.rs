@@ -1,28 +1,27 @@
 use dioxus::prelude::*;
 use dioxus::logger::tracing::info;
-use crate::server::get_ticker_charts;
-use crate::components::utils::Loading;
+use crate::server::{get_ticker_charts, NewsTabs, TickerTabs};
 use crate::components::symbols::Symbol;
-use crate::components::chart::ChartContainer;
-use crate::components::table::TableContainer;
+use crate::components::display::NewsDisplay;
+use chrono;
 
 #[component]
 pub fn News() -> Element {
     let mut symbol = use_signal(|| "AAPL".to_string());
     let default_start = chrono::Utc::now()
         .checked_sub_signed(chrono::Duration::days(30))
-        .unwrap().format("%Y-%m-%d").to_string();
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
     let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let mut start_date = use_signal(|| default_start);
     let mut end_date = use_signal(|| default_end);
-    let mut active_tab = use_signal(|| 1);
 
     info!("symbol: {:?}", symbol());
     info!("start: {:?}", start_date());
     info!("end: {:?}", end_date());
-    info!("active_tab: {:?}", active_tab());
 
-    let mut chart = use_server_future(move || async move {
+    let mut charts = use_server_future(move || async move {
         match get_ticker_charts(
             symbol(),
             start_date(),
@@ -33,12 +32,18 @@ pub fn News() -> Element {
             f64::default(),
             String::from("news"),
             String::new(),
-            active_tab(),
         )
             .await
         {
-            Ok(chart) => chart,
-            Err(e) => format!("Error: {e}"),
+            Ok(TickerTabs::News(tabs)) => tabs,
+            Ok(_) => NewsTabs {
+                news_sentiment_table: String::from("Invalid report type"),
+                news_sentiment_chart: String::from("Invalid report type"),
+            },
+            Err(e) => NewsTabs {
+                news_sentiment_table: format!("Error: {e}"),
+                news_sentiment_chart: format!("Error: {e}"),
+            },
         }
     })?;
 
@@ -83,12 +88,10 @@ pub fn News() -> Element {
                             align-items: flex-end;
                         "#,
                         onsubmit: move |e| {
-                            chart.clear();
-                            symbol.set(e.values()["symbol"].as_value());
+                            charts.clear();
                             start_date.set(e.values()["start_date"].as_value());
                             end_date.set(e.values()["end_date"].as_value());
-                            active_tab.set(1);
-                            chart.restart();
+                            charts.restart();
                         },
 
                         // Symbol input
@@ -144,55 +147,8 @@ pub fn News() -> Element {
                 }
             }
 
-            // Dashboard below form
-            div {
-                style: r#"
-                    flex: 1;
-                    width: 100%;
-                    background-color: #ffffff;
-                    border-radius: 8px;
-                    padding: 16px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                    box-sizing: border-box;
-                "#,
-                // Nav tabs
-                nav {
-                    style: r#"margin-bottom: 16px;"#,
-                    div {
-                        class: "nav nav-tabs",
-                        style: r#"gap: 8px;"#,
-                        button {
-                            class: if *active_tab.read() == 1 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(1); chart.clear(); chart.restart(); },
-                            "News Sentiment Data"
-                        }
-                        button {
-                            class: if *active_tab.read() == 2 { "nav-link active" } else { "nav-link" },
-                            onclick: move |_| { active_tab.set(2); chart.clear(); chart.restart(); },
-                            "News Sentiment Chart"
-                        }
-                    }
-                }
-                // Content
-                div {
-                    style: r#"flex:1; overflow:auto;"#,
-                    div {
-                        class: "tab-content",
-                        style: r#"height:100%;"#,
-                        match &*chart.value().read_unchecked() {
-                            Some(content) => match *active_tab.read() {
-                                1 => rsx! { TableContainer { html: content.clone() } },
-                                2 => rsx! { ChartContainer { html: content.clone() } },
-                                _ => rsx! { },
-                            },
-                            _ => rsx! { Loading {} }
-                        }
-                    }
-                }
-            }
+            // NewsDisplay
+            NewsDisplay { charts: charts }
         }
     }
 }

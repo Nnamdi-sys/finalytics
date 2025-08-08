@@ -270,11 +270,12 @@ Generate a report for all tickers.
 
 **Parameters:**
 
-- report_type (str): The type of report to generate ("performance").
+- report_type (Optional[str]): The type of report to generate ("performance").
+- display (Optional[str]): The display mode for the report. set to "notebook" for Jupyter Notebook display, defaults to "browser".
 
 **Example:**
 
-```{python}
+```python
 tickers.report("performance")
 ```
 </details>
@@ -310,6 +311,7 @@ Optimizes the tickers given the objective function and constraints.
 
 - `objective_function` (Optional[str]): The objective function for optimization.
 - `constraints` (Optional[List[Tuple[float, float]]]): List of constraints for optimization.
+- `weights` (Optional[List[float]]): Weights for asset allocation. If provided, overrides the optimization process.
 
 **Returns:**
 
