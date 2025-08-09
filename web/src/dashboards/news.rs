@@ -7,7 +7,7 @@ use chrono;
 
 #[component]
 pub fn News() -> Element {
-    let mut symbol = use_signal(|| "AAPL".to_string());
+    let symbol = use_signal(|| "AAPL".to_string());
     let default_start = chrono::Utc::now()
         .checked_sub_signed(chrono::Duration::days(30))
         .unwrap()
@@ -16,12 +16,20 @@ pub fn News() -> Element {
     let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let mut start_date = use_signal(|| default_start);
     let mut end_date = use_signal(|| default_end);
+    let mut fetch_data = use_signal(|| false);
 
     info!("symbol: {:?}", symbol());
     info!("start: {:?}", start_date());
     info!("end: {:?}", end_date());
+    info!("fetch_data: {:?}", fetch_data());
 
     let mut charts = use_server_future(move || async move {
+        if !fetch_data() {
+            return NewsTabs {
+                news_sentiment_table: String::new(),
+                news_sentiment_chart: String::new(),
+            };
+        }
         match get_ticker_charts(
             symbol(),
             start_date(),
@@ -91,6 +99,7 @@ pub fn News() -> Element {
                             charts.clear();
                             start_date.set(e.values()["start_date"].as_value());
                             end_date.set(e.values()["end_date"].as_value());
+                            fetch_data.set(true);
                             charts.restart();
                         },
 

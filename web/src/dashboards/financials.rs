@@ -6,13 +6,23 @@ use crate::components::display::FinancialsDisplay;
 
 #[component]
 pub fn Financials() -> Element {
-    let mut symbol = use_signal(|| "AAPL".to_string());
+    let symbol = use_signal(|| "AAPL".to_string());
     let mut frequency = use_signal(|| "quarterly".to_string());
+    let mut fetch_data = use_signal(|| false);
 
     info!("symbol: {:?}", symbol());
     info!("frequency: {:?}", frequency());
+    info!("fetch_data: {:?}", fetch_data());
 
     let mut charts = use_server_future(move || async move {
+        if !fetch_data() {
+            return FinancialsTabs {
+                income_statement: String::new(),
+                balance_sheet: String::new(),
+                cashflow_statement: String::new(),
+                financial_ratios: String::new(),
+            };
+        }
         match get_ticker_charts(
             symbol(),
             String::new(),
@@ -85,6 +95,7 @@ pub fn Financials() -> Element {
                         onsubmit: move |e| {
                             charts.clear();
                             frequency.set(e.values()["frequency"].as_value());
+                            fetch_data.set(true);
                             charts.restart();
                         },
 

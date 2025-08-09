@@ -18,8 +18,9 @@ pub fn Portfolio() -> Element {
     let mut weight_mode = use_signal::<Option<String>>(|| None);
     let mut allocations = use_signal::<Option<Vec<f64>>>(|| None);
     let mut weight_ranges = use_signal::<Option<Vec<(f64, f64)>>>(|| None);
-    let mut allocation_error = use_signal(|| String::new());
-    let mut weights_error = use_signal(|| String::new());
+    let mut allocation_error = use_signal(|| "".to_string());
+    let mut weights_error = use_signal(|| "".to_string());
+    let mut fetch_data = use_signal(|| false);
 
     info!("Portfolio: symbols: {:?}", symbols());
     info!("Portfolio: benchmark: {:?}", benchmark_symbol());
@@ -32,8 +33,19 @@ pub fn Portfolio() -> Element {
     info!("Portfolio: weight_mode: {:?}", weight_mode());
     info!("Portfolio: allocations: {:?}", allocations());
     info!("Portfolio: weight_ranges: {:?}", weight_ranges());
+    info!("Portfolio: fetch_data: {:?}", fetch_data());
 
     let mut charts = use_server_future(move || async move {
+        if !fetch_data() {
+            return PortfolioTabs {
+                optimization_chart: None,
+                performance_chart: String::new(),
+                performance_stats_table: String::new(),
+                returns_table: String::new(),
+                returns_chart: String::new(),
+                returns_matrix: String::new(),
+            };
+        }
         match get_portfolio_charts(
             symbols().split(',').map(str::to_string).collect(),
             benchmark_symbol(),
@@ -232,6 +244,7 @@ pub fn Portfolio() -> Element {
                                 objective_function.set(e.values()["objective_function"].as_value());
                                 allocations.set(new_allocs);
                                 weight_ranges.set(new_ranges);
+                                fetch_data.set(true);
                                 charts.restart();
                             }
                         },

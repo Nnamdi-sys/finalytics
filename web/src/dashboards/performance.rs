@@ -13,6 +13,7 @@ pub fn Performance() -> Element {
     let mut interval = use_signal(|| "1d".to_string());
     let mut confidence_level = use_signal(|| 0.95);
     let mut risk_free_rate = use_signal(|| 0.02);
+    let mut fetch_data = use_signal(|| false);
 
     info!("symbol: {:?}", symbol());
     info!("benchmark: {:?}", benchmark_symbol());
@@ -21,8 +22,17 @@ pub fn Performance() -> Element {
     info!("interval: {:?}", interval());
     info!("confidence: {:?}", confidence_level());
     info!("risk_free: {:?}", risk_free_rate());
+    info!("fetch_data: {:?}", fetch_data());
 
-    let mut charts = use_server_future(move || async move {
+    let mut charts = use_resource(move || async move {
+        if !fetch_data() {
+            return PerformanceTabs {
+                ohlcv_table: String::new(),
+                candlestick_chart: String::new(),
+                performance_chart: String::new(),
+                performance_stats_table: String::new(),
+            };
+        }
         match get_ticker_charts(
             symbol(),
             start_date(),
@@ -50,7 +60,8 @@ pub fn Performance() -> Element {
                 performance_stats_table: format!("Error: {e}"),
             },
         }
-    })?;
+
+    });
 
     rsx! {
         div {
@@ -109,6 +120,7 @@ pub fn Performance() -> Element {
                                     .parse::<f64>()
                                     .unwrap()
                             );
+                            fetch_data.set(true);
                             charts.restart();
                         },
 
@@ -216,7 +228,8 @@ pub fn Performance() -> Element {
                                     r#type: "number",
                                     step: "0.01",
                                     required: true,
-                                    value: "{risk_free_rate}" }
+                                    value: "{risk_free_rate}"
+                                }
                             }
                         }
 

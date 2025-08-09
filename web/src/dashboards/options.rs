@@ -6,13 +6,24 @@ use crate::components::display::OptionsDisplay;
 
 #[component]
 pub fn Options() -> Element {
-    let mut symbol = use_signal(|| "AAPL".to_string());
+    let symbol = use_signal(|| "AAPL".to_string());
     let mut risk_free_rate = use_signal(|| 0.02);
+    let mut fetch_data = use_signal(|| false);
 
     info!("symbol: {:?}", symbol());
     info!("risk_free: {:?}", risk_free_rate());
+    info!("fetch_data: {:?}", fetch_data());
 
     let mut charts = use_server_future(move || async move {
+        if !fetch_data() {
+            return OptionsTabs {
+                options_chain: String::new(),
+                volatility_surface_table: String::new(),
+                volatility_smile: String::new(),
+                volatility_term_structure: String::new(),
+                volatility_surface_chart: String::new(),
+            };
+        }
         match get_ticker_charts(
             symbol(),
             String::new(),
@@ -92,6 +103,7 @@ pub fn Options() -> Element {
                                     .parse::<f64>()
                                     .unwrap()
                             );
+                            fetch_data.set(true);
                             charts.restart();
                         },
 

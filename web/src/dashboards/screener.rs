@@ -27,6 +27,7 @@ pub fn Screener() -> Element {
     let end_date = use_signal(|| Local::now().format("%Y-%m-%d").to_string());
     let risk_free_rate = use_signal(|| 0.02);
     let objective_function = use_signal(|| "max_sharpe".to_string());
+    let fetch_data = use_signal(|| false);
 
 
     // Log Signal values for debugging
@@ -42,9 +43,13 @@ pub fn Screener() -> Element {
     info!("end_date: {:?}", end_date());
     info!("risk_free_rate: {:?}", risk_free_rate());
     info!("objective_function: {:?}", objective_function());
+    info!("fetch_data: {:?}", fetch_data());
 
     // Fetch screener data using server function
     let screener_data = use_server_future(move || async move {
+        if !fetch_data() {
+            return "".to_string();
+        }
         let quote_type = quote_type.read().to_string();
         let filters = filters.read().clone();
         let active_tab = active_tab.read().to_owned();
@@ -154,6 +159,7 @@ pub fn Screener() -> Element {
                     size,
                     active_tab,
                     screener_data,
+                    fetch_data
                 }
             }
 
@@ -318,6 +324,7 @@ pub fn ScreenerForm(
     size: Signal<usize>,
     active_tab: Signal<usize>,
     screener_data: Resource<String>,
+    fetch_data: Signal<bool>,
 ) -> Element {
     let metadata = use_server_future(move || async move {
         get_screener_metadata().await.unwrap_or(ScreenerMetadata {
@@ -443,6 +450,7 @@ pub fn ScreenerForm(
                     offset.set(e.values()["offset"].as_value().parse::<usize>().unwrap_or(0));
                     size.set(e.values()["size"].as_value().parse::<usize>().unwrap_or(100));
                     active_tab.set(1);
+                    fetch_data.set(true);
                     screener_data.restart();
                 },
 
