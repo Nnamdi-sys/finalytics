@@ -10,11 +10,16 @@ COPY rust rust
 # Copy the local web directory into the Docker image
 COPY web web
 
-# Install necessary dependencies for SQLite3 and OpenSSL
-RUN apt-get update && apt-get install -y pkg-config libssl-dev libsqlite3-dev
-
-# Install Perl and cpanminus, and make
-RUN apt-get install -y perl cpanminus make
+# Install necessary dependencies for SQLite3, OpenSSL, nlopt, and build tools
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libsqlite3-dev \
+    cmake \
+    g++ \
+    perl \
+    cpanminus \
+    make
 
 # Install libipc-cmd-perl
 RUN cpanm IPC::Cmd

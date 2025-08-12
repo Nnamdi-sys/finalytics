@@ -1719,7 +1719,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "finalytics"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "anyhow",
  "cached",
@@ -1748,7 +1748,7 @@ dependencies = [
 
 [[package]]
 name = "finalytics-py"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "chrono",
  "finalytics",

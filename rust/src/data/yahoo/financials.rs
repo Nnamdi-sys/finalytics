@@ -250,7 +250,7 @@ pub async fn financial_ratios(symbol: &str, frequency: StatementFrequency) -> Re
 pub async fn income_statement(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let income_statement = get_fundamentals(symbol, StatementType::IncomeStatement, frequency).await?;
     
-    if formatted == Some(true) {
+    if formatted == Some(false) {
         return Ok(income_statement);
     }
 
@@ -314,7 +314,7 @@ pub async fn income_statement(symbol: &str, frequency: StatementFrequency, forma
 pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let balance_sheet = get_fundamentals(symbol, StatementType::BalanceSheet, frequency).await?;
     
-    if formatted == Some(true) {
+    if formatted == Some(false) {
         return Ok(balance_sheet);
     }
 
@@ -399,7 +399,7 @@ pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency, formatte
 pub async fn cashflow_statement(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let cash_flow = get_fundamentals(symbol, StatementType::CashFlowStatement, frequency).await?;
     
-    if formatted == Some(true) {
+    if formatted == Some(false) {
         return Ok(cash_flow);
     }
 
