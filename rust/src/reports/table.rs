@@ -20,7 +20,7 @@ impl DataTableDisplay for DataFrame {
 pub enum DataTableFormat {
     Currency,
     Number,
-    Performance,
+    Performance(String),
     Custom(String),
 }
 
@@ -29,7 +29,14 @@ impl fmt::Display for DataTableFormat {
         match self {
             DataTableFormat::Currency => write!(f, "{CURRENCY_FMT}"),
             DataTableFormat::Number => write!(f, "{NUMBER_FMT}"),
-            DataTableFormat::Performance => write!(f, "{PERFORMANCE_TABLE_FMT}"),
+            DataTableFormat::Performance(s) => {
+                let fmt = match s.as_str() {
+                    "tickers" => TICKERS_PERFORMANCE_TABLE_FMT,
+                    "portfolio" => PORTFOLIO_PERFORMANCE_TABLE_FMT,
+                    _ => return Err(fmt::Error),
+                };
+                write!(f, "{fmt}")
+            }
             DataTableFormat::Custom(fmt) => write!(f, "{fmt}"),
         }
     }
@@ -83,7 +90,69 @@ static NUMBER_FMT: &str = r#"
 ]
 "#;
 
-static PERFORMANCE_TABLE_FMT: &str = r#"
+static PORTFOLIO_PERFORMANCE_TABLE_FMT: &str = r#"
+[
+    {
+        "targets": 0,
+        "render": function(data) { return data; } // Ticker symbol, no formatting
+    },
+    {
+        "targets": [1, 2, 3, 4, 5, 6, 11, 12, 15, 16, 17], // Percentage fields
+        "render": function(data) {
+            if (data == null || data === '') return '';
+
+            try {
+                let parsed = parseFloat(data);
+                if (isNaN(parsed)) return data;
+
+                // Handle Infinity and -Infinity
+                if (!isFinite(parsed)) {
+                    return parsed > 0 ? '∞%' : '-∞%';
+                }
+
+                // Handle extremely large values (e.g., > 1e308 or < -1e308)
+                if (Math.abs(parsed) > 1e308) {
+                    return parsed > 0 ? '>999T%' : '<-999T%';
+                }
+
+                // Format as percentage with 2 decimal places
+                return $.fn.dataTable.render.number(',', '.', 2).display(parsed) + '%';
+            } catch (e) {
+                return data;
+            }
+        }
+    },
+    {
+        "targets": [7, 8, 9, 10, 13, 14], // Decimal fields
+        "render": function(data) {
+            if (data == null || data === '') return '';
+
+            try {
+                let parsed = parseFloat(data);
+                if (isNaN(parsed)) return data;
+
+                // Handle Infinity and -Infinity
+                if (!isFinite(parsed)) {
+                    return parsed > 0 ? '∞' : '-∞';
+                }
+
+                // Handle extremely large values
+                if (Math.abs(parsed) > 1e308) {
+                    return parsed > 0 ? '>999T' : '<-999T';
+                }
+
+                // Format as number with 2 decimal places
+                return $.fn.dataTable.render.number(',', '.', 2).display(parsed);
+            } catch (e) {
+                return data;
+            }
+        }
+    }
+]
+"#;
+
+
+static TICKERS_PERFORMANCE_TABLE_FMT: &str = r#"
 [
     {
         "targets": 0,

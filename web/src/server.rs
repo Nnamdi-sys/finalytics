@@ -31,6 +31,7 @@ pub struct PortfolioTabs {
     pub returns_matrix: String,
 }
 
+#[allow(clippy::too_many_arguments)]
 #[server]
 pub async fn get_portfolio_charts(
     symbols: Vec<String>,
@@ -201,7 +202,7 @@ pub async fn get_ticker_charts(
                         .ticker(&symbol)
                         .build();
                     let frequency = StatementFrequency::from_str(&frequency).unwrap();
-                    let financials = ticker.financials_tables(frequency).await.unwrap();
+                    let financials = ticker.financials_tables(frequency, None).await.unwrap();
                     let income_statement = financials.income_statement.to_html().unwrap();
                     let balance_sheet = financials.balance_sheet.to_html().unwrap();
                     let cashflow_statement = financials.cashflow_statement.to_html().unwrap();

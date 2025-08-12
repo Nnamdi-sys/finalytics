@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
-use polars::prelude::{concat, Column, DataFrame, IntoLazy};
+use polars::prelude::{concat, Column, DataFrame, IntoLazy, UnionArgs};
 use serde_json::{json, Value};
 use crate::data::yahoo::screeners::{CryptoScreener, EquityScreener, EtfScreener, FieldMetadata, FutureScreener, IndexScreener, MutualFundScreener};
 use crate::data::yahoo::web::post_json_response;
@@ -277,7 +277,10 @@ impl ScreenerBuilder {
         }
 
         // Combine all dataframes
-        let result_df = concat(&all_quotes_dfs, Default::default())?.collect()?;
+        let result_df = concat(&all_quotes_dfs, UnionArgs {
+            diagonal: true,
+            ..Default::default()
+        })?.collect()?;
 
         Ok(Screener {
             quote_type: quote_type_val,

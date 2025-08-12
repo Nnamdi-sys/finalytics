@@ -24,7 +24,13 @@ Create a new Portfolio object.
 - `interval` (str): The interval for historical data.
 - `confidence_level` (float): The confidence level for risk calculations.
 - `risk_free_rate` (float): The risk-free rate for calculations.
-- `objective_function` (Optional[str]): The objective function for optimization.
+- `objective_function` (Optional[str]): The objective function for optimization:
+  - `max_sharpe`: Maximize return per unit of risk.
+  - `min_vol`: Minimize overall volatility.
+  - `max_return`: Maximize expected return.
+  - `min_var`: Minimize Value-at-Risk (VaR).
+  - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR).
+  - `min_drawdown`: Minimize maximum portfolio drawdown.
 - `constraints` (Optional[List[Tuple[float, float]]]): Constraints for optimization.
 - `weights` (Optional[List[float]]): Weights for the assets in the portfolio. If provided, it will override the optimization process.
 

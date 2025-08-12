@@ -55,12 +55,12 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
                             if *is_sidebar_open.read() { span { "Ticker" } }
                         }
                         div {
-                            style: if *is_ticker_open.read() && *is_sidebar_open.read() {
+                            style: if *is_ticker_open.read() {
                                 r#"
                                     display: flex;
                                     flex-direction: column;
                                     gap: 10px;
-                                    padding-left: 20px;
+                                    padding-left: {{if *is_sidebar_open.read() {{ "20px" }} else {{ "10px" }}}};
                                     max-height: 200px;
                                     transition: max-height 0.3s ease-in-out;
                                 "#
@@ -73,24 +73,28 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
                             },
                             button {
                                 class: if *active_page.read() == Page::Performance { "sidebar-link sub-link active" } else { "sidebar-link sub-link" },
+                                style: if *is_sidebar_open.read() { "padding: 10px 20px 10px 40px;" } else { "padding: 10px 20px 10px 20px;" },
                                 onclick: move |_| active_page.set(Page::Performance),
                                 i { class: "bi bi-speedometer2" }
                                 if *is_sidebar_open.read() { span { "Performance" } }
                             }
                             button {
                                 class: if *active_page.read() == Page::Financials { "sidebar-link sub-link active" } else { "sidebar-link sub-link" },
+                                style: if *is_sidebar_open.read() { "padding: 10px 20px 10px 40px;" } else { "padding: 10px 20px 10px 20px;" },
                                 onclick: move |_| active_page.set(Page::Financials),
                                 i { class: "bi bi-cash-stack" }
                                 if *is_sidebar_open.read() { span { "Financials" } }
                             }
                             button {
                                 class: if *active_page.read() == Page::Options { "sidebar-link sub-link active" } else { "sidebar-link sub-link" },
+                                style: if *is_sidebar_open.read() { "padding: 10px 20px 10px 40px;" } else { "padding: 10px 20px 10px 20px;" },
                                 onclick: move |_| active_page.set(Page::Options),
                                 i { class: "bi bi-bar-chart-fill" }
                                 if *is_sidebar_open.read() { span { "Options" } }
                             }
                             button {
                                 class: if *active_page.read() == Page::News { "sidebar-link sub-link active" } else { "sidebar-link sub-link" },
+                                style: if *is_sidebar_open.read() { "padding: 10px 20px 10px 40px;" } else { "padding: 10px 20px 10px 20px;" },
                                 onclick: move |_| active_page.set(Page::News),
                                 i { class: "bi bi-newspaper" }
                                 if *is_sidebar_open.read() { span { "News" } }
@@ -153,7 +157,7 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
                         }
                         small {
                             style: "font-size: 12px; color: #888; margin-top: 5px;",
-                            "@finalytics 2025"
+                            "© 2025 Finalytics"
                         }
                     }
                 }
@@ -173,6 +177,7 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
             .sidebar.collapsed {{
                 width: 70px;
                 align-items: center;
+                justify-content: center;
             }}
             .sidebar-toggle.fancy {{
                 background-color: #000000;
@@ -218,7 +223,7 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
             }}
             .sub-link {{
                 font-size: 16px;
-                padding: 10px 20px 10px 40px;
+                padding: 10px 20px;
             }}
             .sub-link:hover, .sub-link.active {{
                 background-color: #dee2e6;

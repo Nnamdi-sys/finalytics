@@ -68,7 +68,7 @@ macro_rules! fetch_all {
 pub trait TickersData {
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
+    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency, formatted: Option<bool>) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_ticker_stats(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn returns(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
@@ -88,8 +88,8 @@ impl TickersData for Tickers {
     }
 
     /// Fetch the Financials for all tickers in the Tickers Struct
-    async fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), get_financials, 1, statement_type, frequency)
+    async fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
+        fetch_all!(self.tickers.clone(), get_financials, 1, statement_type, frequency, formatted)
     }
 
 

@@ -246,14 +246,21 @@ impl PortfolioCharts for Portfolio {
     /// * `DataTable` Table Chart struct
     async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let symbols = self.optimal_symbols()?;
-        let symbols_stats = self.tickers.performance_stats().await?;
+        let mut symbols_stats = self.tickers.performance_stats().await?;
+        let weights = self.performance_stats.optimal_weights.clone()
+            .iter().map(|x| (x * 100.0).to_string()).collect::<Vec<String>>();
+        let weights_column = Column::new("Weights".into(), weights).with_name("Weights".into());
+        symbols_stats.insert_column(1, weights_column)?;
         let symbols_series = Series::new("".into(), symbols);
-        let symbols_stats = symbols_stats.lazy().filter(col("Symbol").is_in(lit(symbols_series), false)).collect()?;
+        let symbols_stats = symbols_stats.lazy().filter(col("Symbol")
+            .is_in(lit(symbols_series), false)).collect()?;
 
         let stats = &self.performance_stats.performance_stats;
+        let portfolio_weight = self.performance_stats.optimal_weights.iter().sum::<f64>() * 100.0;
 
         let df = DataFrame::new(vec![
             Column::new("Symbol".into(), &["Portfolio".to_string()]),
+            Column::new("Weights".into(), &[portfolio_weight.to_string()]),
             Column::new("Daily Return".into(), &[stats.daily_return.to_string()]),
             Column::new("Daily Volatility".into(), &[stats.daily_volatility.to_string()]),
             Column::new("Cumulative Return".into(), &[stats.cumulative_return.to_string()]),
@@ -276,7 +283,7 @@ impl PortfolioCharts for Portfolio {
         let data_table = stats_df.to_datatable(
             "performance_stats",
             true,
-            DataTableFormat::Performance,
+            DataTableFormat::Performance("portfolio".to_string()),
         );
 
         Ok(data_table)

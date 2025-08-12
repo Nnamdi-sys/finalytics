@@ -100,34 +100,134 @@ pub async fn get_fundamentals(
     Ok(df)
 }
 
+/// Return column or a null column if not found
+fn col_or_empty(df: &DataFrame, name: &str) -> Column {
+    match df.column(name) {
+        Ok(s) => s.clone(),
+        Err(_) => Column::full_null(name.into(), df.height(), &DataType::Float64),
+    }
+}
+
+/// Safe computation: run closure, return null column if any error occurs
+fn safe_compute<F>(name: &str, len: usize, f: F) -> Column
+where
+    F: FnOnce() -> PolarsResult<Column>,
+{
+    match f() {
+        Ok(s) => s.with_name(name.into()),
+        Err(_) => Column::full_null(name.into(), len, &DataType::Float64),
+    }
+}
+
 pub async fn financial_ratios(symbol: &str, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>>{
     let income_statement = get_fundamentals(symbol, StatementType::IncomeStatement, frequency).await?;
     let balance_sheet = get_fundamentals(symbol, StatementType::BalanceSheet, frequency).await?;
     let cash_flow = get_fundamentals(symbol, StatementType::CashFlowStatement, frequency).await?;
-    let zero_series = Column::new("zero".into(), vec![0.0; income_statement.height()]);
-    let ratios = vec![
+    let len = income_statement.height();
+    let ratios: Vec<Column> = vec![
         income_statement.column("asOfDate")?.clone().with_name("date".into()),
-        (income_statement.column("GrossProfit")? / income_statement.column("TotalRevenue")?)?.with_name("Gross Profit Margin".into()),
-        (income_statement.column("EBIT")? / income_statement.column("TotalRevenue")?)?.with_name("Operating Profit Margin".into()),
-        (income_statement.column("NetIncome")? / income_statement.column("TotalRevenue")?)?.with_name("Net Profit Margin".into()),
-        (income_statement.column("NetIncome")? / balance_sheet.column("TotalAssets")?)?.with_name("Return on Assets".into()),
-        (income_statement.column("NetIncome")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Return on Equity".into()),
-        (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?.with_name("Quick Ratio".into()),
-        (balance_sheet.column("CurrentAssets")? / balance_sheet.column("CurrentLiabilities")?)?.with_name("Current Ratio".into()),
-        (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Debt to Equity".into()),
-        (balance_sheet.column("TotalLiabilitiesNetMinorityInterest")? / balance_sheet.column("TotalAssets")?)?.with_name("Debt to Assets".into()),
-        (income_statement.column("EBIT")? / income_statement.column("InterestExpense").unwrap_or(&zero_series))?.with_name("Interest Coverage".into()),
-        (income_statement.column("TotalRevenue")? / balance_sheet.column("TotalAssets")?)?.with_name("Asset Turnover".into()),
-        (income_statement.column("CostOfRevenue")? / balance_sheet.column("Inventory")?)?.with_name("Inventory Turnover".into()),
-        ((balance_sheet.column("AccountsReceivable")? / income_statement.column("TotalRevenue")?)? * 365.0).with_name("Days Receivable".into()),
-        ((balance_sheet.column("Inventory")? / income_statement.column("CostOfRevenue")?)? * 365.0).with_name("Days Inventory".into()),
-        ((balance_sheet.column("AccountsPayable")? / income_statement.column("CostOfRevenue")?)? * 365.0).with_name("Days Payable".into()),
-        income_statement.column("DilutedEPS")?.clone().with_name("Earnings per Share".into()),
-        (balance_sheet.column("TotalCapitalization")? / income_statement.column("NetIncome")?)?.with_name("Price to Earnings".into()),
-        (balance_sheet.column("TotalCapitalization")? / balance_sheet.column("TotalEquityGrossMinorityInterest")?)?.with_name("Price to Book".into()),
-        (balance_sheet.column("TotalCapitalization")? / income_statement.column("TotalRevenue")?)?.with_name("Price to Sales".into()),
-        (balance_sheet.column("TotalCapitalization")? / cash_flow.column("OperatingCashFlow")?)?.with_name("Price to Cashflow".into()),
-        (balance_sheet.column("TotalCapitalization")? / cash_flow.column("FreeCashFlow")?)?.with_name("Price to Free Cashflow".into()),
+
+        safe_compute("Gross Profit Margin", len, || {
+            &col_or_empty(&income_statement, "GrossProfit")
+                / &col_or_empty(&income_statement, "TotalRevenue")
+        }),
+
+        safe_compute("Operating Profit Margin", len, || {
+            &col_or_empty(&income_statement, "EBIT")
+                / &col_or_empty(&income_statement, "TotalRevenue")
+        }),
+
+        safe_compute("Net Profit Margin", len, || {
+            &col_or_empty(&income_statement, "NetIncome")
+                / &col_or_empty(&income_statement, "TotalRevenue")
+        }),
+
+        safe_compute("Return on Assets", len, || {
+            &col_or_empty(&income_statement, "NetIncome")
+                / &col_or_empty(&balance_sheet, "TotalAssets")
+        }),
+
+        safe_compute("Return on Equity", len, || {
+            &col_or_empty(&income_statement, "NetIncome")
+                / &col_or_empty(&balance_sheet, "TotalEquityGrossMinorityInterest")
+        }),
+
+        safe_compute("Quick Ratio", len, || {
+            &col_or_empty(&balance_sheet, "CurrentAssets")
+                / &col_or_empty(&balance_sheet, "CurrentLiabilities")
+        }),
+
+        safe_compute("Current Ratio", len, || {
+            &col_or_empty(&balance_sheet, "CurrentAssets")
+                / &col_or_empty(&balance_sheet, "CurrentLiabilities")
+        }),
+
+        safe_compute("Debt to Equity", len, || {
+            &col_or_empty(&balance_sheet, "TotalLiabilitiesNetMinorityInterest")
+                / &col_or_empty(&balance_sheet, "TotalEquityGrossMinorityInterest")
+        }),
+
+        safe_compute("Debt to Assets", len, || {
+            &col_or_empty(&balance_sheet, "TotalLiabilitiesNetMinorityInterest")
+                / &col_or_empty(&balance_sheet, "TotalAssets")
+        }),
+
+        safe_compute("Interest Coverage", len, || {
+            &col_or_empty(&income_statement, "EBIT")
+                / &col_or_empty(&income_statement, "InterestExpense")
+        }),
+
+        safe_compute("Asset Turnover", len, || {
+            &col_or_empty(&income_statement, "TotalRevenue")
+                / &col_or_empty(&balance_sheet, "TotalAssets")
+        }),
+
+        safe_compute("Inventory Turnover", len, || {
+            &col_or_empty(&income_statement, "CostOfRevenue")
+                / &col_or_empty(&balance_sheet, "Inventory")
+        }),
+
+        safe_compute("Days Receivable", len, || {
+            &col_or_empty(&balance_sheet, "AccountsReceivable")
+                / &col_or_empty(&income_statement, "TotalRevenue")
+        }) * 365.0,
+
+        safe_compute("Days Inventory", len, || {
+            &col_or_empty(&balance_sheet, "Inventory")
+                / &col_or_empty(&income_statement, "CostOfRevenue")
+        }) * 365.0,
+
+        safe_compute("Days Payable", len, || {
+            &col_or_empty(&balance_sheet, "AccountsPayable")
+                / &col_or_empty(&income_statement, "CostOfRevenue")
+        }) * 365.0,
+
+        col_or_empty(&income_statement, "DilutedEPS").with_name("Earnings per Share".into()),
+
+        safe_compute("Price to Earnings", len, || {
+            &col_or_empty(&balance_sheet, "TotalCapitalization")
+                / &col_or_empty(&income_statement, "NetIncome")
+        }),
+
+        safe_compute("Price to Book", len, || {
+            &col_or_empty(&balance_sheet, "TotalCapitalization")
+                / &col_or_empty(&balance_sheet, "TotalEquityGrossMinorityInterest")
+        }),
+
+        safe_compute("Price to Sales", len, || {
+            &col_or_empty(&balance_sheet, "TotalCapitalization")
+                / &col_or_empty(&income_statement, "TotalRevenue")
+        }),
+
+        safe_compute("Price to Cashflow", len, || {
+            &col_or_empty(&balance_sheet, "TotalCapitalization")
+                / &col_or_empty(&cash_flow, "OperatingCashFlow")
+        }),
+
+        safe_compute("Price to Free Cashflow", len, || {
+            &col_or_empty(&balance_sheet, "TotalCapitalization")
+                / &col_or_empty(&cash_flow, "FreeCashFlow")
+        }),
     ];
 
     let df = DataFrame::new(ratios)?;
@@ -147,8 +247,12 @@ pub async fn financial_ratios(symbol: &str, frequency: StatementFrequency) -> Re
     Ok(transposed_df)
 }
 
-pub async fn income_statement(symbol: &str, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+pub async fn income_statement(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let income_statement = get_fundamentals(symbol, StatementType::IncomeStatement, frequency).await?;
+    
+    if formatted == Some(true) {
+        return Ok(income_statement);
+    }
 
     let mut ifrs_mapping = HashMap::new();
     ifrs_mapping.insert("TotalRevenue", "Revenue");
@@ -207,8 +311,12 @@ pub async fn income_statement(symbol: &str, frequency: StatementFrequency) -> Re
 /// # Returns
 ///
 /// * `DataFrame` - Formatted balance sheet
-pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let balance_sheet = get_fundamentals(symbol, StatementType::BalanceSheet, frequency).await?;
+    
+    if formatted == Some(true) {
+        return Ok(balance_sheet);
+    }
 
     let mut ifrs_mapping = HashMap::new();
 
@@ -288,8 +396,12 @@ pub async fn balance_sheet(symbol: &str, frequency: StatementFrequency) -> Resul
 /// # Returns
 ///
 /// * `DataFrame` - Formatted cash flow statement
-pub async fn cashflow_statement(symbol: &str, frequency: StatementFrequency) -> Result<DataFrame, Box<dyn Error>> {
+pub async fn cashflow_statement(symbol: &str, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
     let cash_flow = get_fundamentals(symbol, StatementType::CashFlowStatement, frequency).await?;
+    
+    if formatted == Some(true) {
+        return Ok(cash_flow);
+    }
 
     let mut ifrs_mapping = HashMap::new();
 

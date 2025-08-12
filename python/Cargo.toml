@@ -1,6 +1,6 @@
 [package]
 name = "finalytics-py"
-version = "0.8.4"
+version = "0.8.5"
 edition = "2021"
 readme = "README.md"
 
@@ -13,5 +13,5 @@ finalytics = { path = "../rust" }
 tokio = { version = "1.47.0", features = ["full"] }
 pyo3 = { version = "0.25.1", features = ["extension-module", "generate-import-lib"] }
 pyo3-polars = "0.22.0"
-plotly = "0.13.4"
+plotly = "0.13.5"
 chrono = "0.4.41"

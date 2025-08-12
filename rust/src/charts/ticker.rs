@@ -38,7 +38,7 @@ pub trait TickerCharts {
     fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
     fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
     fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
-    fn financials_tables(&self, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<FinancialsTables, Box<dyn Error>>>;
+    fn financials_tables(&self, frequency: StatementFrequency, formatted: Option<bool>) -> impl std::future::Future<Output = Result<FinancialsTables, Box<dyn Error>>>;
     fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<OptionsCharts, Box<dyn Error>>>;
     fn options_tables(&self) -> impl std::future::Future<Output = Result<OptionsTables, Box<dyn Error>>>;
     fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
@@ -69,7 +69,7 @@ impl TickerCharts for Ticker {
     /// * `Plot` Plotly Chart struct
     async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
         let data = self.get_chart().await?;
-        let x = data.column("timestamp")?.datetime()?.to_vec().iter().map(|x|
+        let x = data.column("timestamp")?.datetime()?.physical().to_vec().iter().map(|x|
             DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
         let x = x.iter().map(|x| x.to_string()).collect::<Vec<String>>();
         let open = data.column("open")?.f64()?.to_vec()
@@ -367,29 +367,29 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `FinancialsTables` - Financials Tables struct
-    async fn financials_tables(&self, frequency: StatementFrequency) -> Result<FinancialsTables, Box<dyn Error>> {
-        let data = self.get_financials(StatementType::IncomeStatement, frequency).await?;
+    async fn financials_tables(&self, frequency: StatementFrequency, formatted: Option<bool>) -> Result<FinancialsTables, Box<dyn Error>> {
+        let data = self.get_financials(StatementType::IncomeStatement, frequency, formatted).await?;
         let income_statement = data.to_datatable(
             &format!("{frequency}IncomeStatement"),
             false, 
             DataTableFormat::Currency
         );
 
-        let data = self.get_financials(StatementType::BalanceSheet, frequency).await?;
+        let data = self.get_financials(StatementType::BalanceSheet, frequency, formatted).await?;
         let balance_sheet = data.to_datatable(
             &format!("{frequency}BalanceSheet"),
             false, 
             DataTableFormat::Currency
         );
 
-        let data = self.get_financials(StatementType::CashFlowStatement, frequency).await?;
+        let data = self.get_financials(StatementType::CashFlowStatement, frequency, formatted).await?;
         let cashflow_statement = data.to_datatable(
             &format!("{frequency}CashFlowStatement"),
             false, 
             DataTableFormat::Currency
         );
 
-        let data = self.get_financials(StatementType::FinancialRatios, frequency).await?;
+        let data = self.get_financials(StatementType::FinancialRatios, frequency, formatted).await?;
         let financial_ratios = data.to_datatable(
             &format!("{frequency}FinancialRatios"),
             false, 
@@ -558,7 +558,7 @@ impl TickerCharts for Ticker {
 
         // Convert to Vec for plotting
         let dates = grouped.column("Published Date")?.datetime()?
-            .into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
+            .physical().into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
             .naive_local().date().to_string()).collect::<Vec<_>>();
         let scores = grouped.column("Average Sentiment Score")?.f64()?.into_no_null_iter().collect::<Vec<_>>();
         let counts = grouped.column("Number of Articles")?.u32()?.into_no_null_iter().collect::<Vec<_>>();

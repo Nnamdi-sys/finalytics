@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use polars::prelude::*;
-use rand::Rng;
 use std::error::Error;
 use std::ops::Mul;
 use smartcore::linalg::basic::arrays::{Array, Array2};
@@ -308,25 +307,6 @@ pub fn expected_shortfall(returns: &Series, confidence_level: f64) -> f64 {
     es
 }
 
-/// Generates random weights for a portfolio
-///
-/// # Arguments
-///
-/// * `num_assets` - Number of assets in the portfolio
-///
-/// # Returns
-///
-/// * `Vec<f64>` - Vector of random weights
-pub fn rand_weights(num_assets: usize) -> Vec<f64> {
-    let mut rng = rand::rng();
-    let weights = (0..num_assets)
-        .map(|_| rng.random_range(0.0..1.0))
-        .collect::<Vec<f64>>();
-    let sum: f64 = weights.iter().sum();
-    let result = weights.iter().map(|&x| x / sum).collect::<Vec<f64>>();
-    result
-}
-
 /// Computes the mean return of a portfolio
 ///
 /// # Arguments
@@ -337,7 +317,7 @@ pub fn rand_weights(num_assets: usize) -> Vec<f64> {
 /// # Returns
 ///
 /// * `f64` - Mean portfolio return
-pub fn mean_portfolio_return(weights: &Vec<f64>, mean_returns: &Vec<f64>) -> f64 {
+pub fn mean_portfolio_return(weights: &[f64], mean_returns: &Vec<f64>) -> f64 {
     let weights = Series::new("Weights".into(), weights);
     let mean_returns = Series::new("Mean Returns".into(), mean_returns);
     let weighted_returns = mean_returns.mul(weights).unwrap();
@@ -418,50 +398,6 @@ pub fn cumulative_returns_list(returns: Vec<f64>) -> Vec<f64> {
     }
 
     cumulative_returns
-}
-
-
-/// Filters the efficient frontier from all mean-variance points of a portfolio
-///
-/// # Arguments
-///
-/// * `points` - Mean-Variance points of the portfolio
-///
-/// # Returns
-///
-/// * `Vec<Vec<f64>>` - Efficient frontier points
-pub fn efficient_frontier_points(points: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
-    let mut efficient_frontier = Vec::new();
-    let mut min_risk = f64::MAX;
-
-    // Find the point with the lowest risk
-    for point in &points {
-        let risk = point[1];
-
-        if risk < min_risk {
-            min_risk = risk;
-        }
-    }
-
-    // Calculate the Sharpe ratio for the point with the lowest risk
-    let min_sharpe_ratio = points
-        .iter()
-        .find(|point| point[1] == min_risk)
-        .map(|point| point[0]/min_risk)
-        .unwrap_or(f64::MIN);
-
-    // Select points with a Sharpe ratio equal to or higher than the minimum Sharpe ratio
-    for point in &points {
-        let return_value = point[0];
-        let risk = point[1];
-        let sharpe_ratio = return_value/risk;
-
-        if sharpe_ratio >= min_sharpe_ratio {
-            efficient_frontier.push(vec![return_value, risk]);
-        }
-    }
-
-    efficient_frontier
 }
 
 /// Performs a non-zero linear interpolation on a vector of values

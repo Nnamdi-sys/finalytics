@@ -249,6 +249,7 @@ pub async fn get_options(symbol: &str) -> Result<Options, Box<dyn Error>> {
 ///
 /// * `statement_type` - StatementType
 /// * `frequency` - StatementFrequency
+/// * `formatted` - Optional boolean to return formatted values
 ///
 /// # Returns
 ///
@@ -256,12 +257,13 @@ pub async fn get_options(symbol: &str) -> Result<Options, Box<dyn Error>> {
 pub async fn get_financials(
     symbol: &str,
     statement_type: StatementType,
-    frequency: StatementFrequency
+    frequency: StatementFrequency,
+    formatted: Option<bool>
 ) -> Result<DataFrame, Box<dyn Error>> {
     let df = match statement_type {
-        StatementType::IncomeStatement => { income_statement(symbol, frequency).await? }
-        StatementType::BalanceSheet => { balance_sheet(symbol, frequency).await? }
-        StatementType::CashFlowStatement => { cashflow_statement(symbol, frequency).await? }
+        StatementType::IncomeStatement => { income_statement(symbol, frequency, formatted).await? }
+        StatementType::BalanceSheet => { balance_sheet(symbol, frequency, formatted).await? }
+        StatementType::CashFlowStatement => { cashflow_statement(symbol, frequency, formatted).await? }
         StatementType::FinancialRatios => { financial_ratios(symbol, frequency).await? }
     };
     Ok(df)

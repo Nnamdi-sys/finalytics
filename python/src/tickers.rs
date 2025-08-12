@@ -144,15 +144,17 @@ impl PyTickers {
     /// # Arguments
     ///
     /// * `frequency` - `str` - The frequency of the income statement (e.g., "quarterly", "annual")
+    /// * `formatted` - `Optional[bool]` - Whether to return the statement in a formatted manner (default is True)
     ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the income statement data for all tickers
-    pub fn get_income_statement(&self, frequency: &str) -> PyDataFrame {
+    #[pyo3(signature = (frequency, formatted=None))]
+    pub fn get_income_statement(&self, frequency: &str, formatted: Option<bool>) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.get_financials(StatementType::IncomeStatement, frequency)
+                self.tickers.get_financials(StatementType::IncomeStatement, frequency, formatted)
             ).unwrap();
             PyDataFrame(df)
         })
@@ -163,15 +165,17 @@ impl PyTickers {
     /// # Arguments
     ///
     /// * `frequency` - `str` - The frequency of the balance sheet (e.g., "quarterly", "annual")
+    /// * `formatted` - `Optional[bool]` - Whether to return the statement in a formatted manner (default is True)
     ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the balance sheet data for all tickers
-    pub fn get_balance_sheet(&self, frequency: &str) -> PyDataFrame {
+    #[pyo3(signature = (frequency, formatted=None))]
+    pub fn get_balance_sheet(&self, frequency: &str, formatted: Option<bool>) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.get_financials(StatementType::BalanceSheet, frequency)
+                self.tickers.get_financials(StatementType::BalanceSheet, frequency, formatted)
             ).unwrap();
             PyDataFrame(df)
         })
@@ -182,15 +186,17 @@ impl PyTickers {
     /// # Arguments
     ///
     /// * `frequency` - `str` - The frequency of the cash flow statement (e.g., "quarterly", "annual")
+    /// * `formatted` - `Optional[bool]` - Whether to return the statement in a formatted manner (default is True)
     ///
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame containing the cash flow statement data for all tickers
-    pub fn get_cashflow_statement(&self, frequency: &str) -> PyDataFrame {
+    #[pyo3(signature = (frequency, formatted=None))]
+    pub fn get_cashflow_statement(&self, frequency: &str, formatted: Option<bool>) -> PyDataFrame {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.get_financials(StatementType::CashFlowStatement, frequency)
+                self.tickers.get_financials(StatementType::CashFlowStatement, frequency, formatted)
             ).unwrap();
             PyDataFrame(df)
         })
@@ -209,7 +215,7 @@ impl PyTickers {
         task::block_in_place(move || {
             let frequency = StatementFrequency::from_str(frequency).unwrap();
             let df = tokio::runtime::Runtime::new().unwrap().block_on(
-                self.tickers.get_financials(StatementType::FinancialRatios, frequency)
+                self.tickers.get_financials(StatementType::FinancialRatios, frequency, None)
             ).unwrap();
             PyDataFrame(df)
         })

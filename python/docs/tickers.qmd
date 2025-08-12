@@ -119,6 +119,7 @@ Fetch the income statement for all tickers.
 **Parameters:**
 
 - `frequency` (str): The frequency of the data (annual or quarterly).
+- `formatted` (optional[bool]): Whether to return the data in a formatted manner, defaults to True.
 
 **Returns:**
 
@@ -140,6 +141,7 @@ Fetch the balance sheet for all tickers.
 **Parameters:**
 
 - `frequency` (str): The frequency of the data (annual or quarterly).
+- `formatted` (optional[bool]): Whether to return the data in a formatted manner, defaults to True.
 
 **Returns:**
 
@@ -161,6 +163,7 @@ Fetch the cash flow statement for all tickers.
 **Parameters:**
 
 - `frequency` (str): The frequency of the data (annual or quarterly).
+- `formatted` (optional[bool]): Whether to return the data in a formatted manner, defaults to True.
 
 **Returns:**
 
@@ -309,7 +312,13 @@ Optimizes the tickers given the objective function and constraints.
 
 **Parameters:**
 
-- `objective_function` (Optional[str]): The objective function for optimization.
+- `objective_function` (Optional[str]): The objective function for optimization:
+  - `max_sharpe`: Maximize return per unit of risk.
+  - `min_vol`: Minimize overall volatility.
+  - `max_return`: Maximize expected return.
+  - `min_var`: Minimize Value-at-Risk (VaR).
+  - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR).
+  - `min_drawdown`: Minimize maximum portfolio drawdown.
 - `constraints` (Optional[List[Tuple[float, float]]]): List of constraints for optimization.
 - `weights` (Optional[List[float]]): Weights for asset allocation. If provided, overrides the optimization process.
 

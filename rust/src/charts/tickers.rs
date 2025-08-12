@@ -35,7 +35,7 @@ impl TickersCharts for Tickers {
     /// Display a Performance Stats Table for all tickers in the Tickers Struct
     async fn performance_stats_table(&self) -> Result<DataTable, Box<dyn Error>> {
         let stats = self.performance_stats().await?;
-        let table = stats.to_datatable("performance_stats", true, DataTableFormat::Performance);
+        let table = stats.to_datatable("performance_stats", true, DataTableFormat::Performance("tickers".to_string()));
         Ok(table)
     }
 

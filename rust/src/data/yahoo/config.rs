@@ -772,7 +772,9 @@ impl FromStr for StatementType {
             "balance-sheet" => Ok(StatementType::BalanceSheet),
             "cash-flow" => Ok(StatementType::CashFlowStatement),
             "financial-ratios" => Ok(StatementType::FinancialRatios),
-            _ => Err(format!("StatementType '{s}' not implemented")),
+            _ => Err(format!("StatementType '{s}' not implemented. \
+            Accepted values are 'income-statement', 'balance-sheet', \
+            'cash-flow', or 'financial-ratios'")),
         }
     }
 }
@@ -794,13 +796,14 @@ impl fmt::Display for StatementFrequency {
 }
 
 impl FromStr for StatementFrequency {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "annual" => Ok(StatementFrequency::Annual),
             "quarterly" => Ok(StatementFrequency::Quarterly),
-            _ => Err(()), 
+            _ => Err(format!("Frequency {s} is not implemented. \
+            Accepted values are 'annual' or 'quarterly'")), 
         }
     }
 }

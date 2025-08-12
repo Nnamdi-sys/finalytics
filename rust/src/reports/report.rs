@@ -62,8 +62,8 @@ impl Report for Ticker {
                 TabbedHtml::new(report_type, tabs)
             }
             ReportType::Financials => {
-                let annual_financials = self.financials_tables(StatementFrequency::Annual).await?;
-                let quarterly_financials = self.financials_tables(StatementFrequency::Quarterly).await?;
+                let annual_financials = self.financials_tables(StatementFrequency::Annual, None).await?;
+                let quarterly_financials = self.financials_tables(StatementFrequency::Quarterly, None).await?;
                 let tabs: Vec<(String, String)> = vec![
                     ("Quarterly Income Statement".to_string(), quarterly_financials.income_statement.to_html()?),
                     ("Annual Income Statement".to_string(), annual_financials.income_statement.to_html()?),

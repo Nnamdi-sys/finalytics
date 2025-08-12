@@ -10,7 +10,7 @@ pub trait TickerData {
     fn get_ticker_stats(&self) -> impl std::future::Future<Output = Result<TickerSummaryStats, Box<dyn Error>>>;
     fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
     fn get_options(&self) -> impl std::future::Future<Output = Result<Options, Box<dyn Error>>>;
-    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency, formatted: Option<bool>) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
     fn get_news(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
 
@@ -46,9 +46,10 @@ impl TickerData for Ticker {
     async fn get_financials(
         &self,
         statement_type: StatementType,
-        frequency: StatementFrequency
+        frequency: StatementFrequency,
+        formatted: Option<bool>
     ) -> Result<DataFrame, Box<dyn Error>> {
-        yahoo::api::get_financials(&self.ticker, statement_type, frequency).await
+        yahoo::api::get_financials(&self.ticker, statement_type, frequency, formatted).await
     }
 
     /// Returns Ticker News from Google Web Search

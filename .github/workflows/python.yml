@@ -76,7 +76,7 @@ jobs:
 
   release:
     name: Publish to PyPI
-    if: startsWith(github.ref, 'refs/tags/') #nb: comment this line to release to pypi
+    #if: startsWith(github.ref, 'refs/tags/') #nb: comment this line to release to pypi
     needs: [build, sdist]
     runs-on: ubuntu-latest
     steps:
