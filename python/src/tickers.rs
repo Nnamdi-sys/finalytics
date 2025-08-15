@@ -348,15 +348,31 @@ impl PyTickers {
     ///
     /// # Arguments
     ///
-    /// * `objective_function` - `optional str` - The objective function to optimize the portfolio ("max_sharpe", "min_vol", "max_return", "min_drawdown", "min_var", "min_cvar")
-    /// * `constraints` - `optional List[Tuple[float, float]]` - A list of tuples representing the constraints for the optimization (e.g., [(0.1, 0.5), (0.2, 0.8)])
+    /// * `objective_function` - `optional str` - The objective function to use in the optimization:
+    ///     - `max_sharpe`: Maximize return per unit of volatility (Sharpe ratio)
+    ///     - `max_sortino`: Maximize return per unit of downside risk (Sortino ratio)
+    ///     - `min_vol`: Minimize total portfolio volatility
+    ///     - `max_return`: Maximize expected portfolio return
+    ///     - `min_var`: Minimize Value-at-Risk (VaR)
+    ///     - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR)
+    ///     - `min_drawdown`: Minimize maximum portfolio drawdown
+    /// * `asset_constraints` - `optional List[Tuple[float, float]]` - A list of tuples representing the constraints for the optimization (e.g., [(0.1, 0.5), (0.2, 0.8)])
+    /// * `categorical_constraints` - `list` - list of tuples defining category-based constraints.
+    ///     Each tuple has the form `(category_name: str, category_per_symbol: list[str], weight_per_category: list[tuple[str, float, float]])`
+    ///     where:
+    ///       - `category_name` is the name of the constraint group (e.g., "AssetClass")
+    ///       - `category_per_symbol` assigns each ticker to a category (in the same order as `ticker_symbols`)
+    ///       - `weight_per_category` contains tuples of `(category_label, min_weight, max_weight)`
     /// * `weights` - `optional List[float]` - A list of weights for the tickers in the portfolio (if provided, will use these weights instead of optimizing)
     ///
     /// # Returns
     ///
     /// `Portfolio` - A Portfolio object containing the optimized portfolio
-    #[pyo3(signature = (objective_function=None, constraints=None, weights=None))]
-    pub fn optimize(&self, objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>, weights: Option<Vec<f64>>) -> PyPortfolio {
+    #[allow(clippy::type_complexity)]
+    #[pyo3(signature = (objective_function=None, asset_constraints=None, categorical_constraints=None, weights=None))]
+    pub fn optimize(&self, objective_function: Option<String>, asset_constraints: Option<Vec<(f64, f64)>>,
+                    categorical_constraints: Option<Vec<(String, Vec<String>, Vec<(String, f64, f64)>)>>,
+                    weights: Option<Vec<f64>>) -> PyPortfolio {
         PyPortfolio::new(
             self.tickers.tickers.clone().iter().map(|x| x.ticker.to_string()).collect(),
             Some(self.tickers.benchmark_symbol.clone()),
@@ -366,7 +382,8 @@ impl PyTickers {
             Some(self.tickers.confidence_level),
             Some(self.tickers.risk_free_rate),
             objective_function,
-            constraints,
+            asset_constraints,
+            categorical_constraints,
             weights,
             None,
             None,

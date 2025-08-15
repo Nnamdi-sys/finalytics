@@ -46,6 +46,10 @@ pub async fn get_portfolio_charts(
     weights: Option<Vec<f64>>,
 ) -> Result<PortfolioTabs, ServerFnError<String>> {
     let report_html = tokio::task::spawn_blocking(move || {
+        let constraints = Constraints {
+            asset_weights: constraints,
+            categorical_weights: None
+        };
         let rt = tokio::runtime::Handle::current();
 
         rt.block_on(async {
@@ -58,13 +62,13 @@ pub async fn get_portfolio_charts(
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
                 .objective_function(ObjectiveFunction::from_str(&objective_function).unwrap())
-                .constraints(constraints.clone())
+                .constraints(Some(constraints.clone()))
                 .weights(weights.clone())
                 .build()
                 .await
                 .map_err(|e| format!("PortfolioBuilder error: {e}"))?;
 
-            let optimization_chart = if constraints.is_some() || weights.is_none() {
+            let optimization_chart = if constraints.asset_weights.is_some() || weights.is_none() {
                 Some(
                     portfolio
                         .optimization_chart(None, None)

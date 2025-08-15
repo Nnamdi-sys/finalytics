@@ -319,7 +319,12 @@ Optimizes the tickers given the objective function and constraints.
   - `min_var`: Minimize Value-at-Risk (VaR).
   - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR).
   - `min_drawdown`: Minimize maximum portfolio drawdown.
-- `constraints` (Optional[List[Tuple[float, float]]]): List of constraints for optimization.
+- `asset_constraints` (Optional[List[Tuple[float, float]]]): List of tuples with the lower and upper bounds for the ticker weights.
+- `categorical_constraints` (Optional[List[Tuple[str, List[str], List[Tuple[str, float, float]]]]]): Category-based constraints.
+  Each tuple has the form:
+  - `category_name` (str): Name of the constraint group (e.g., `"AssetClass"`).
+  - `category_per_symbol` (List[str]): Assigns each ticker to a category, in the same order as `ticker_symbols`.
+  - `weight_per_category` (List[Tuple[str, float, float]]): Tuples of `(category_label, min_weight, max_weight)` specifying bounds for each category.
 - `weights` (Optional[List[float]]): Weights for asset allocation. If provided, overrides the optimization process.
 
 **Returns:**
@@ -329,7 +334,7 @@ Optimizes the tickers given the objective function and constraints.
 **Example:**
 
 ```{python}
-portfolio = tickers.optimize(objective_function="max_sharpe", constraints=[(0, 1), (0, 1), (0, 1), (0, 1), (0,1)])
+portfolio = tickers.optimize(objective_function="max_sharpe")
 portfolio.performance_chart().show()
 ```
 </details>

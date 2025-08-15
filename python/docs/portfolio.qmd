@@ -31,7 +31,12 @@ Create a new Portfolio object.
   - `min_var`: Minimize Value-at-Risk (VaR).
   - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR).
   - `min_drawdown`: Minimize maximum portfolio drawdown.
-- `constraints` (Optional[List[Tuple[float, float]]]): Constraints for optimization.
+- `asset_constraints` (Optional[List[Tuple[float, float]]]): List of tuples with the lower and upper bounds for the ticker weights.
+- `categorical_constraints` (Optional[List[Tuple[str, List[str], List[Tuple[str, float, float]]]]]): Category-based constraints.
+  Each tuple has the form:
+  - `category_name` (str): Name of the constraint group (e.g., `"AssetClass"`).
+  - `category_per_symbol` (List[str]): Assigns each ticker to a category, in the same order as `ticker_symbols`.
+  - `weight_per_category` (List[Tuple[str, float, float]]): Tuples of `(category_label, min_weight, max_weight)` specifying bounds for each category.
 - `weights` (Optional[List[float]]): Weights for the assets in the portfolio. If provided, it will override the optimization process.
 
 **Returns:**
@@ -43,15 +48,24 @@ Create a new Portfolio object.
 ```{python}
 from finalytics import Portfolio
 
-portfolio = Portfolio(ticker_symbols=["AAPL", "GOOG", "MSFT", "NVDA", "BTC-USD"],
-                      benchmark_symbol="^GSPC",
-                      start_date="2020-01-01",
-                      end_date="2024-01-01",
-                      interval="1d",
-                      confidence_level=0.95,
-                      risk_free_rate=0.02,
-                      objective_function="max_sharpe",
-                      constraints=[(0, 1), (0, 1), (0, 1), (0, 1), (0,1)])
+portfolio = Portfolio(
+    ticker_symbols=["AAPL", "GOOG", "MSFT", "NVDA", "BTC-USD"],
+    benchmark_symbol="^GSPC",
+    start_date="2020-01-01",
+    end_date="2024-01-01",
+    interval="1d",
+    confidence_level=0.95,
+    risk_free_rate=0.02,
+    objective_function="max_sharpe",
+    asset_constraints=[(0, 1), (0, 1), (0, 1), (0, 1), (0, 1)],
+    categorical_constraints=[
+        (
+            "AssetClass",
+            ["EQUITY", "EQUITY", "EQUITY", "EQUITY", "CRYPTO"],
+            [("EQUITY", 0.0, 0.8), ("CRYPTO", 0.0, 0.2)]
+        )
+    ]
+)
 ```
 </details>
 

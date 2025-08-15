@@ -108,6 +108,8 @@ pub mod prelude {
     pub use crate::models::screener::Screener;
     pub use crate::reports::table::DataTable;
     pub use crate::utils::date_utils::IntervalDays;
+    pub use crate::analytics::optimization::Constraints;
+    pub use crate::analytics::optimization::CategoricalWeights;
 
 
     // Enums
@@ -118,28 +120,6 @@ pub mod prelude {
     pub use crate::analytics::optimization::ObjectiveFunction;
     pub use crate::reports::table::DataTableFormat;
     pub use crate::reports::report::ReportType;
-    pub use strum::{EnumProperty, VariantNames, IntoEnumIterator, VariantArray, VariantIterator};
-    
-    // Screeners
-    pub use crate::data::yahoo::screeners::{
-        QuoteType, 
-        ScreenerBuilder,
-        ScreenerFilter, 
-        ScreenerMetric, 
-        CryptoScreener, 
-        EquityScreener, 
-        EtfScreener, 
-        IndexScreener, 
-        MutualFundScreener, 
-        FutureScreener,
-        Sector,
-        Industry,
-        Region,
-        Exchange,
-        PeerGroup,
-        FundFamily,
-        FundCategory
-    };
     
     // Traits
     pub use crate::data::ticker::TickerData;
@@ -154,6 +134,34 @@ pub mod prelude {
     pub use crate::reports::report::Report;
     #[cfg(feature = "kaleido")]
     pub use crate::utils::chart_utils::PlotImage;
+
+    // Strum
+    pub use strum::{EnumProperty,
+                    VariantNames,
+                    IntoEnumIterator,
+                    VariantArray,
+                    VariantIterator};
+
+    // Screeners
+    pub use crate::data::yahoo::screeners::{
+        QuoteType,
+        ScreenerBuilder,
+        ScreenerFilter,
+        ScreenerMetric,
+        CryptoScreener,
+        EquityScreener,
+        EtfScreener,
+        IndexScreener,
+        MutualFundScreener,
+        FutureScreener,
+        Sector,
+        Industry,
+        Region,
+        Exchange,
+        PeerGroup,
+        FundFamily,
+        FundCategory
+    };
 }
 
 

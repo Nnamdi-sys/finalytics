@@ -18,8 +18,21 @@ use crate::ffi::rust_plot_to_py_plot;
 /// * `interval` - `str` - The interval of the data (2m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo, 3mo)
 /// * `confidence_level` - `float` - The confidence level for the VaR and ES calculations
 /// * `risk_free_rate` - `float` - The risk-free rate to use in the calculations
-/// * `objective_function` - `str` - The objective function to use in the optimization (max_sharpe, min_vol, max_return, nin_var, min_cvar, min_drawdown)
-/// * `constraints` - `list` - list of tuples with the lower and upper bounds for the weights
+/// * `objective_function` - `str` - The objective function to use in the optimization:
+///     - `max_sharpe`: Maximize return per unit of volatility (Sharpe ratio)
+///     - `max_sortino`: Maximize return per unit of downside risk (Sortino ratio)
+///     - `min_vol`: Minimize total portfolio volatility
+///     - `max_return`: Maximize expected portfolio return
+///     - `min_var`: Minimize Value-at-Risk (VaR)
+///     - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR)
+///     - `min_drawdown`: Minimize maximum portfolio drawdown
+/// * `asset_constraints` - `list` - list of tuples with the lower and upper bounds for the ticker weights
+/// * `categorical_constraints` - `list` - list of tuples defining category-based constraints.
+///     Each tuple has the form `(category_name: str, category_per_symbol: list[str], weight_per_category: list[tuple[str, float, float]])`
+///     where:
+///       - `category_name` is the name of the constraint group (e.g., "AssetClass")
+///       - `category_per_symbol` assigns each ticker to a category (in the same order as `ticker_symbols`)
+///       - `weight_per_category` contains tuples of `(category_label, min_weight, max_weight)`
 /// * `weights` - `list` - weights for the assets in the portfolio, if provided, it will override the optimization process
 ///
 /// # Optional Arguments (For Custom Data)
@@ -44,10 +57,14 @@ use crate::ffi::rust_plot_to_py_plot;
 ///                                  interval = "1d",
 ///                                  confidence_level = 0.95,
 ///                                  risk_free_rate = 0.02,
-///                                  max_iterations = 1000,
 ///                                  objective_function = "max_sharpe",
-///                                  constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5),
-/// ///                              weights = None)
+///                                  asset_constraints = [(0.0, 0.5), (0.0, 0.5), (0.0, 0.5), (0.0, 0.5),
+///                                  categorical_constraints=[(
+    ///                                  "AssetClass",
+    ///                                  ["EQUITY", "EQUITY", "EQUITY", "FIXED INCOME"],
+    ///                                  [("EQUITY", 0.0, 0.8), ("FIXED INCOME", 0.0, 0.2)]
+///                                  )],
+///                                  weights = None)
 /// ```
 #[pyclass]
 #[pyo3(name = "Portfolio")]
@@ -60,13 +77,16 @@ impl PyPortfolio {
     #[new]
     #[pyo3(signature = (
     ticker_symbols, benchmark_symbol=None, start_date=None, end_date=None, interval=None,
-    confidence_level=None, risk_free_rate=None, objective_function=None, constraints=None, 
-    weights=None, tickers_data=None, benchmark_data=None))]
+    confidence_level=None, risk_free_rate=None, objective_function=None, asset_constraints=None,
+    categorical_constraints=None, weights=None, tickers_data=None, benchmark_data=None))]
     #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::type_complexity)]
     pub fn new(ticker_symbols: Vec<String>, benchmark_symbol: Option<String>, start_date: Option<String>, end_date: Option<String>,
                interval: Option<String>, confidence_level: Option<f64>, risk_free_rate: Option<f64>,
-               objective_function: Option<String>, constraints: Option<Vec<(f64, f64)>>, weights: Option<Vec<f64>>,
-               tickers_data: Option<Vec<PyDataFrame>>, benchmark_data: Option<PyDataFrame>) -> Self {
+               objective_function: Option<String>, asset_constraints: Option<Vec<(f64, f64)>>,
+               categorical_constraints: Option<Vec<(String, Vec<String>, Vec<(String, f64, f64)>)>>,
+               weights: Option<Vec<f64>>, tickers_data: Option<Vec<PyDataFrame>>,
+               benchmark_data: Option<PyDataFrame>) -> Self {
         let ticker_symbols: Vec<&str> = ticker_symbols.iter().map(|x| x.as_str()).collect();
         let tickers_data = tickers_data.map(|data: Vec<PyDataFrame>| {
             ticker_symbols.clone().into_iter().zip(data).map(|(symbol, df)| {
@@ -80,6 +100,18 @@ impl PyPortfolio {
         let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let interval = Interval::from_str(&interval.unwrap_or("1d".to_string())).unwrap();
         let objective_function = ObjectiveFunction::from_str(&objective_function.unwrap_or("max_sharpe".to_string())).unwrap();
+        let constraints = Constraints {
+            asset_weights: asset_constraints,
+            categorical_weights: categorical_constraints.map(|cats| {
+                cats.into_iter()
+                    .map(|(name, category_per_symbol, weight_per_category)| CategoricalWeights {
+                        name,
+                        category_per_symbol,
+                        weight_per_category,
+                    })
+                    .collect()
+            }),
+        };
         task::block_in_place(move || {
             let portfolio = tokio::runtime::Runtime::new().unwrap().block_on(
                 Portfolio::builder()
@@ -91,7 +123,7 @@ impl PyPortfolio {
                     .confidence_level(confidence_level.unwrap_or(0.95))
                     .risk_free_rate(risk_free_rate.unwrap_or(0.02))
                     .objective_function(objective_function)
-                    .constraints(constraints)
+                    .constraints(Some(constraints))
                     .weights(weights)
                     .tickers_data(tickers_data)
                     .benchmark_data(benchmark_data)
@@ -122,6 +154,7 @@ impl PyPortfolio {
                 py_dict.set_item("benchmark_returns", PySeries(self.portfolio.performance_stats.benchmark_returns.clone())).unwrap();
                 py_dict.set_item("objective_function", match self.portfolio.performance_stats.objective_function{
                     ObjectiveFunction::MaxSharpe => "Maximize Sharpe Ratio",
+                    ObjectiveFunction::MaxSortino => "Maximize Sortino Ratio",
                     ObjectiveFunction::MinVol => "Minimize Volatility",
                     ObjectiveFunction::MaxReturn => "Maximize Return",
                     ObjectiveFunction::MinDrawdown => "Minimize Drawdown",
@@ -129,8 +162,8 @@ impl PyPortfolio {
                     ObjectiveFunction::MinCVaR => "Minimize Expected Shortfall",
                 }).unwrap();
                 py_dict.set_item("optimization_method", self.portfolio.performance_stats.optimization_method.clone()).unwrap();
-                py_dict.set_item("constraints", self.portfolio.performance_stats.constraints.clone()).unwrap();
                 py_dict.set_item("optimal_weights", self.portfolio.performance_stats.optimal_weights.clone()).unwrap();
+                py_dict.set_item("category_weights", self.portfolio.performance_stats.category_weights.clone()).unwrap();
                 py_dict.set_item("optimal_portfolio_returns", PySeries(self.portfolio.performance_stats.optimal_portfolio_returns.clone())).unwrap();
                 py_dict.set_item("Daily Return", self.portfolio.performance_stats.performance_stats.daily_return).unwrap();
                 py_dict.set_item("Daily Volatility", self.portfolio.performance_stats.performance_stats.daily_volatility).unwrap();

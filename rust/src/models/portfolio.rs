@@ -1,6 +1,6 @@
 use std::error::Error;
 use crate::prelude::{Interval, Tickers, KLINE};
-use crate::analytics::optimization::ObjectiveFunction;
+use crate::analytics::optimization::{Constraints, ObjectiveFunction};
 use crate::analytics::performance::PortfolioPerformanceStats;
 
 pub struct PortfolioBuilder {
@@ -12,7 +12,7 @@ pub struct PortfolioBuilder {
     pub confidence_level: f64,
     pub risk_free_rate: f64,
     pub objective_function: ObjectiveFunction,
-    pub constraints: Option<Vec<(f64, f64)>>,
+    pub constraints: Option<Constraints>,
     pub weights: Option<Vec<f64>>,
     pub tickers_data: Option<Vec<KLINE>>,
     pub benchmark_data: Option<KLINE>,
@@ -84,7 +84,7 @@ impl PortfolioBuilder {
         self
     }
 
-    pub fn constraints(mut self, constraints: Option<Vec<(f64, f64)>>) -> PortfolioBuilder {
+    pub fn constraints(mut self, constraints: Option<Constraints>) -> PortfolioBuilder {
         self.constraints = constraints;
         self
     }
@@ -153,7 +153,14 @@ impl PortfolioBuilder {
 /// async fn main() -> Result<(), Box<dyn Error>> {
 ///    // Construct the Portfolio Object
 ///     let ticker_symbols = Vec::from(["NVDA", "AAPL", "MSFT", "BTC-USD"]);
-///     let constraints = Some(vec![(0.0, 1.0); ticker_symbols.len()]);
+///     let constraints = Constraints {
+///         asset_weights: None,
+///         categorical_weights: Some(vec![CategoricalWeights {
+///         name: "Asset Class".to_string(),
+///         category_per_symbol: vec!["EQUITY".to_string(), "EQUITY".to_string(), "EQUITY".to_string(), "CRYPTO".to_string()],
+///         weight_per_category: vec![("EQUITY".to_string(), 0.2, 0.8), ("CRYPTO".to_string(), 0.0, 0.2)],
+///         }]),
+///      };
 ///     let portfolio = Portfolio::builder().ticker_symbols(ticker_symbols)
 ///                                             .benchmark_symbol("^GSPC")
 ///                                             .start_date("2023-01-01")
@@ -162,7 +169,7 @@ impl PortfolioBuilder {
 ///                                             .confidence_level(0.95)
 ///                                             .risk_free_rate(0.02)
 ///                                             .objective_function(ObjectiveFunction::MaxSharpe)
-///                                             .constraints(constraints)
+///                                             .constraints(Some(constraints))
 ///                                             .build().await?;
 ///
 ///    // Display Portfolio Performance Report

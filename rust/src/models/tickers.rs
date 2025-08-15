@@ -1,6 +1,6 @@
 use std::error::Error;
 use crate::analytics::performance::PortfolioPerformanceStats;
-use crate::prelude::{Interval, ObjectiveFunction, Portfolio, Ticker, KLINE};
+use crate::prelude::{Constraints, Interval, ObjectiveFunction, Portfolio, Ticker, KLINE};
 
 
 pub struct TickersBuilder {
@@ -172,7 +172,7 @@ impl Tickers {
     /// - A `Portfolio` Struct
     pub async fn optimize(&self,
                           objective_function: Option<ObjectiveFunction>,
-                          constraints: Option<Vec<(f64, f64)>>,
+                          constraints: Option<Constraints>,
                           weights: Option<Vec<f64>>) -> Result<Portfolio, Box<dyn Error>> {
         let objective_function = objective_function.unwrap_or(ObjectiveFunction::MaxSharpe);
         let performance_stats = PortfolioPerformanceStats::performance_stats(

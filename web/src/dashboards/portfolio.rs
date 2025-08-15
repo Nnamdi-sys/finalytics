@@ -332,8 +332,9 @@ pub fn Portfolio() -> Element {
                                 required: true,
                                 value: "{objective_function}",
                                 option { value: "max_sharpe", "Max Sharpe" }
-                                option { value: "min_vol", "Min Volatility" }
+                                option { value: "max_sortino", "Max Sortino" }
                                 option { value: "max_return", "Max Return" }
+                                option { value: "min_vol", "Min Volatility" }
                                 option { value: "min_var", "Min VaR" }
                                 option { value: "min_cvar", "Min CVaR" }
                                 option { value: "min_drawdown", "Min Drawdown" }

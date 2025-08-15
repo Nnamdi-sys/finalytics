@@ -2,7 +2,7 @@ use polars::prelude::*;
 use std::error::Error;
 use chrono::{DateTime, NaiveDateTime};
 use crate::analytics::technicals::TechnicalIndicators;
-use crate::analytics::optimization::{ObjectiveFunction, portfolio_optimization};
+use crate::analytics::optimization::{ObjectiveFunction, portfolio_optimization, Constraints, filter_constraints};
 use crate::analytics::statistics::{PerformanceStats, covariance_matrix, daily_portfolio_returns};
 use crate::prelude::{Column, TickersData, IntervalDays, Tickers, Ticker};
 use crate::utils::date_utils::interval_days;
@@ -96,8 +96,9 @@ pub struct PortfolioPerformanceStats {
     pub benchmark_returns: Series,
     pub objective_function: ObjectiveFunction,
     pub optimization_method: String,
-    pub constraints: Vec<(f64, f64)>,
+    pub constraints: Constraints,
     pub optimal_weights: Vec<f64>,
+    pub category_weights: Option<Vec<(String, String, f64)>>,
     pub optimal_portfolio_returns: Series,
     pub performance_stats: PerformanceStats,
     pub efficient_frontier: Option<Vec<Vec<f64>>>,
@@ -119,7 +120,7 @@ impl PortfolioPerformanceStats {
         confidence_level: f64,
         risk_free_rate: f64,
         objective_function: ObjectiveFunction,
-        constraints: Option<Vec<(f64, f64)>>,
+        constraints: Option<Constraints>,
         weights: Option<Vec<f64>>,
     ) -> Result<PortfolioPerformanceStats, Box<dyn Error>> {
         let ticker_symbols = tickers.tickers.clone().iter().map(|x| x.ticker.clone()).collect::<Vec<String>>();
@@ -156,18 +157,7 @@ impl PortfolioPerformanceStats {
 
         let fetched_symbols = portfolio_returns.get_column_names().iter().map(|x| x.to_string()).collect::<Vec<String>>();
 
-        let constraints = match &constraints {
-            Some(c) => {
-                let symbols = ticker_symbols.clone();
-                let constraints = c.iter()
-                    .zip(symbols.iter())
-                    .filter(|(_, symbol)| fetched_symbols.contains(&symbol.to_string()))
-                    .map(|(x, _)| *x)
-                    .collect::<Vec<(f64, f64)>>();
-                constraints
-            }
-            None => vec![(0.0, 1.0); fetched_symbols.len()]
-        };
+        let constraints = filter_constraints(constraints.clone(), ticker_symbols.clone(), fetched_symbols.clone());
 
         let mean_returns = portfolio_returns
             .clone()
@@ -182,7 +172,7 @@ impl PortfolioPerformanceStats {
             .collect::<Vec<f64>>();
         let cov_matrix = covariance_matrix(&portfolio_returns)?;
 
-        let (efficient_frontier, optimal_weights) = if let Some(weights) = weights {
+        let (efficient_frontier, optimal_weights, category_weights) = if let Some(weights) = weights {
             // If weights are provided, use them directly
             if weights.len() != fetched_symbols.len() {
                 let fetched_symbols_set: std::collections::HashSet<_> = fetched_symbols.iter().collect();
@@ -200,12 +190,12 @@ impl PortfolioPerformanceStats {
             if weights.iter().sum::<f64>() != 1.0 {
                 return Err(Box::from("Weights must sum to 1.0"));
             }
-            (None, weights)
+            (None, weights, None)
         } else {
             // If no weights are provided, use the optimization method to find optimal weights
             let opt_result = portfolio_optimization(&mean_returns, &cov_matrix, &portfolio_returns, risk_free_rate,
                                                      confidence_level, objective_function, constraints.clone());
-            (Some(opt_result.efficient_frontier), opt_result.optimal_weights)
+            (Some(opt_result.efficient_frontier), opt_result.optimal_weights, Some(opt_result.category_weights))
         };
 
         let daily_portfolio_returns = daily_portfolio_returns(&optimal_weights, &portfolio_returns);
@@ -227,9 +217,10 @@ impl PortfolioPerformanceStats {
             portfolio_returns: portfolio_returns.clone(),
             benchmark_returns: benchmark_returns.clone(),
             objective_function,
-            optimization_method: "Simple Gradient Descent".to_string(),
-            constraints: constraints.clone(),
-            optimal_weights: optimal_weights.clone(),
+            optimization_method: "COBYLA".to_string(),
+            constraints,
+            optimal_weights,
+            category_weights,
             optimal_portfolio_returns: daily_portfolio_returns.clone(),
             performance_stats,
             efficient_frontier,

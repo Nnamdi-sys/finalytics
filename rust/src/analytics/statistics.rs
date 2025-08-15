@@ -60,9 +60,7 @@ impl PerformanceStats {
         let annualized_volatility = daily_volatility * annual_days.sqrt();
         let (alpha, beta) = ols_regression(&returns.clone(), &benchmark_returns.clone());
         let sharpe_ratio = (annualized_return - risk_free_rate) / annualized_volatility;
-        let downside_mask = &returns.lt_eq(0.0).unwrap();
-        let downside_returns = returns.filter(downside_mask).unwrap();
-        let sortino_ratio = (annualized_return - risk_free_rate) / (std_dev( &downside_returns) * annual_days.sqrt());
+        let sortino_ratio = (annualized_return - risk_free_rate) / (downside_deviation(&returns) * annual_days.sqrt());
         let excess_returns = (returns.clone() - benchmark_returns.clone())?;
         let active_return = excess_returns.mean().ok_or("Error calculating active return")?;
         let active_return = ((1.0 + active_return/100.0).powf(annual_days) - 1.0) * 100.0;
@@ -105,6 +103,21 @@ impl PerformanceStats {
 pub fn std_dev(series: &Series) -> f64 {
     let dev_vec = series.f64().unwrap().to_vec().iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
     dev_vec.population_std_dev()
+}
+
+/// computes the downside deviation of a series of security returns
+///
+/// # Arguments
+///
+/// * `series` - Polars Series of security returns
+///
+/// # Returns
+///
+/// * `f64` - Downside deviation
+pub fn downside_deviation(series: &Series) -> f64 {
+    let downside_mask = &series.lt_eq(0.0).unwrap();
+    let downside_returns = series.filter(downside_mask).unwrap();
+    std_dev(&downside_returns)
 }
 
 /// Computes the z-score corresponding to the confidence level
@@ -339,6 +352,34 @@ pub fn portfolio_std_dev(weights: &[f64], cov_matrix: &ndarray::Array2<f64>) -> 
     let weights = ndarray::Array1::from(weights.to_vec());
     let portfolio_variance = weights.dot(cov_matrix).dot(&weights.t());
     portfolio_variance.sqrt()
+}
+
+/// Computes the downside deviation of a portfolio
+///
+/// # Arguments
+///
+/// * `weights` - Vector of portfolio weights
+/// * `portfolio_returns` - DataFrame of portfolio returns for each asset
+///
+/// # Returns
+///
+/// * `f64` - Portfolio downside deviation
+pub fn portfolio_downside_dev(weights: &[f64], portfolio_returns: &DataFrame) -> f64 {
+    let port_returns = daily_portfolio_returns(weights, portfolio_returns);
+    let downside_returns = port_returns
+        .f64()
+        .unwrap()
+        .into_iter()
+        .filter_map(|opt| opt.map(|r| if r < 0.0 { r.powi(2) } else { 0.0 }))
+        .collect::<Vec<f64>>();
+
+    let n = port_returns.len() as f64; // Use total number of returns
+    if n == 0.0 {
+        return 0.0; // Handle empty returns
+    }
+
+    let mean_downside = downside_returns.iter().sum::<f64>() / n;
+    mean_downside.sqrt()
 }
 
 /// Computes the daily/time_interval returns of a portfolio given the weights and asset returns
