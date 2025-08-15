@@ -13,3 +13,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = ["polars>=1.1.0", "pyarrow>=14.0.0", "plotly>=5.22.0", "ipython>=7.0.0"]
+
+[tool.maturin]
+strip = true
