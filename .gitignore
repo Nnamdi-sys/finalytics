@@ -3,5 +3,6 @@
 target
 venv
 .DS_Store
+.zed
 
 

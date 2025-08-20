@@ -1747,6 +1747,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "finalytics-ffi"
+version = "0.1.0"
+dependencies = [
+ "finalytics",
+ "plotly",
+ "polars 0.49.1",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "finalytics-py"
 version = "0.8.8"
 dependencies = [

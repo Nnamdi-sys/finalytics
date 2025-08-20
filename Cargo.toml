@@ -1,10 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "rust",
-    "python",
-    "web",
-]
+members = ["rust", "python", "ffi", "web"]
 
 exclude = ["web"]
 
