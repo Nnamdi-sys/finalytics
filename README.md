@@ -179,7 +179,7 @@ bash download_binaries.sh
 
 ## Example
 
-View the [Go documentation](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics) for more information.
+View the [Go documentation](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics) for more information.
 You can also check the [`main.go` file](https://github.com/Nnamdi-sys/finalytics/blob/main/go/main.go) for more usage examples.
 
 ```go
