@@ -30,7 +30,6 @@ You can also check the [`main.go` file](https://github.com/Nnamdi-sys/finalytics
 package main
 
 import (
-    "encoding/json"
     "fmt"
     "github.com/Nnamdi-sys/finalytics/go/finalytics"
 )
