@@ -2,7 +2,7 @@ module github.com/Nnamdi-sys/finalytics/go
 
 go 1.25.0
 
-replace github.com/Nnamdi-sys/finalytics/go/finalytics => ./finalytics
+// replace github.com/Nnamdi-sys/finalytics/go/finalytics => ./finalytics
 
 require github.com/go-gota/gota v0.12.0
 

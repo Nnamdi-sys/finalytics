@@ -1,7 +1,5 @@
 package finalytics
 
-// v0.1.1 release
-
 /*
 // #cgo CFLAGS: -I${SRCDIR}
 // #cgo LDFLAGS: -L${SRCDIR} -lfinalytics_ffi
