@@ -16,15 +16,13 @@ fi
 OS=$(uname | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
 case "$OS" in
     linux)
-        LIBDIR="$SCRIPT_DIR/lib/linux"
         LIBNAME="libfinalytics_ffi.so"
+        MOD_OS="linux"
         ;;
     darwin)
-        LIBDIR="$SCRIPT_DIR/lib/macos"
+        MOD_OS="macos"
         if [ "$ARCH" = "arm64" ]; then
             LIBNAME="libfinalytics_ffi_aarch64.dylib"
         else
@@ -32,7 +30,7 @@ case "$OS" in
         fi
         ;;
     msys*|mingw*|cygwin*|windows*)
-        LIBDIR="$SCRIPT_DIR/lib/windows"
+        MOD_OS="windows"
         LIBNAME="finalytics_ffi.dll"
         ;;
     *)
@@ -43,18 +41,27 @@ esac
 
 URL="https://github.com/$REPO/releases/download/$TAG/$LIBNAME"
 
-mkdir -p "$LIBDIR"
+# Get the actual Go module cache directory for finalytics/go (with encoding)
+MODDIR=$(go list -m -f '{{.Dir}}' github.com/Nnamdi-sys/finalytics/go)
+MODPATH="$MODDIR/finalytics/lib/$MOD_OS"
 
-if [ -f "$LIBDIR/$LIBNAME" ]; then
-    echo "Native library already present: $LIBDIR/$LIBNAME"
+# Make the module directory writable
+chmod -R u+w "$MODDIR"
+
+mkdir -p "$MODPATH"
+
+if [ -f "$MODPATH/$LIBNAME" ]; then
+    echo "Native library already present: $MODPATH/$LIBNAME"
     exit 0
 fi
 
 echo "Downloading native library for $OS/$ARCH from $URL ..."
-curl -L -o "$LIBDIR/$LIBNAME" "$URL"
+curl -L -o "$MODPATH/$LIBNAME" "$URL"
 
-if [ -f "$LIBDIR/$LIBNAME" ]; then
-    echo "Downloaded library to $LIBDIR/$LIBNAME"
+if [ -f "$MODPATH/$LIBNAME" ]; then
+    echo "Downloaded library to $MODPATH/$LIBNAME"
+    # Optionally, set the directory back to read-only
+    chmod -R a-w "$MODDIR"
 else
     echo "Failed to download library."
     exit 1

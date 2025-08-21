@@ -17,14 +17,14 @@ go get github.com/Nnamdi-sys/finalytics/go/finalytics
 
 After installing the Go module, **download the required native binaries** by running:
 ```bash
-curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/main/go/finalytics/download_binaries.sh
+curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/refs/heads/main/go/download_binaries.sh
 bash download_binaries.sh
 ```
 
 ## Example
 
 View the [Go documentation](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics) for more information.  
-You can also check the [`main.go` file](https://github.com/Nnamdi-sys/finalytics/go/main.go) for more usage examples.
+You can also check the [`main.go` file](https://github.com/Nnamdi-sys/finalytics/blob/main/go/main.go) for more usage examples.
 
 ```go
 package main
