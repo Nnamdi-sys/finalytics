@@ -45,24 +45,37 @@ URL="https://github.com/$REPO/releases/download/$TAG/$LIBNAME"
 MODDIR=$(go list -m -f '{{.Dir}}' github.com/Nnamdi-sys/finalytics/go)
 MODPATH="$MODDIR/finalytics/lib/$MOD_OS"
 
-# Make the module directory writable
+# Make the module directory writable (required for some systems)
 chmod -R u+w "$MODDIR"
 
 mkdir -p "$MODPATH"
 
 if [ -f "$MODPATH/$LIBNAME" ]; then
     echo "Native library already present: $MODPATH/$LIBNAME"
-    exit 0
-fi
-
-echo "Downloading native library for $OS/$ARCH from $URL ..."
-curl -L -o "$MODPATH/$LIBNAME" "$URL"
-
-if [ -f "$MODPATH/$LIBNAME" ]; then
-    echo "Downloaded library to $MODPATH/$LIBNAME"
-    # Optionally, set the directory back to read-only
-    chmod -R a-w "$MODDIR"
 else
-    echo "Failed to download library."
-    exit 1
+    echo "Downloading native library for $OS/$ARCH from $URL ..."
+    curl -L -o "$MODPATH/$LIBNAME" "$URL"
+    if [ -f "$MODPATH/$LIBNAME" ]; then
+        echo "Downloaded library to $MODPATH/$LIBNAME"
+    else
+        echo "Failed to download library."
+        exit 1
+    fi
 fi
+
+# Download the header file as well
+HEADER_URL="https://github.com/$REPO/releases/download/$TAG/finalytics.h"
+HEADER_PATH="$MODDIR/finalytics/finalytics.h"
+if [ ! -f "$HEADER_PATH" ]; then
+    echo "Downloading header file from $HEADER_URL ..."
+    curl -L -o "$HEADER_PATH" "$HEADER_URL"
+    if [ -f "$HEADER_PATH" ]; then
+        echo "Downloaded header to $HEADER_PATH"
+    else
+        echo "Failed to download header file."
+        exit 1
+    fi
+fi
+
+# Optionally, set the directory back to read-only
+chmod -R a-w "$MODDIR"

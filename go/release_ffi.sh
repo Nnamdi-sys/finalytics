@@ -4,6 +4,20 @@ set -e
 
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 
+# --- Version Handling ---
+if [ -z "$1" ]; then
+  echo "Usage: $0 <version>"
+  echo "Example: $0 v0.1.0"
+  exit 1
+fi
+
+VERSION="$1"
+RELEASE_TAG="$VERSION"
+RELEASE_NAME="Finalytics C-FFI"
+
+echo "🚀 Preparing release: $RELEASE_TAG"
+
+# --- Build Artifacts ---
 cd ../ffi
 
 cbindgen --config cbindgen.toml --crate finalytics-ffi --output include/finalytics.h
@@ -20,6 +34,7 @@ rustup target add x86_64-pc-windows-gnu
 cross +nightly build --release --target x86_64-unknown-linux-gnu --jobs 4
 cross +nightly build --release --target x86_64-pc-windows-gnu --jobs 4
 
+# Copy artifacts into Go lib structure
 mkdir -p ../go/finalytics/lib/macos
 mkdir -p ../go/finalytics/lib/linux
 mkdir -p ../go/finalytics/lib/windows
@@ -30,18 +45,18 @@ cp ../target/aarch64-apple-darwin/release/libfinalytics_ffi.dylib ../go/finalyti
 cp ../target/x86_64-unknown-linux-gnu/release/libfinalytics_ffi.so ../go/finalytics/lib/linux/libfinalytics_ffi.so
 cp ../target/x86_64-pc-windows-gnu/release/finalytics_ffi.dll ../go/finalytics/lib/windows/finalytics_ffi.dll
 
-echo "FFI artifacts (dynamic libraries and header) generated and copied successfully!"
+echo "✅ FFI artifacts generated and copied successfully!"
 
-# --- Upload to GitHub Release ---
+# --- GitHub Release ---
+if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+  echo "ℹ️ Release $RELEASE_TAG already exists, uploading assets..."
+else
+  echo "📦 Creating release $RELEASE_TAG..."
+  gh release create "$RELEASE_TAG" \
+    --title "$RELEASE_NAME" \
+    --notes "Automated release of Finalytics C-FFI binaries ($VERSION)"
+fi
 
-# Get the latest tag or commit hash for the release
-RELEASE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
-RELEASE_NAME="FFI Artifacts $RELEASE_TAG"
-
-# Create the release if it doesn't exist
-gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "Automated release of FFI binaries"
-
-# Upload the binaries and header to the release
 gh release upload "$RELEASE_TAG" \
     ../go/finalytics/lib/macos/libfinalytics_ffi_x86_64.dylib \
     ../go/finalytics/lib/macos/libfinalytics_ffi_aarch64.dylib \
@@ -50,4 +65,4 @@ gh release upload "$RELEASE_TAG" \
     ../go/finalytics/finalytics.h \
     --clobber
 
-echo "FFI artifacts uploaded to GitHub release $RELEASE_TAG!"
+echo "🎉 Release $RELEASE_TAG (Finalytics C-FFI) completed successfully!"
