@@ -148,7 +148,7 @@ async function testTicker() {
   }
 
   try {
-    const report = await ticker.report('full');
+    const report = await ticker.report('performance');
     console.log('report: Opening in browser...');
     await report.show();
   } catch (err) {
@@ -489,17 +489,17 @@ async function ioTest() {
       dataFrames['btcusd'],
     ];
     const assetConstraints = JSON.stringify([
-      [0, 1],
-      [0, 1],
-      [0, 1],
-      [0, 1],
-      [0, 1],
+      [0.1, 0.5],
+      [0.1, 0.5],
+      [0.1, 0.5],
+      [0.1, 0.5],
+      [0.1, 0.5],
     ]);
     const categoricalConstraints = JSON.stringify([
       {
-        Name: 'AssetClass',
-        Categories: ['EQUITY', 'EQUITY', 'EQUITY', 'EQUITY', 'CRYPTO'],
-        Constraints: [
+        name: 'AssetClass',
+        category_per_symbol: ['EQUITY', 'EQUITY', 'EQUITY', 'EQUITY', 'CRYPTO'],
+        weight_per_category: [
           ['EQUITY', 0.0, 0.8],
           ['CRYPTO', 0.0, 0.2],
         ],
@@ -520,7 +520,9 @@ async function ioTest() {
       .tickersData(tickersData)
       .benchmarkData(dataFrames['gspc'])
       .build();
-    const report = await portfolio.report('full');
+    const perfStats = await portfolio.performanceStats()
+    console.log(perfStats)
+    const report = await portfolio.report('perfomance');
     console.log('Portfolio report: Opening in browser...');
     await report.show();
   } catch (err) {

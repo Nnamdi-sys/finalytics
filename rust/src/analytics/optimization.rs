@@ -3,6 +3,7 @@ use ndarray::Array2;
 use rayon::prelude::*;
 use polars::frame::DataFrame;
 use nlopt::{Algorithm, Nlopt, Target};
+use serde::Deserialize;
 use crate::analytics::statistics::{mean_portfolio_return, portfolio_std_dev, maximum_drawdown, value_at_risk,
                                    expected_shortfall, daily_portfolio_returns, portfolio_downside_dev};
 
@@ -56,7 +57,7 @@ pub struct Constraints {
     pub categorical_weights: Option<Vec<CategoricalWeights>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CategoricalWeights {
     pub name: String,
     pub category_per_symbol: Vec<String>,

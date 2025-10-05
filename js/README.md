@@ -1,12 +1,20 @@
 ![Finalytics](https://github.com/Nnamdi-sys/finalytics/raw/main/logo-color.png)
+
 [![NPM Version](https://img.shields.io/npm/v/finalytics)](https://www.npmjs.com/package/finalytics)
 ![License](https://img.shields.io/crates/l/finalytics)
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
 
-This is a JavaScript (ESM) binding for the [Finalytics Rust Library](https://github.com/Nnamdi-sys/finalytics), designed for retrieving financial data and performing security analysis and portfolio optimization.
+---
 
-## Installation
+# Finalytics JavaScript Binding
+
+**Finalytics** is a high-performance JavaScript (ESM) binding for the Finalytics Rust library, designed for retrieving financial data, security analysis, and portfolio optimization.  
+It provides a fast, modular interface for advanced analytics, and powers dashboards and applications across platforms.
+
+---
+
+## 🚀 Installation
 
 To install the Finalytics JavaScript binding, add it to your Node.js project using:
 
@@ -14,103 +22,135 @@ To install the Finalytics JavaScript binding, add it to your Node.js project usi
 npm install finalytics
 ```
 
-## Example
+After installing the library, **download the required native binary** by running:
+```bash
+curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/refs/heads/main/js/download_binaries.sh
+bash download_binaries.sh
+```
 
-View the [npm package documentation](https://www.npmjs.com/package/finalytics) for more information. You can also check the [index.js file](https://github.com/Nnamdi-sys/finalytics/blob/main/js/index.js) for more usage examples.
+---
 
+## 📦 Main Modules
+
+Finalytics JavaScript exposes four core modules for financial analytics:
+
+### 1. Screener
+
+Efficiently filter and rank securities (equities, crypto, etc.) using advanced metrics and custom filters.
+
+**Usage Example:**
 ```javascript
-import { Screener, TickersBuilder } from 'finalytics';
+import { Screener } from 'finalytics';
 
-async function main() {
-  console.log('=== Finalytics Example ===');
+const screener = await Screener.new(
+  'EQUITY',
+  [
+    JSON.stringify({ operator: 'eq', operands: ['exchange', 'NMS'] }),
+    JSON.stringify({ operator: 'gte', operands: ['intradaymarketcap', 10000000000] }),
+  ],
+  'intradaymarketcap',
+  true,
+  0,
+  10
+);
 
-  let screener;
-  try {
-    screener = await Screener.new(
-      'EQUITY',
-      [
-        JSON.stringify({ operator: 'eq', operands: ['exchange', 'NMS'] }),
-        JSON.stringify({ operator: 'gte', operands: ['intradaymarketcap', 10000000000] }),
-      ],
-      'intradaymarketcap',
-      true,
-      0,
-      10
-    );
-  } catch (err) {
-    console.error('Error creating Screener:', err.message);
-    return;
-  }
+await screener.display();
+```
 
-  let symbols;
-  try {
-    symbols = await screener.symbols();
-    console.log('Screened Symbols:', symbols);
-  } catch (err) {
-    console.error('Failed to get symbols:', err.message);
-    screener.free();
-    return;
-  }
+---
 
-  let tickers;
-  try {
-    tickers = await new TickersBuilder()
-      .symbols(symbols)
-      .startDate('2023-01-01')
-      .endDate('2024-12-31')
-      .interval('1d')
-      .benchmarkSymbol('^GSPC')
-      .confidenceLevel(0.95)
-      .riskFreeRate(0.02)
-      .build();
-  } catch (err) {
-    console.error('Failed to create Tickers:', err.message);
-    screener.free();
-    return;
-  }
+### 2. Ticker
 
-  if (symbols.length > 0) {
-    let ticker;
-    try {
-      ticker = await tickers.getTicker(symbols[0]);
-      for (const reportType of ['performance', 'financials', 'options', 'news']) {
-        try {
-          const report = await ticker.report(reportType);
-          console.log(`Ticker ${reportType} report: Opening in browser...`);
-          await report.show();
-        } catch (err) {
-          console.error(`Failed to get ${reportType} report:`, err.message);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to get Ticker:', err.message);
-    } finally {
-      if (ticker) ticker.free();
-    }
-  }
+Analyze a single security in depth: performance, financials, options, news, and more.
 
-  try {
-    const tickersReport = await tickers.report('performance');
-    console.log('Tickers report: Opening in browser...');
-    await tickersReport.show();
-  } catch (err) {
-    console.error('Failed to get Tickers report:', err.message);
-  }
+**Usage Example:**
+```javascript
+import { TickerBuilder } from 'finalytics';
 
-  let portfolio;
-  try {
-    portfolio = await tickers.optimize('max_sharpe', '{}', '{}', '{}');
-    const portfolioReport = await portfolio.report('performance');
-    console.log('Portfolio report: Opening in browser...');
-    await portfolioReport.show();
-  } catch (err) {
-    console.error('Failed to optimize portfolio or get report:', err.message);
-  } finally {
-    if (portfolio) portfolio.free();
-  }
+const ticker = await new TickerBuilder()
+  .symbol('AAPL')
+  .startDate('2023-01-01')
+  .endDate('2024-12-31')
+  .interval('1d')
+  .benchmarkSymbol('^GSPC')
+  .confidenceLevel(0.95)
+  .riskFreeRate(0.02)
+  .build();
 
-  tickers.free();
-  screener.free();
+for (const reportType of ['performance', 'financials', 'options', 'news']) {
+  const report = await ticker.report(reportType);
+  await report.show();
 }
+ticker.free();
+```
 
-main();
+---
+
+### 3. Tickers
+
+Work with multiple securities at once—aggregate reports, batch analytics, and portfolio construction.
+
+**Usage Example:**
+```javascript
+import { TickersBuilder } from 'finalytics';
+
+const symbols = ['NVDA', 'GOOG', 'AAPL', 'MSFT', 'BTC-USD'];
+const tickers = await new TickersBuilder()
+  .symbols(symbols)
+  .startDate('2023-01-01')
+  .endDate('2024-12-31')
+  .interval('1d')
+  .benchmarkSymbol('^GSPC')
+  .confidenceLevel(0.95)
+  .riskFreeRate(0.02)
+  .build();
+
+const report = await tickers.report('performance');
+await report.show();
+tickers.free();
+```
+
+---
+
+### 4. Portfolio
+
+Optimize and analyze portfolios using advanced objective functions and constraints.
+
+**Usage Example:**
+```javascript
+const symbols = ['NVDA', 'GOOG', 'AAPL', 'MSFT', 'BTC-USD'];
+const portfolio = await new PortfolioBuilder()
+  .symbols(symbols)
+  .benchmarkSymbol('^GSPC')
+  .startDate('2023-01-01')
+  .endDate('2024-12-31')
+  .interval('1d')
+  .confidenceLevel(0.95)
+  .riskFreeRate(0.02)
+  .objectiveFunction('max_sharpe')
+  .build();
+
+const report = await portfolio.report('performance');
+await report.show();
+portfolio.free();
+```
+
+---
+
+## 📚 Documentation
+
+- See the [npm package documentation](https://www.npmjs.com/package/finalytics) for full details.
+
+---
+
+## 🗂️ Multi-language Bindings
+
+Finalytics is also available in:
+- [Rust](../../rust/README.md)
+- [Python](../../python/README.md)
+- [Go](../../go/README.md)
+- [Web Application](../../web/README.md)
+
+---
+
+**Finalytics** — Modular, high-performance financial analytics for JavaScript.

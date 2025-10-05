@@ -1,62 +1,53 @@
+use crate::components::chart::ChartContainer;
+use crate::components::code::CodeContainer;
+use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use std::collections::HashMap;
-use crate::server::highlight_code;
 
-static TICKER_IMAGE: Asset = asset!("/public/images/ticker.png");
-static PORTFOLIO_IMAGE: Asset = asset!("/public/images/portfolio.png");
+static TICKER_HTML: &str = include_str!("../../public/html/ticker.html");
+static PORTFOLIO_HTML: &str = include_str!("../../public/html/portfolio.html");
 
 #[component]
 pub fn Home() -> Element {
-    // Fetch and highlight code examples
-    let ticker_rs = use_server_future(|| async {
-        let code = get_code_examples("ticker_rs".to_string());
-        highlight_code(code, "rs".to_string()).await.unwrap()
-    })?.value().read().clone().unwrap();
-
-    let ticker_py = use_server_future(|| async {
-        let code = get_code_examples("ticker_py".to_string());
-        highlight_code(code, "py".to_string()).await.unwrap()
-    })?.value().read().clone().unwrap();
-
-    let portfolio_rs = use_server_future(|| async {
-        let code = get_code_examples("portfolio_rs".to_string());
-        highlight_code(code, "rs".to_string()).await.unwrap()
-    })?.value().read().clone().unwrap();
-
-    let portfolio_py = use_server_future(|| async {
-        let code = get_code_examples("portfolio_py".to_string());
-        highlight_code(code, "py".to_string()).await.unwrap()
-    })?.value().read().clone().unwrap();
-
     // Assemble maps
     let mut code_map: HashMap<String, HashMap<String, String>> = HashMap::new();
     code_map.insert("ticker".to_string(), {
         let mut m = HashMap::new();
-        m.insert("rs".to_string(), ticker_rs.clone());
-        m.insert("py".to_string(), ticker_py.clone());
+        m.insert("rs".to_string(), get_code_examples("ticker_rs".to_string()));
+        m.insert("py".to_string(), get_code_examples("ticker_py".to_string()));
+        m.insert("go".to_string(), get_code_examples("ticker_go".to_string()));
+        m.insert("js".to_string(), get_code_examples("ticker_js".to_string()));
         m
     });
     code_map.insert("portfolio".to_string(), {
         let mut m = HashMap::new();
-        m.insert("rs".to_string(), portfolio_rs.clone());
-        m.insert("py".to_string(), portfolio_py.clone());
+        m.insert(
+            "rs".to_string(),
+            get_code_examples("portfolio_rs".to_string()),
+        );
+        m.insert(
+            "py".to_string(),
+            get_code_examples("portfolio_py".to_string()),
+        );
+        m.insert(
+            "go".to_string(),
+            get_code_examples("portfolio_go".to_string()),
+        );
+        m.insert(
+            "js".to_string(),
+            get_code_examples("portfolio_js".to_string()),
+        );
         m
     });
-
-    let mut image_links: HashMap<String, String> = HashMap::new();
-    image_links.insert("ticker".to_string(), "https://finalytics.rs/ticker".to_string());
-    image_links.insert("portfolio".to_string(), "https://finalytics.rs/portfolio".to_string());
-
-    let mut code_links: HashMap<String, String> = HashMap::new();
-    code_links.insert("rs".to_string(), "https://crates.io/crates/finalytics".to_string());
-    code_links.insert("py".to_string(), "https://pypi.org/project/finalytics".to_string());
 
     // UI state
     let mut example_type = use_signal(|| "ticker".to_string());
     let mut language = use_signal(|| "rs".to_string());
 
-    rsx! {
+    info!("Example Type: {:?}", example_type());
+    info!("Language: {:?}", language());
 
+    rsx! {
         // Header section
         div {
             style: r#"
@@ -96,7 +87,7 @@ pub fn Home() -> Element {
                         text-decoration: none;
                         display: inline-flex;
                         align-items: center;
-                        gap: 10px;
+                        gap: 2px;
                         margin: 0 10px;
                     "#,
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/crates/v/finalytics", alt: "Crates.io version" }
@@ -109,11 +100,47 @@ pub fn Home() -> Element {
                         text-decoration: none;
                         display: inline-flex;
                         align-items: center;
-                        gap: 10px;
+                        gap: 2px;
                         margin: 0 10px;
                     "#,
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/pypi/v/finalytics?color=blue", alt: "PyPI version" }
                     img { style: r#"height: 20px;"#, src: "https://static.pepy.tech/badge/finalytics", alt: "PyPI downloads" }
+                }
+                a {
+                    href: "https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics",
+                    target: "_blank",
+                    style: r#"
+                        text-decoration: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                        margin: 0 10px;
+                    "#,
+                    img { style: r#"height: 20px;"#, src: "https://img.shields.io/badge/go-reference-blue?logo=go", alt: "Go Reference" }
+                }
+                a {
+                    href: "https://www.npmjs.com/package/finalytics",
+                    target: "_blank",
+                    style: r#"
+                        text-decoration: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                        margin: 0 10px;
+                    "#,
+                    img { style: r#"height: 20px;"#, src: "https://img.shields.io/npm/v/finalytics?color=green", alt: "NPM version" }
+                }
+                a {
+                    href: "https://github.com/Nnamdi-sys/finalytics",
+                    target: "_blank",
+                    style: r#"
+                        text-decoration: none;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                        margin: 0 10px;
+                    "#,
+                    img { style: r#"height: 20px;"#, src: "https://img.shields.io/github/stars/Nnamdi-sys/finalytics?style=social", alt: "GitHub stars" }
                 }
             }
             p {
@@ -124,7 +151,7 @@ pub fn Home() -> Element {
                     text-align: center;
                     margin: 10px;
                 "#,
-                "Finalytics leverages Rust's high performance with a Python integration, offering robust tools for financial data analysis."
+                "Finalytics is a high-performance Rust library for security analysis and portfolio optimization, with bindings for Python, Node.js and Go."
             }
         }
 
@@ -149,7 +176,6 @@ pub fn Home() -> Element {
                     display: flex;
                     flex-direction: column;
                 "#,
-                // Tabs bar sits on same dark background
                 div {
                     style: r#"
                         display: flex;
@@ -158,9 +184,8 @@ pub fn Home() -> Element {
                         background: #2b303b;
                         padding: 10px;
                     "#,
-                    // Rust tab
                     button {
-                        style: if *language.read() == "rs" {
+                        style: if language() == "rs" {
                             r#"
                                 padding: 5px 10px;
                                 border: none;
@@ -183,9 +208,8 @@ pub fn Home() -> Element {
                         i { class: "devicon-rust-plain me-2" },
                         "Rust"
                     }
-                    // Python tab
                     button {
-                        style: if *language.read() == "py" {
+                        style: if language() == "py" {
                             r#"
                                 padding: 5px 10px;
                                 border: none;
@@ -208,8 +232,55 @@ pub fn Home() -> Element {
                         i { class: "devicon-python-plain me-2" },
                         "Python"
                     }
+                    button {
+                        style: if language() == "go" {
+                            r#"
+                                padding: 5px 10px;
+                                border: none;
+                                cursor: pointer;
+                                font-weight: bold;
+                                color: #fff;
+                                background-color: #2E7D32;
+                            "#
+                        } else {
+                            r#"
+                                padding: 5px 10px;
+                                border: none;
+                                cursor: pointer;
+                                font-weight: bold;
+                                color: #fff;
+                                background-color: #333;
+                            "#
+                        },
+                        onclick: move |_| language.set("go".to_string()),
+                        i { class: "devicon-go-plain me-2" },
+                        "Go"
+                    }
+                    button {
+                        style: if language() == "js" {
+                            r#"
+                                padding: 5px 10px;
+                                border: none;
+                                cursor: pointer;
+                                font-weight: bold;
+                                color: #fff;
+                                background-color: #2E7D32;
+                            "#
+                        } else {
+                            r#"
+                                padding: 5px 10px;
+                                border: none;
+                                cursor: pointer;
+                                font-weight: bold;
+                                color: #fff;
+                                background-color: #333;
+                            "#
+                        },
+                        onclick: move |_| language.set("js".to_string()),
+                        i { class: "devicon-javascript-plain me-2" },
+                        "Node.js"
+                    }
                 }
-                // Code panel
                 div {
                     style: r#"
                         flex: 1;
@@ -220,27 +291,80 @@ pub fn Home() -> Element {
                         display: flex;
                         flex-direction: column;
                     "#,
-                    pre {
-                        style: r#"
-                            margin: 0;
-                            flex: 1;
-                        "#,
-                        dangerous_inner_html: "{code_map[&*example_type.read()][&*language.read()]}"
-                    }
-                    a {
-                        href: "{code_links[&*language.read()].clone()}",
-                        target: "_blank",
-                        style: r#"
-                            margin-top: 10px;
-                            align-self: flex-end;
-                            text-decoration: none;
-                            color: #2E7D32;
-                        "#,
+                    {
+                        let key = format!("code-{}-{}", example_type(), language());
+                        match (example_type().as_str(), language().as_str()) {
+                            ("ticker", "rs") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["ticker"]["rs"].clone(),
+                                    language: "rs".to_string(),
+                                    id: "code-rs"
+                                }
+                            },
+                            ("ticker", "py") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["ticker"]["py"].clone(),
+                                    language: "py".to_string(),
+                                    id: "code-py"
+                                }
+                            },
+                            ("ticker", "go") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["ticker"]["go"].clone(),
+                                    language: "go".to_string(),
+                                    id: "code-go"
+                                }
+                            },
+                            ("ticker", "js") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["ticker"]["js"].clone(),
+                                    language: "js".to_string(),
+                                    id: "code-js"
+                                }
+                            },
+                            ("portfolio", "rs") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["portfolio"]["rs"].clone(),
+                                    language: "rs".to_string(),
+                                    id: "code-rs"
+                                }
+                            },
+                            ("portfolio", "py") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["portfolio"]["py"].clone(),
+                                    language: "py".to_string(),
+                                    id: "code-py"
+                                }
+                            },
+                            ("portfolio", "go") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["portfolio"]["go"].clone(),
+                                    language: "go".to_string(),
+                                    id: "code-go"
+                                }
+                            },
+                            ("portfolio", "js") => rsx! {
+                                CodeContainer {
+                                    key: "{key}",
+                                    code: code_map["portfolio"]["js"].clone(),
+                                    language: "js".to_string(),
+                                    id: "code-js"
+                                }
+                            },
+                            _ => rsx! { div { "Error: Invalid code selection" } },
+                        }
                     }
                 }
             }
 
-            // Image card with tabs
+            // Chart card with tabs
             div {
                 style: r#"
                     flex: 1 1 calc(50% - 20px);
@@ -258,7 +382,7 @@ pub fn Home() -> Element {
                         margin-bottom: 10px;
                     "#,
                     button {
-                        style: if *example_type.read() == "ticker" {
+                        style: if example_type() == "ticker" {
                             r#"
                                 padding: 5px 10px;
                                 border: none;
@@ -282,7 +406,7 @@ pub fn Home() -> Element {
                         "Ticker"
                     }
                     button {
-                        style: if *example_type.read() == "portfolio" {
+                        style: if example_type() == "portfolio" {
                             r#"
                                 padding: 5px 10px;
                                 border: none;
@@ -314,19 +438,36 @@ pub fn Home() -> Element {
                         align-items: center;
                         justify-content: center;
                         padding: 10px;
+                        max-height: 800px; /* Match CodeContainer height */
+                        overflow-y: auto; /* Enable scrolling */
                     "#,
-                    a {
-                        href: "{image_links[&*example_type.read()].clone()}",
-                        target: "_blank",
-                        img {
-                            style: r#"
-                                width: 100%;
-                                height: auto;
-                                object-fit: contain;
-                                border-radius: 4px;
-                            "#,
-                            src: if *example_type.read() == "ticker" { TICKER_IMAGE } else { PORTFOLIO_IMAGE },
-                            alt: "Example Screenshot"
+                    div {
+                        style: r#"
+                            width: 100%;
+                            height: 100%; /* Fill parent container */
+                            object-fit: contain;
+                            border-radius: 4px;
+                            display: block; /* Ensure link fills container */
+                        "#,
+                        {
+                            let key = format!("chart-{}", example_type());
+                            match example_type().as_str() {
+                                "ticker" => rsx! {
+                                    ChartContainer {
+                                        key: "{key}",
+                                        html: TICKER_HTML.to_string(),
+                                        id: "chart-ticker"
+                                    }
+                                },
+                                "portfolio" => rsx! {
+                                    ChartContainer {
+                                        key: "{key}",
+                                        html: PORTFOLIO_HTML.to_string(),
+                                        id: "chart-portfolio"
+                                    }
+                                },
+                                _ => rsx! { div { "Error: Invalid chart selection" } },
+                            }
                         }
                     }
                 }
@@ -335,9 +476,7 @@ pub fn Home() -> Element {
     }
 }
 
-
 pub fn get_code_examples(category: String) -> String {
-
     let ticker_rs = r###"
     use std::error::Error;
     use finalytics::prelude::*;
@@ -345,7 +484,6 @@ pub fn get_code_examples(category: String) -> String {
     #[tokio::main]
     async fn main() -> Result<(), Box<dyn Error>> {
 
-        // Construct Ticker Object
         let ticker = Ticker::builder()
                            .ticker("AAPL")
                            .start_date("2023-01-01")
@@ -356,17 +494,16 @@ pub fn get_code_examples(category: String) -> String {
                            .risk_free_rate(0.02)
                            .build();
 
-        // Display Ticker Performance Chart
-        ticker.performance_chart(800, 1200).await?.show();
+        ticker.report(Some(ReportType::Performance)).await?.show()?;
 
         Ok(())
     }
-        "###.to_string();
+        "###
+    .to_string();
 
     let ticker_py = r###"
     from finalytics import Ticker
 
-    // Construct Ticker Object
     ticker = Ticker(symbol="AAPL",
                     start_date="2023-01-01",
                     end_date="2024-12-31",
@@ -375,10 +512,9 @@ pub fn get_code_examples(category: String) -> String {
                     confidence_level=0.95,
                     risk_free_rate=0.02)
 
-    // Display Ticker Performance Chart
-    ticker.performance_chart(height=800, width=1200).show()
-        "###.to_string();
-
+    ticker.report("performance").show()
+        "###
+    .to_string();
 
     let portfolio_rs = r###"
     use std::error::Error;
@@ -386,11 +522,9 @@ pub fn get_code_examples(category: String) -> String {
 
     #[tokio::main]
     async fn main() -> Result<(), Box<dyn Error>> {
-    
-        // Define list of ticker symbols
+
         let ticker_symbols = vec!["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"];
 
-        // Construct Portfolio Object
         let portfolio = Portfolio::builder()
                            .ticker_symbols(ticker_symbols)
                            .benchmark_symbol("^GSPC")
@@ -402,21 +536,18 @@ pub fn get_code_examples(category: String) -> String {
                            .objective_function(ObjectiveFunction::MaxSharpe)
                            .build().await?;
 
-        // Display Portfolio Optimization Chart
-        portfolio.optimization_chart(800, 1200)?.show();
+        portfolio.report(Some(ReportType::Performance)).await?.show()?;
 
         Ok(())
     }
-        "###.to_string();
-
+        "###
+    .to_string();
 
     let portfolio_py = r###"
     from finalytics import Portfolio
-    
-    // Define list of ticker symbols
+
     symbols = ["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"]
 
-    // Construct Portfolio Object
     portfolio = Portfolio(symbols=symbols,
                         benchmark_symbol="^GSPC",
                         start_date="2023-01-01",
@@ -426,16 +557,123 @@ pub fn get_code_examples(category: String) -> String {
                         risk_free_rate=0.02,
                         objective_function="max_sharpe")
 
-    // Display Portfolio Optimization Chart
-    portfolio.optimization_chart(height=800, width=1200).show()
-        "###.to_string();
+    portfolio.report("performance").show()
+        "###
+    .to_string();
+
+    let ticker_go = r###"
+    import (
+        "github.com/Nnamdi-sys/finalytics/go/finalytics"
+    )
+
+    ticker, err := finalytics.NewTickerBuilder().
+        Symbol("AAPL").
+        StartDate("2023-01-01").
+        EndDate("2024-12-31").
+        Interval("1d").
+        BenchmarkSymbol("^GSPC").
+        ConfidenceLevel(0.95).
+        RiskFreeRate(0.02).
+        Build()
+    if err != nil {
+        panic(err)
+    }
+
+    defer ticker.Free()
+
+    report, err := ticker.Report("performance")
+    if err == nil {
+        report.Show()
+    }
+
+    "###
+    .to_string();
+
+    let ticker_js = r###"
+    import { TickerBuilder } from 'finalytics';
+
+    const ticker = await new TickerBuilder()
+        .symbol('AAPL')
+        .startDate('2023-01-01')
+        .endDate('2024-12-31')
+        .interval('1d')
+        .benchmarkSymbol('^GSPC')
+        .confidenceLevel(0.95)
+        .riskFreeRate(0.02)
+        .build();
+
+    const report = await ticker.report('performance');
+    await report.show();
+
+    ticker.free()
+
+    "###
+    .to_string();
+
+    let portfolio_go = r###"
+    import (
+        "github.com/Nnamdi-sys/finalytics/go/finalytics"
+    )
+
+    symbols := []string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}
+
+    portfolio, err := finalytics.NewPortfolioBuilder().
+        Symbols(symbols).
+        BenchmarkSymbol("^GSPC").
+        StartDate("2023-01-01").
+        EndDate("2024-12-31").
+        Interval("1d").
+        ConfidenceLevel(0.95).
+        RiskFreeRate(0.02).
+        ObjectiveFunction("max_sharpe").
+        Build()
+    if err != nil {
+        panic(err)
+    }
+
+    defer portfolio.Free()
+
+    report, err := portfolio.Report("performance")
+    if err == nil {
+        report.Show()
+    }
+
+    "###
+    .to_string();
+
+    let portfolio_js = r###"
+    import { PortfolioBuilder } from 'finalytics';
+
+    const symbols = ['NVDA', 'GOOG', 'AAPL', 'MSFT', 'BTC-USD'];
+
+    const portfolio = await new PortfolioBuilder()
+        .symbols(symbols)
+        .benchmarkSymbol('^GSPC')
+        .startDate('2023-01-01')
+        .endDate('2024-12-31')
+        .interval('1d')
+        .confidenceLevel(0.95)
+        .riskFreeRate(0.02)
+        .objectiveFunction('max_sharpe')
+        .build();
+
+    const report = await portfolio.report('performance');
+    await report.show();
+
+    portfolio.free()
+    "###
+    .to_string();
 
     let code = match category.as_str() {
         "ticker_rs" => ticker_rs,
         "ticker_py" => ticker_py,
+        "ticker_go" => ticker_go,
+        "ticker_js" => ticker_js,
         "portfolio_rs" => portfolio_rs,
         "portfolio_py" => portfolio_py,
-        _ => "".to_string()
+        "portfolio_go" => portfolio_go,
+        "portfolio_js" => portfolio_js,
+        _ => "".to_string(),
     };
 
     code

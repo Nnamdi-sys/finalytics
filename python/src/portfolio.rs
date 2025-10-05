@@ -221,6 +221,20 @@ impl PyPortfolio {
             rust_plot_to_py_plot(plot).unwrap()
         })
     }
+    
+    /// Compute the performance stats for the portfolio
+    ///
+    /// # Returns
+    ///
+    /// `DataFrame` - A Polars DataFrame containing the performance statistics for the portfolio and its components
+    pub fn performance_stats(&self) -> PyDataFrame {
+        task::block_in_place(move || {
+            let df = tokio::runtime::Runtime::new().unwrap().block_on(
+                self.portfolio.performance_stats_table()
+            ).unwrap();
+            PyDataFrame(df.data)
+        })
+    }
 
     /// display the portfolio asset returns chart
     ///

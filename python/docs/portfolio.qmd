@@ -112,6 +112,24 @@ optimization_chart.show()
 
 
 <details>
+<summary>`performance_stats`</summary>
+
+Compute the performance stats for the portfolio and its components.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the performance stats.
+
+**Example:**
+
+```{python}
+performance_stats = portfolio.performance_stats()
+print(performance_stats)
+```
+</details>
+
+
+<details>
 <summary>`performance_chart`</summary>
 
 Display the performance chart for the portfolio.

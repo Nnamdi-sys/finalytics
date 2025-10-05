@@ -314,27 +314,25 @@ func (b *PortfolioBuilder) BenchmarkData(benchmarkData *dataframe.DataFrame) *Po
 //
 //	func main() {
 //		// Sample asset constraints: min/max weights for each asset
-//		assetConstraints, err := json.Marshal([][2]float64{{0, 1}, {0, 1}, {0, 1}, {0, 1}})
+//		assetConstraints, err := json.Marshal([][2]float64{{0.1, 0.5}, {0.1, 0.5}, {0.1, 0.5}, {0.1, 0.5}})
 //		if err != nil {
 //			fmt.Printf("Failed to marshal assetConstraints: %v\n", err)
 //			return
 //		}
 //
 //		// Sample categorical constraints: limit EQUITY to 80% and CRYPTO to 20%
-//		categoricalConstraints, err := json.Marshal([]struct {
-//			Name        string
-//			Categories  []string
-//			Constraints [][3]any
-//		}{{
-//			Name:       "AssetClass",
-//			Categories: []string{"EQUITY", "EQUITY", "EQUITY", "CRYPTO"},
-//			Constraints: [][3]any{
-//				{"EQUITY", 0.0, 0.8},
-//				{"CRYPTO", 0.0, 0.2},
+//		categoricalConstraints, err := json.Marshal([]map[string]interface{}{
+//			{
+//				"name": "AssetClass",
+//				"category_per_symbol": []string{"EQUITY", "EQUITY", "EQUITY", "EQUITY", "CRYPTO"},
+//				"weight_per_category": [][]interface{}{
+//					{"EQUITY", 0.0, 0.8},
+//					{"CRYPTO", 0.0, 0.2},
+//				},
 //			},
-//		}})
+//		})
 //		if err != nil {
-//			fmt.Printf("Failed to marshal categoricalConstraints: %v\n", err)
+//			fmt.Printf("Error marshaling categoricalConstraints: %v\n", err)
 //			return
 //		}
 //
@@ -622,6 +620,54 @@ func (p *Portfolio) PerformanceChart(height, width uint) (HTML, error) {
 	return HTML{Content: htmlStr}, nil
 }
 
+// PerformanceStats retrieves performance statistics for the portfolio.
+//
+// Returns:
+//   - dataframe.DataFrame: A DataFrame containing aggregated performance statistics for the portfolio (e.g., returns, volatility, Sharpe ratio).
+//   - error: An error if the performance statistics retrieval fails.
+//
+// Example:
+//   package main
+//
+//   import (
+//   	"fmt"
+//   	"github.com/Nnamdi-sys/finalytics/go/finalytics"
+//   	"github.com/go-gota/gota/dataframe"
+//   )
+//
+//   func main() {
+//		portfolio, err := finalytics.NewPortfolioBuilder().
+//			TickerSymbols([]string{"AAPL", "MSFT", "NVDA", "BTC-USD"}).
+//			BenchmarkSymbol("^GSPC").
+//			StartDate("2023-01-01").
+//			EndDate("2023-12-31").
+//			Interval("1d").
+//			ConfidenceLevel(0.95).
+//			RiskFreeRate(0.02).
+//			ObjectiveFunction("max_sharpe").
+//			Build()
+//		if err != nil {
+//			fmt.Printf("Failed to create Portfolio: %v\n", err)
+//			return
+//		}
+//		defer portfolio.Free()
+//
+//   	perfStats, err := portfolio.PerformanceStats()
+//   	if err != nil {
+//   		fmt.Printf("Failed to get performance stats: %v\n", err)
+//   		return
+//   	}
+//   	fmt.Printf("Performance Stats:\n%v\n", perfStats)
+//   }
+func (t *Portfolio) PerformanceStats() (dataframe.DataFrame, error) {
+    var cOutput *C.char
+    result := C.finalytics_portfolio_performance_stats(t.handle, &cOutput)
+    if result != 0 {
+        return dataframe.DataFrame{}, fmt.Errorf("failed to get performance stats: error code %d", result)
+    }
+    return parseJSONToDataFrame(cOutput)
+}
+
 // AssetReturnsChart retrieves the asset returns chart for the portfolio as an HTML object.
 //
 // Parameters:
@@ -733,7 +779,7 @@ func (p *Portfolio) ReturnsMatrix(height, width uint) (HTML, error) {
 // Report retrieves a comprehensive report for the portfolio as an HTML object.
 //
 // Parameters:
-//   - reportType: The type of report to display (e.g., "performance", "full").
+//   - reportType: The type of report to display (e.g., "performance").
 //
 // Returns:
 //   - HTML: An HTML object containing the report.

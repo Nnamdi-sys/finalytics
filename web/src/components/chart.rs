@@ -19,22 +19,42 @@ pub fn ChartContainer(html: String, id: String) -> Element {
         document::eval(&script);
     });
 
+    // Determine height style based on id
+    let container_style = if id == "chart-ticker" || id == "chart-portfolio" {
+        r#"
+            padding: 5px;
+            width: 100%;
+            height: 70vh; /* Match CodeContainer height */
+            overflow-y: auto; /* Enable scrolling */
+        "#
+    } else {
+        r#"
+            padding: 5px;
+            width: 100%;
+            height: 100vh; /* Default height for other uses */
+        "#
+    };
+
     rsx! {
         div {
             class: "tab-pane fade show active",
-            style: "padding: 5px;",
+            style: "{container_style}",
+            script {
+                src: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"
+            }
+            script {
+                src: "https://cdn.plot.ly/plotly-2.12.1.min.js"
+            }
             div {
-                script {
-                    src: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"
-                }
-                script {
-                    src: "https://cdn.plot.ly/plotly-2.12.1.min.js"
-                }
-                div {
-                    id: "{id}",
-                    class: "plotly-graph-div",
-                    style: "position:relative; top:0; left:0; width:100%; height:100vh;"
-                }
+                id: "{id}",
+                class: "plotly-graph-div",
+                style: r#"
+                    position: relative;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%; /* Fill parent container */
+                "#
             }
         }
     }

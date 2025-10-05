@@ -130,7 +130,7 @@ class Chart {
    } else if (platform === 'linux') {
      return 'libfinalytics_ffi.so';
    }
- 
+   
    throw new Error('Native library not found for platform: ' + platform);
  }
 

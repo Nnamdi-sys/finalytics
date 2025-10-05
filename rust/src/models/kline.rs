@@ -246,30 +246,47 @@ impl KLINE {
     pub fn from_dataframe(ticker: &str, df: &DataFrame) -> Result<KLINE, Box<dyn Error>> {
         let timestamp = df.column("timestamp")?.i64()?.to_vec().iter()
             .map(|&x| x.unwrap_or_default()).collect::<Vec<i64>>();
-        let open = df.column("open")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-        let high = df.column("high")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-        let low = df.column("low")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
+    
+        let open = match df.column("open") {
+            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Err(_) => None,
+        };
+    
+        let high = match df.column("high") {
+            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Err(_) => None,
+        };
+    
+        let low = match df.column("low") {
+            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Err(_) => None,
+        };
+    
         let close = df.column("close")?.f64()?.to_vec().iter()
             .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-        let volume = df.column("volume")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-        let adjclose = df.column("adjclose")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-
+    
+        let volume = match df.column("volume") {
+            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Err(_) => None,
+        };
+    
+        let adjclose = match df.column("adjclose") {
+            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Err(_) => None,
+        };
+    
         Ok(KLINE {
             ticker: ticker.to_string(),
             timestamp,
-            open: Some(open),
-            high: Some(high),
-            low: Some(low),
+            open,
+            high,
+            low,
             close,
-            volume: Some(volume),
-            adjclose: Some(adjclose),
+            volume,
+            adjclose,
         })
     }
+
 
     pub fn from_csv(ticker: &str, path: &str) -> Result<Self, Box<dyn Error>> {
         let df = CsvReadOptions::default()

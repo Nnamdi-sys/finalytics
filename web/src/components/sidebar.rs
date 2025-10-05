@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::app::Page;
+use dioxus::prelude::*;
 
 static LOGO: Asset = asset!("/public/images/logo.svg");
 
@@ -123,38 +123,6 @@ pub fn SideBar(active_page: Signal<Page>) -> Element {
                 div {
                     style: "margin-top: auto; padding-top: 20px; border-top: 1px solid #ddd; display: flex; flex-direction: column; align-items: center; gap: 10px;",
                     if *is_sidebar_open.read() {
-                        div {
-                            style: "display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 16px;",
-                            a {
-                                href: "https://github.com/Nnamdi-sys/finalytics",
-                                target: "_blank",
-                                style: "line-height: 0;",
-                                i {
-                                    class: "bi bi-github",
-                                    style: "font-size: 24px; color: #000; vertical-align: middle;"
-                                }
-                            }
-                            a {
-                                href: "https://docs.rs/finalytics/",
-                                target: "_blank",
-                                style: "line-height: 0;",
-                                img {
-                                    src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-original.svg",
-                                    alt: "Rust",
-                                    style: "height: 26px; width: 26px; vertical-align: middle;"
-                                }
-                            }
-                            a {
-                                href: "https://nnamdi.quarto.pub/finalytics/",
-                                target: "_blank",
-                                style: "line-height: 0;",
-                                img {
-                                    src: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
-                                    alt: "Python",
-                                    style: "height: 26px; width: 26px; vertical-align: middle;"
-                                }
-                            }
-                        }
                         small {
                             style: "font-size: 12px; color: #888; margin-top: 5px;",
                             "© 2025 Finalytics"

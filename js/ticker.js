@@ -290,7 +290,14 @@ class Ticker {
    * @returns {Promise<Object>} A promise resolving to a JSON object containing performance statistics.
    * @throws {Error} If performance stats retrieval fails.
    * @example
-   * const ticker = await new TickerBuilder().symbol('AAPL').build();
+   * const ticker = await new TickerBuilder()
+   *   .symbol('AAPL')
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const stats = await ticker.performanceStats();
    * console.log(stats);
    * ticker.free();
@@ -315,7 +322,14 @@ class Ticker {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the performance chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const ticker = await new TickerBuilder().symbol('AAPL').build();
+   * const ticker = await new TickerBuilder()
+   *   .symbol('AAPL')
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const chart = await ticker.performanceChart(600, 800);
    * chart.show();
    * ticker.free();
@@ -340,7 +354,11 @@ class Ticker {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the candlestick chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const ticker = await new TickerBuilder().symbol('AAPL').build();
+   * const ticker = await new TickerBuilder()
+   *   .symbol('AAPL')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .build();
    * const chart = await ticker.candlestickChart(600, 800);
    * chart.show();
    * ticker.free();
@@ -415,7 +433,14 @@ class Ticker {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the report.
    * @throws {Error} If report retrieval fails.
    * @example
-   * const ticker = await new TickerBuilder().symbol('AAPL').build();
+   * const ticker = await new TickerBuilder()
+   *   .symbol('AAPL')
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const report = await ticker.report('performance');
    * report.show();
    * ticker.free();
@@ -436,9 +461,6 @@ class Ticker {
   /**
    * Releases resources associated with the Ticker.
    * Should be called when the Ticker is no longer needed to prevent memory leaks.
-   * @example
-   * const ticker = await new TickerBuilder().symbol('AAPL').build();
-   * ticker.free();
    */
   free() {
     if (this.handle) {
@@ -548,9 +570,11 @@ class TickerBuilder {
    * @example
    * const ticker = await new TickerBuilder()
    *   .symbol('AAPL')
+   *   .benchmarkSymbol('^GSPC')
    *   .startDate('2023-01-01')
    *   .endDate('2023-12-31')
    *   .interval('1d')
+   *   .riskFreeRate(0.02)
    *   .build();
    * ticker.free();
    */

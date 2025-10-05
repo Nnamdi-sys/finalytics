@@ -187,9 +187,6 @@ impl PortfolioPerformanceStats {
                     Err(Box::from("Weights length must match the number of symbols"))
                 }
             }
-            if weights.iter().sum::<f64>() != 1.0 {
-                return Err(Box::from("Weights must sum to 1.0"));
-            }
             (None, weights, None)
         } else {
             // If no weights are provided, use the optimization method to find optimal weights

@@ -1,13 +1,13 @@
 [package]
 name = "finalytics"
-version = "0.8.8"
+version = "0.8.9"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
 repository = "https://github.com/Nnamdi-sys/finalytics"
 license = "MIT"
 description = "A rust library for financial data analysis"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["finance", "analytics"]
 
 [lib]

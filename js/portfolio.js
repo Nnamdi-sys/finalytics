@@ -20,6 +20,7 @@ const lib = ffi.Library(getNativeLibPath(), {
   finalytics_portfolio_optimization_results: ['int', [PortfolioHandlePtr, CharPtrPtr]],
   finalytics_portfolio_optimization_chart: ['int', [PortfolioHandlePtr, 'uint', 'uint', CharPtrPtr]],
   finalytics_portfolio_performance_chart: ['int', [PortfolioHandlePtr, 'uint', 'uint', CharPtrPtr]],
+  finalytics_portfolio_performance_stats: ['int', [PortfolioHandlePtr, CharPtrPtr]],
   finalytics_portfolio_asset_returns_chart: ['int', [PortfolioHandlePtr, 'uint', 'uint', CharPtrPtr]],
   finalytics_portfolio_returns_matrix: ['int', [PortfolioHandlePtr, 'uint', 'uint', CharPtrPtr]],
   finalytics_portfolio_report: ['int', [PortfolioHandlePtr, CharPtr, CharPtrPtr]],
@@ -43,7 +44,15 @@ class Portfolio {
    * @returns {Promise<Object>} A promise resolving to a JSON object containing optimization results (e.g., weights, expected return, volatility).
    * @throws {Error} If optimization results retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const results = await portfolio.optimizationResults();
    * console.log(results);
    * portfolio.free();
@@ -68,7 +77,15 @@ class Portfolio {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the optimization chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const chart = await portfolio.optimizationChart(600, 800);
    * chart.show();
    * portfolio.free();
@@ -93,7 +110,15 @@ class Portfolio {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the performance chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const chart = await portfolio.performanceChart(600, 800);
    * chart.show();
    * portfolio.free();
@@ -110,6 +135,37 @@ class Portfolio {
       resolve(new Chart(output));
     });
   }
+  
+  /**
+   * Retrieves performance statistics for the portfolio.
+   * @returns {Promise<Polars.DataFrame>} A promise resolving to a Polars DataFrame containing aggregated performance statistics.
+   * @throws {Error} If performance stats retrieval fails.
+   * @example
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
+   * const stats = await portfolio.performanceStats();
+   * console.log(stats);
+   * tickers.free();
+   */
+  async performanceStats() {
+    return new Promise((resolve, reject) => {
+      const outputPtr = ref.alloc(CharPtrPtr);
+      const result = lib.finalytics_portfolio_performance_stats(this.handle, outputPtr);
+      if (result !== 0) {
+        return reject(new Error(`Failed to get performance stats: error code ${result}`));
+      }
+      const output = ref.readCString(outputPtr.deref(), 0);
+      lib.finalytics_free_string(outputPtr.deref());
+      resolve(Polars.readJSON(Buffer.from(output)));
+    });
+  }
 
   /**
    * Retrieves the asset returns chart for the portfolio.
@@ -118,7 +174,14 @@ class Portfolio {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the asset returns chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const chart = await portfolio.assetReturnsChart(600, 800);
    * chart.show();
    * portfolio.free();
@@ -143,7 +206,14 @@ class Portfolio {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the returns correlation matrix.
    * @throws {Error} If matrix retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const matrix = await portfolio.returnsMatrix(600, 800);
    * matrix.show();
    * portfolio.free();
@@ -163,11 +233,19 @@ class Portfolio {
 
   /**
    * Retrieves a comprehensive report for the portfolio.
-   * @param {string} reportType - The type of report to display (e.g., 'performance', 'full').
+   * @param {string} reportType - The type of report to display (e.g., 'performance').
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the report.
    * @throws {Error} If report retrieval fails.
    * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
+   * const portfolio = await new PortfolioBuilder()
+   *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC)
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .objectiveFunction('max_sharpe')
+   *   .build();
    * const report = await portfolio.report('performance');
    * report.show();
    * portfolio.free();
@@ -188,9 +266,6 @@ class Portfolio {
   /**
    * Releases resources associated with the Portfolio.
    * Should be called when the Portfolio is no longer needed to prevent memory leaks.
-   * @example
-   * const portfolio = await new PortfolioBuilder().tickerSymbols(['AAPL', 'MSFT']).build();
-   * portfolio.free();
    */
   free() {
     if (this.handle) {
@@ -336,10 +411,12 @@ class PortfolioBuilder {
    * @example
    * const portfolio = await new PortfolioBuilder()
    *   .tickerSymbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
    *   .startDate('2023-01-01')
    *   .endDate('2023-12-31')
    *   .interval('1d')
    *   .objectiveFunction('max_sharpe')
+   *   .riskFreeRate(0.02)
    *   .assetConstraints('[[0,1],[0,1]]')
    *   .build();
    * portfolio.free();

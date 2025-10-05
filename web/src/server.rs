@@ -7,12 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 #[cfg(feature = "server")]
 use finalytics::prelude::*;
-#[cfg(feature = "server")]
-use syntect::highlighting::ThemeSet;
-#[cfg(feature = "server")]
-use syntect::html::highlighted_html_for_string;
-#[cfg(feature = "server")]
-use syntect::parsing::SyntaxSet;
 
 static EMBEDDED_DATALIST: &[u8] = include_bytes!("../datalist.bin");
 
@@ -471,17 +465,4 @@ pub async fn get_screener_portfolio(
         .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(chart)
-}
-
-#[server]
-pub async fn highlight_code(code: String, lang: String) -> Result<String, ServerFnError> {
-    let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let syntax = ss.find_syntax_by_extension(&lang).unwrap();
-    let mut html = highlighted_html_for_string(&code, &ss, syntax, &ts.themes["base16-ocean.dark"])?;
-    html = html.replace(
-        "<pre style=\"",
-        "<pre style=\"font-size: 1.2em; "
-    );
-    Ok(html)
 }

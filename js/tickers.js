@@ -268,7 +268,14 @@ class Tickers {
    * @returns {Promise<Polars.DataFrame>} A promise resolving to a Polars DataFrame containing aggregated performance statistics.
    * @throws {Error} If performance stats retrieval fails.
    * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
+   * const tickers = await new TickersBuilder()
+   *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const stats = await tickers.performanceStats();
    * console.log(stats);
    * tickers.free();
@@ -293,7 +300,13 @@ class Tickers {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the returns chart.
    * @throws {Error} If chart retrieval fails.
    * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
+   * const tickers = await new TickersBuilder()
+   *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .build();
    * const chart = await tickers.returnsChart(600, 800);
    * chart.show();
    * tickers.free();
@@ -318,7 +331,14 @@ class Tickers {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the returns correlation matrix.
    * @throws {Error} If matrix retrieval fails.
    * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
+   * const tickers = await new TickersBuilder()
+   *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const matrix = await tickers.returnsMatrix(600, 800);
    * matrix.show();
    * tickers.free();
@@ -342,7 +362,14 @@ class Tickers {
    * @returns {Promise<Chart>} A promise resolving to a Chart instance containing the report.
    * @throws {Error} If report retrieval fails.
    * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
+   * const tickers = await new TickersBuilder()
+   *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const report = await tickers.report('performance');
    * report.show();
    * tickers.free();
@@ -391,7 +418,14 @@ class Tickers {
    * @returns {Promise<Portfolio>} A promise resolving to the optimized Portfolio object.
    * @throws {Error} If portfolio optimization fails.
    * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
+   * const tickers = await new TickersBuilder()
+   *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
+   *   .startDate('2023-01-01')
+   *   .endDate('2023-12-31')
+   *   .interval('1d')
+   *   .riskFreeRate(0.02)
+   *   .build();
    * const portfolio = await tickers.optimize('max_sharpe', '[[0,1],[0,1]]', '[{"Name":"AssetClass","Categories":["EQUITY","EQUITY"],"Constraints":[["EQUITY",0.0,0.8]]}]', '{}');
    * console.log(await portfolio.optimizationResults());
    * portfolio.free();
@@ -410,9 +444,6 @@ class Tickers {
   /**
    * Releases resources associated with the Tickers.
    * Should be called when the Tickers is no longer needed to prevent memory leaks.
-   * @example
-   * const tickers = await new TickersBuilder().symbols(['AAPL', 'MSFT']).build();
-   * tickers.free();
    */
   free() {
     if (this.handle) {
@@ -522,9 +553,11 @@ class TickersBuilder {
    * @example
    * const tickers = await new TickersBuilder()
    *   .symbols(['AAPL', 'MSFT'])
+   *   .benchmarkSymbol('^GSPC')
    *   .startDate('2023-01-01')
    *   .endDate('2023-12-31')
    *   .interval('1d')
+   *   .riskFreeRate(0.02)
    *   .build();
    * tickers.free();
    */

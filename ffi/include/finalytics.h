@@ -62,6 +62,8 @@ int finalytics_portfolio_performance_chart(PortfolioHandle handle,
                                            unsigned int width,
                                            char **output);
 
+int finalytics_portfolio_performance_stats(PortfolioHandle handle, char **output);
+
 int finalytics_portfolio_asset_returns_chart(PortfolioHandle handle,
                                              unsigned int height,
                                              unsigned int width,

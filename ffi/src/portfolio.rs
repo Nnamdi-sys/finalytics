@@ -80,24 +80,14 @@ pub extern "C" fn finalytics_portfolio_new(
     let objective_function =
         ObjectiveFunction::from_str(objective_function).unwrap_or(ObjectiveFunction::MaxSharpe);
     let asset_constraints: Option<Vec<(f64, f64)>> = serde_json::from_str(asset_constraints).ok();
-    let categorical_constraints: Option<Vec<(String, Vec<String>, Vec<(String, f64, f64)>)>> =
+    let categorical_constraints: Option<Vec<CategoricalWeights>> =
         serde_json::from_str(categorical_constraints).ok();
     let weights: Option<Vec<f64>> = serde_json::from_str(weights).ok();
 
-    let constraints = categorical_constraints.map(|cats| Constraints {
+    let constraints = Constraints {
         asset_weights: asset_constraints,
-        categorical_weights: Some(
-            cats.into_iter()
-                .map(
-                    |(name, category_per_symbol, weight_per_category)| CategoricalWeights {
-                        name,
-                        category_per_symbol,
-                        weight_per_category,
-                    },
-                )
-                .collect(),
-        ),
-    });
+        categorical_weights: categorical_constraints
+    };
 
     let rt = Runtime::new().unwrap();
     let portfolio = rt
@@ -111,13 +101,13 @@ pub extern "C" fn finalytics_portfolio_new(
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
                 .objective_function(objective_function)
-                .constraints(constraints)
+                .constraints(Some(constraints))
                 .weights(weights)
                 .tickers_data(tickers_data)
                 .benchmark_data(benchmark_data)
                 .build(),
         )
-        .unwrap_or_else(|_| panic!("Failed to create Portfolio"));
+        .unwrap();
     Box::into_raw(Box::new(portfolio))
 }
 
@@ -256,6 +246,31 @@ pub extern "C" fn finalytics_portfolio_performance_chart(
             let html = plot.to_html();
             unsafe {
                 *output = to_c_string(html);
+            }
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+// Performance stats
+#[no_mangle]
+pub extern "C" fn finalytics_portfolio_performance_stats(
+    handle: PortfolioHandle,
+    output: *mut *mut c_char,
+) -> c_int {
+    let portfolio = unsafe {
+        if handle.is_null() {
+            return -1;
+        }
+        &*handle
+    };
+    let rt = Runtime::new().unwrap();
+    match rt.block_on(portfolio.performance_stats_table()) {
+        Ok(df) => {
+            let json = dataframe_to_json(&mut df.data.clone()).unwrap();
+            unsafe {
+                *output = to_c_string(json);
             }
             0
         }

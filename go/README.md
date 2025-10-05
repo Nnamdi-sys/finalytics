@@ -5,9 +5,16 @@
 [![Homepage](https://img.shields.io/badge/homepage-finalytics.rs-blue)](https://finalytics.rs/)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20MacOS-brightgreen)
 
-This is a Go binding for the [Finalytics Rust Library](https://github.com/Nnamdi-sys/finalytics), designed for retrieving financial data and performing security analysis and portfolio optimization.
+---
 
-## Installation
+# Finalytics Go Binding
+
+**Finalytics** is a high-performance Go binding for the Finalytics Rust library, designed for retrieving financial data, security analysis, and portfolio optimization.  
+It provides a fast, modular interface for advanced analytics, and powers dashboards and applications across platforms.
+
+---
+
+## 🚀 Installation
 
 To install the Finalytics Go binding, add it to your Go project using:
 
@@ -15,108 +22,149 @@ To install the Finalytics Go binding, add it to your Go project using:
 go get github.com/Nnamdi-sys/finalytics/go/finalytics
 ```
 
-After installing the Go module, **download the required native binaries** by running:
+After installing the Go module, **download the required native binary** by running:
 ```bash
 curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/refs/heads/main/go/download_binaries.sh
 bash download_binaries.sh
 ```
 
-## Example
+---
 
-View the [Go documentation](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics) for more information.  
-You can also check the [`main.go` file](https://github.com/Nnamdi-sys/finalytics/blob/main/go/main.go) for more usage examples.
+## 🐹 Main Modules
 
+Finalytics Go exposes four core modules for financial analytics:
+
+### 1. Screener
+
+Efficiently filter and rank securities (equities, crypto, etc.) using advanced metrics and custom filters.
+
+**Usage Example:**
 ```go
-package main
-
-import (
-    "fmt"
-    "github.com/Nnamdi-sys/finalytics/go/finalytics"
+screener, err := finalytics.NewScreener(
+    "EQUITY",
+    []string{
+        `{"operator":"eq","operands":["exchange","NMS"]}`,
+        `{"operator":"gte","operands":["intradaymarketcap",10000000000]}`,
+    },
+    "intradaymarketcap",
+    true,
+    0,
+    10,
 )
+if err != nil {
+    panic(err)
+}
+defer screener.Free()
 
-func main() {
-	// Screen for Large Cap NASDAQ Stocks
-    screener, err := finalytics.NewScreener(
-        "EQUITY",
-        []string{
-            `{"operator":"eq","operands":["exchange","NMS"]}`,
-            `{"operator":"gte","operands":["intradaymarketcap",10000000000]}`,
-        },
-        "intradaymarketcap",
-        true,
-        0,
-        10,
-    )
-    if err != nil {
-        fmt.Printf("Error creating Screener: %v\n", err)
-        return
+screener.Display()
+symbols, err := screener.Symbols()
+```
+
+---
+
+### 2. Ticker
+
+Analyze a single security in depth: performance, financials, options, news, and more.
+
+**Usage Example:**
+```go
+ticker, err := finalytics.NewTickerBuilder().
+    Symbol("AAPL").
+    StartDate("2023-01-01").
+    EndDate("2024-12-31").
+    Interval("1d").
+    BenchmarkSymbol("^GSPC").
+    ConfidenceLevel(0.95).
+    RiskFreeRate(0.02).
+    Build()
+if err != nil {
+    panic(err)
+}
+defer ticker.Free()
+
+for _, reportType := range []string{"performance", "financials", "options", "news"} {
+    report, err := ticker.Report(reportType)
+    if err == nil {
+        report.Show()
     }
-    defer screener.Free()
-
-    // Get screened symbols
-    symbols, err := screener.Symbols()
-    if err != nil {
-        fmt.Printf("Failed to get symbols: %v\n", err)
-        return
-    }
-    fmt.Printf("Screened Symbols: %v\n", symbols)
-
-    tickers, err := finalytics.NewTickersBuilder().
-        Symbols(symbols).
-        StartDate("2023-01-01").
-        EndDate("2024-12-31").
-        Interval("1d").
-        BenchmarkSymbol("^GSPC").
-        ConfidenceLevel(0.95).
-        RiskFreeRate(0.02).
-        Build()
-    if err != nil {
-        fmt.Printf("Failed to create Tickers: %v\n", err)
-        return
-    }
-    defer tickers.Free()
-
-    // Generate a Single Ticker Report
-    if len(symbols) > 0 {
-        ticker, err := tickers.GetTicker(symbols[0])
-        if err != nil {
-            fmt.Printf("Failed to get Ticker: %v\n", err)
-            return
-        }
-        defer ticker.Free()
-
-        for _, reportType := range []string{"performance", "financials", "options", "news"} {
-            report, err := ticker.Report(reportType)
-            if err != nil {
-                fmt.Printf("Failed to get %s report: %v\n", reportType, err)
-                continue
-            }
-            report.Show()
-        }
-    }
-
-    // Generate a Multiple Ticker Report
-    tickersReport, err := tickers.Report("performance")
-    if err != nil {
-        fmt.Printf("Failed to get Tickers report: %v\n", err)
-        return
-    }
-    tickersReport.Show()
-
-    // Perform Portfolio Optimization
-    portfolio, err := tickers.Optimize("max_sharpe", "{}", "{}", "{}")
-    if err != nil {
-        fmt.Printf("Failed to optimize portfolio: %v\n", err)
-        return
-    }
-    defer portfolio.Free()
-
-    // Generate a Portfolio Report
-    portfolioReport, err := portfolio.Report("performance")
-    if err != nil {
-        fmt.Printf("Failed to get Portfolio report: %v\n", err)
-        return
-    }
-    portfolioReport.Show()
 }
 ```
+
+---
+
+### 3. Tickers
+
+Work with multiple securities at once—aggregate reports, batch analytics, and portfolio construction.
+
+**Usage Example:**
+```go
+symbols := []string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}
+tickers, err := finalytics.NewTickersBuilder().
+    Symbols(symbols).
+    StartDate("2023-01-01").
+    EndDate("2024-12-31").
+    Interval("1d").
+    BenchmarkSymbol("^GSPC").
+    ConfidenceLevel(0.95).
+    RiskFreeRate(0.02).
+    Build()
+if err != nil {
+    panic(err)
+}
+defer tickers.Free()
+
+report, err := tickers.Report("performance")
+if err == nil {
+    report.Show()
+}
+```
+
+---
+
+### 4. Portfolio
+
+Optimize and analyze portfolios using advanced objective functions and constraints.
+
+**Usage Example:**
+```go
+symbols := []string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}
+portfolio, err := finalytics.NewPortfolioBuilder().
+    Symbols(symbols).
+    BenchmarkSymbol("^GSPC").
+    StartDate("2023-01-01").
+    EndDate("2024-12-31").
+    Interval("1d").
+    ConfidenceLevel(0.95).
+    RiskFreeRate(0.02).
+    ObjectiveFunction("max_sharpe").
+    Build()
+if err != nil {
+    panic(err)
+}
+defer portfolio.Free()
+
+report, err := portfolio.Report("performance")
+if err == nil {
+    report.Show()
+}
+```
+
+---
+
+## 📚 More Documentation
+
+- See the [Go API documentation](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics) for full details.
+
+---
+
+## 🗂️ Multi-language Bindings
+
+Finalytics is also available in:
+- [Rust](../../rust/README.md)
+- [Python](../../python/README.md)
+- [Node.js](../../js/README.md)
+- [Web Application](../../web/README.md)
+
+---
+
+**Finalytics** — Modular, high-performance financial analytics for Go.

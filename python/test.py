@@ -86,7 +86,7 @@ if __name__ == '__main__':
         confidence_level=0.95,
         risk_free_rate=0.02,
         objective_function="max_sharpe",
-        asset_constraints=[(0, 1), (0, 1), (0, 1), (0, 1), (0, 1)],
+        asset_constraints=[(0.1, 0.5), (0.1, 0.5), (0.1, 0.5), (0.1, 0.5), (0.1, 0.5)],
         categorical_constraints=[
             (
                 "AssetClass",
@@ -95,6 +95,5 @@ if __name__ == '__main__':
             )
         ]
     )
-
     portfolio.report()
 

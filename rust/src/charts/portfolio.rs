@@ -82,7 +82,7 @@ impl PortfolioCharts for Portfolio {
 
         let mut filtered: Vec<_> = ticker_symbols.iter()
             .zip(weights.iter())
-            .filter(|&(_, &weight)| weight.abs() > 0.0)
+            .filter(|&(_, &weight)| weight.abs() > 0.01)
             .collect();
 
         filtered.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
