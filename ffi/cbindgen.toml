@@ -27,6 +27,7 @@ include = [
     "finalytics_portfolio_optimization_results",
     "finalytics_portfolio_optimization_chart",
     "finalytics_portfolio_performance_chart",
+    "finalytics_portfolio_performance_stats",
     "finalytics_portfolio_asset_returns_chart",
     "finalytics_portfolio_returns_matrix",
     "finalytics_portfolio_report",
