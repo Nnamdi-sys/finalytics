@@ -43,6 +43,10 @@ cp ../target/aarch64-apple-darwin/release/libfinalytics_ffi.dylib lib/macos/libf
 cp ../target/x86_64-unknown-linux-gnu/release/libfinalytics_ffi.so lib/linux/libfinalytics_ffi.so
 cp ../target/x86_64-pc-windows-gnu/release/finalytics_ffi.dll lib/windows/finalytics_ffi.dll
 
+# --- Fix install names for macOS dylibs ---
+install_name_tool -id @rpath/libfinalytics_ffi_x86_64.dylib lib/macos/libfinalytics_ffi_x86_64.dylib
+install_name_tool -id @rpath/libfinalytics_ffi_aarch64.dylib lib/macos/libfinalytics_ffi_aarch64.dylib
+
 echo "✅ FFI artifacts generated and copied successfully!"
 
 # --- GitHub Release ---
@@ -56,11 +60,11 @@ else
 fi
 
 gh release upload "$RELEASE_TAG" \
-    /lib/macos/libfinalytics_ffi_x86_64.dylib \
-    /lib/macos/libfinalytics_ffi_aarch64.dylib \
-    /lib/linux/libfinalytics_ffi.so \
-    /lib/windows/finalytics_ffi.dll \
-    /finalytics.h \
+    ./lib/macos/libfinalytics_ffi_x86_64.dylib \
+    ./lib/macos/libfinalytics_ffi_aarch64.dylib \
+    ./lib/linux/libfinalytics_ffi.so \
+    ./lib/windows/finalytics_ffi.dll \
+    ./include/finalytics.h \
     --clobber
 
 echo "🎉 Release $RELEASE_TAG (Finalytics C-FFI) completed successfully!"

@@ -41,8 +41,17 @@ esac
 
 URL="https://github.com/$REPO/releases/download/$TAG/$LIBNAME"
 
-# Get the actual Go module cache directory for finalytics/go (with encoding)
+# Ensure the Go module is downloaded
+echo "Ensuring github.com/Nnamdi-sys/finalytics/go is downloaded..."
+go mod download github.com/Nnamdi-sys/finalytics/go
+
+# Get the actual Go module cache directory for finalytics/go
 MODDIR=$(go list -m -f '{{.Dir}}' github.com/Nnamdi-sys/finalytics/go)
+if [ -z "$MODDIR" ]; then
+    echo "Failed to locate module directory for github.com/Nnamdi-sys/finalytics/go"
+    exit 1
+fi
+
 MODPATH="$MODDIR/finalytics/lib/$MOD_OS"
 
 # Make the module directory writable (required for some systems)
@@ -50,17 +59,13 @@ chmod -R u+w "$MODDIR"
 
 mkdir -p "$MODPATH"
 
+echo "Downloading native library for $OS/$ARCH from $URL ..."
+curl -L -o "$MODPATH/$LIBNAME" "$URL"
 if [ -f "$MODPATH/$LIBNAME" ]; then
-    echo "Native library already present: $MODPATH/$LIBNAME"
+    echo "Downloaded library to $MODPATH/$LIBNAME"
 else
-    echo "Downloading native library for $OS/$ARCH from $URL ..."
-    curl -L -o "$MODPATH/$LIBNAME" "$URL"
-    if [ -f "$MODPATH/$LIBNAME" ]; then
-        echo "Downloaded library to $MODPATH/$LIBNAME"
-    else
-        echo "Failed to download library."
-        exit 1
-    fi
+    echo "Failed to download library."
+    exit 1
 fi
 
 # Download the header file as well
