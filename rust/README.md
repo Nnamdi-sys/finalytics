@@ -10,7 +10,7 @@
 
 # Finalytics Rust Library
 
-**Finalytics** is a modular, high-performance Rust library for retrieving financial data, performing security analysis, and optimizing portfolios.  
+**Finalytics** is a modular, high-performance Rust library for retrieving financial data, performing security analysis, and optimizing portfolios.
 It is designed for extensibility and speed, and powers bindings for Python, Node.js, Go, and a web application built with Dioxus.
 
 ---
@@ -142,10 +142,10 @@ portfolio.report(Some(ReportType::Performance)).await?.show()?;
 ## 🗂️ Multi-language Bindings
 
 Finalytics is also available in:
-- [Python](../../python/README.md)
-- [Node.js](../../js/README.md)
-- [Go](../../go/README.md)
-- [Web Application](../../web/README.md)
+- [Python](../python/README.md)
+- [Node.js](../js/README.md)
+- [Go](../go/README.md)
+- [Web Application](../web/README.md)
 
 ---
 

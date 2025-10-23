@@ -9,7 +9,7 @@
 
 # Finalytics Go Binding
 
-**Finalytics** is a high-performance Go binding for the Finalytics Rust library, designed for retrieving financial data, security analysis, and portfolio optimization.  
+**Finalytics** is a high-performance Go binding for the Finalytics Rust library, designed for retrieving financial data, security analysis, and portfolio optimization.
 It provides a fast, modular interface for advanced analytics, and powers dashboards and applications across platforms.
 
 ---
@@ -160,10 +160,10 @@ if err == nil {
 ## 🗂️ Multi-language Bindings
 
 Finalytics is also available in:
-- [Rust](../../rust/README.md)
-- [Python](../../python/README.md)
-- [Node.js](../../js/README.md)
-- [Web Application](../../web/README.md)
+- [Rust](../rust/README.md)
+- [Python](../python/README.md)
+- [Node.js](../js/README.md)
+- [Web Application](../web/README.md)
 
 ---
 

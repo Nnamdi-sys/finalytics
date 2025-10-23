@@ -30,8 +30,8 @@ rustup target add x86_64-unknown-linux-gnu
 rustup target add x86_64-pc-windows-gnu
 
 # Linux and Windows builds with nightly toolchain
-cross +nightly build --release --target x86_64-unknown-linux-gnu --jobs 4
-cross +nightly build --release --target x86_64-pc-windows-gnu --jobs 4
+cross build --release --target x86_64-unknown-linux-gnu --jobs 4
+cross build --release --target x86_64-pc-windows-gnu --jobs 4
 
 # Copy artifacts into Go lib structure
 mkdir -p lib/macos

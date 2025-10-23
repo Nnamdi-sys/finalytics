@@ -25,19 +25,19 @@
 
 ## 📦 Bindings & Documentation
 
-- **Rust Core:**  
-  [Rust README](./README.md) | [API Docs](https://docs.rs/finalytics/)
+- **Rust Core:**
+  [Rust README](./rust/README.md) | [API Docs](https://docs.rs/finalytics/)
 
-- **Python Binding:**  
+- **Python Binding:**
   [Python README](./python/README.md) | [PyPI](https://pypi.org/project/finalytics/)
 
-- **Node.js Binding:**  
+- **Node.js Binding:**
   [Node.js README](./js/README.md) | [npm](https://www.npmjs.com/package/finalytics)
 
-- **Go Binding:**  
+- **Go Binding:**
   [Go README](./go/README.md) | [GoDoc](https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics)
 
-- **Web Application:**  
+- **Web Application:**
   [Web README](./web/README.md) | [Live Demo](https://finalytics.rs)
 
 ---
@@ -53,7 +53,7 @@ finalytics = "*"
 ```bash
 cargo add finalytics
 ```
-[See Rust examples & docs →](./README.md)
+[See Rust examples & docs →](./rust/README.md)
 
 ---
 
@@ -86,7 +86,7 @@ go get github.com/Nnamdi-sys/finalytics/go/finalytics
 
 ### Web Application
 
-Try the interactive dashboards at [finalytics.rs](https://finalytics.rs)  
+Try the interactive dashboards at [finalytics.rs](https://finalytics.rs)
 Or [run locally](./web/README.md):
 
 ```bash
