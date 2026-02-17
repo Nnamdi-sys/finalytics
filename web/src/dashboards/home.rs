@@ -305,7 +305,6 @@ fn HomeStyles() -> Element {
             @media (max-width: 768px) {{
                 .home-header {{
                     padding: 8px;
-                    padding-top: 52px;
                     margin-top: 0;
                 }}
 
@@ -358,7 +357,6 @@ fn HomeStyles() -> Element {
             @media (max-width: 480px) {{
                 .home-header {{
                     padding: 6px;
-                    padding-top: 56px;
                     margin-top: 0;
                 }}
 

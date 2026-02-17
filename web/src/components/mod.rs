@@ -1,8 +1,9 @@
-pub mod utils;
-pub mod code;
 pub mod chart;
-pub mod table;
-pub mod sidebar;
-pub mod symbols;
-pub mod weights;
+pub mod code;
 pub mod display;
+pub mod footer;
+pub mod navbar;
+pub mod symbols;
+pub mod table;
+pub mod utils;
+pub mod weights;

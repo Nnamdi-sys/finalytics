@@ -1,4 +1,5 @@
-use crate::components::sidebar::SideBar;
+use crate::components::footer::Footer;
+use crate::components::navbar::NavBar;
 use crate::components::utils::Loading;
 use crate::dashboards::financials::Financials;
 use crate::dashboards::home::Home;
@@ -25,12 +26,10 @@ pub enum Page {
 #[component]
 pub fn App() -> Element {
     let active_page = use_signal(|| Page::Home);
-    let mut is_sidebar_open = use_signal(|| true);
-    let mut has_user_toggled = use_signal(|| false);
+    let is_mobile_menu_open = use_signal(|| false);
 
     rsx! {
         head {
-            // Viewport meta tag for proper mobile rendering
             meta {
                 name: "viewport",
                 content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
@@ -58,129 +57,78 @@ pub fn App() -> Element {
         }
 
         div {
-            class: if *has_user_toggled.read() { "app-shell user-toggled" } else { "app-shell" },
+            class: "app-shell",
 
-            // Mobile hamburger/close toggle — always rendered, visible only on small screens
-            button {
-                class: "mobile-hamburger",
-                onclick: move |_| {
-                    if !*has_user_toggled.read() {
-                        // First tap on mobile: signal was true (desktop default)
-                        // but sidebar was hidden by CSS. Just mark toggled so
-                        // the CSS rule lifts and the sidebar slides in.
-                        has_user_toggled.set(true);
-                    } else {
-                        let current = *is_sidebar_open.read();
-                        is_sidebar_open.set(!current);
-                    }
-                },
-                i { class: if *is_sidebar_open.read() && *has_user_toggled.read() { "bi bi-x-lg" } else { "bi bi-list" } }
-            }
+            // ── Navbar (sticky, always visible) ──
+            NavBar { active_page: active_page, is_mobile_menu_open: is_mobile_menu_open }
 
-            // Backdrop overlay — visible on mobile when sidebar is open
-            if *is_sidebar_open.read() && *has_user_toggled.read() {
-                div {
-                    class: "sidebar-backdrop",
-                    onclick: move |_| is_sidebar_open.set(false),
-                }
-            }
-
-            SideBar { active_page: active_page, is_sidebar_open: is_sidebar_open }
-
+            // ── Scrollable area: content + footer ──
             div {
-                class: "main-content",
+                class: "app-scroll-area",
 
-                SuspenseBoundary {
-                    fallback: |_| rsx! { Loading {} },
-                    match *active_page.read() {
-                        Page::Home => rsx! { Home {} },
-                        Page::Performance => rsx! { Performance {} },
-                        Page::Financials => rsx! { Financials {} },
-                        Page::Options => rsx! { Options {} },
-                        Page::Portfolio => rsx! { Portfolio {} },
-                        Page::Screener => rsx! { Screener {} },
-                        Page::News => rsx! { News {} },
-                        Page::NotFound => rsx! { h1 { "404 Not Found" } },
+                // Main content
+                div {
+                    class: "main-content",
+
+                    SuspenseBoundary {
+                        fallback: |_| rsx! { Loading {} },
+                        match *active_page.read() {
+                            Page::Home => rsx! { Home {} },
+                            Page::Performance => rsx! { Performance {} },
+                            Page::Financials => rsx! { Financials {} },
+                            Page::Options => rsx! { Options {} },
+                            Page::Portfolio => rsx! { Portfolio {} },
+                            Page::Screener => rsx! { Screener {} },
+                            Page::News => rsx! { News {} },
+                            Page::NotFound => rsx! { h1 { "404 Not Found" } },
+                        }
                     }
                 }
+
+                // Footer (scrolls with content)
+                Footer {}
             }
         }
 
         style { r#"
+            /* ---- Reset ---- */
+            *, *::before, *::after {{
+                box-sizing: border-box;
+            }}
+
             /* ---- App Shell ---- */
             .app-shell {{
                 display: flex;
+                flex-direction: column;
                 height: 100vh;
                 font-family: 'Poppins', sans-serif;
-                position: relative;
                 overflow: hidden;
+            }}
+
+            /* ---- Scrollable area (content + footer) ---- */
+            .app-scroll-area {{
+                flex: 1;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
             }}
 
             /* ---- Main Content ---- */
             .main-content {{
                 flex: 1;
                 padding: 20px;
-                overflow-y: auto;
                 background-color: #fff;
-                min-width: 0; /* prevent flex overflow */
             }}
 
-            /* ---- Mobile Hamburger Button ---- */
-            .mobile-hamburger {{
-                display: none; /* hidden on desktop */
-                position: fixed;
-                top: 12px;
-                left: 12px;
-                z-index: 1350; /* above sidebar (1200) and backdrop (1099) */
-                background-color: #000;
-                color: #fff;
-                border: none;
-                border-radius: 50%;
-                width: 44px;
-                height: 44px;
-                font-size: 22px;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-            }}
-
-            /* ---- Sidebar Backdrop (mobile overlay) ---- */
-            .sidebar-backdrop {{
-                display: none; /* hidden on desktop */
-            }}
-
-            /* ---- Responsive: tablets and phones ---- */
+            /* ---- Responsive: tablets ---- */
             @media (max-width: 768px) {{
-                .mobile-hamburger {{
-                    display: flex;
-                }}
-
-                .sidebar-backdrop {{
-                    display: block;
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0, 0, 0, 0.45);
-                    z-index: 1099;
-                }}
-
                 .main-content {{
                     padding: 16px 10px;
-                    /* On mobile the sidebar overlays, so content always takes full width */
-                    width: 100%;
-                }}
-
-                /*
-                 * Before user interacts, hide sidebar on mobile even if
-                 * is_sidebar_open is true (its desktop default).
-                 * Once user-toggled is on the shell, normal open/collapsed
-                 * classes take over.
-                 */
-                .app-shell:not(.user-toggled) .sidebar.open {{
-                    transform: translateX(-100%);
                 }}
             }}
 
+            /* ---- Responsive: small phones ---- */
             @media (max-width: 480px) {{
                 .main-content {{
                     padding: 12px 6px;
