@@ -36,6 +36,7 @@ pub fn Home() -> Element {
 
     // UI state
     let mut example_type = use_signal(|| "ticker".to_string());
+    let active_lang = use_signal(|| "rs".to_string());
 
     rsx! {
         // Header section
@@ -104,7 +105,8 @@ pub fn Home() -> Element {
                         CodeContainer {
                             key: "{key}",
                             codes: codes,
-                            id: "code-example"
+                            id: "code-example",
+                            active_lang: active_lang
                         }
                     }
                 }
@@ -303,7 +305,8 @@ fn HomeStyles() -> Element {
             @media (max-width: 768px) {{
                 .home-header {{
                     padding: 8px;
-                    margin-top: 5px;
+                    padding-top: 52px;
+                    margin-top: 0;
                 }}
 
                 .home-title {{
@@ -346,7 +349,7 @@ fn HomeStyles() -> Element {
                 }}
 
                 .home-chart-body {{
-                    max-height: 50vh;
+                    max-height: 60vh;
                     padding: 6px;
                 }}
             }}
@@ -354,8 +357,9 @@ fn HomeStyles() -> Element {
             /* ========== Small Phones (<=480px) ========== */
             @media (max-width: 480px) {{
                 .home-header {{
-                    padding: 4px;
-                    margin-top: 2px;
+                    padding: 6px;
+                    padding-top: 56px;
+                    margin-top: 0;
                 }}
 
                 .home-title {{
@@ -394,7 +398,7 @@ fn HomeStyles() -> Element {
                 }}
 
                 .home-chart-body {{
-                    max-height: 40vh;
+                    max-height: 55vh;
                     padding: 4px;
                 }}
             }}
@@ -420,7 +424,8 @@ pub fn get_code_examples(category: String) -> String {
                            .risk_free_rate(0.02)
                            .build();
 
-        ticker.report(Some(ReportType::Performance)).await?.show()?;
+        ticker.report(Some(ReportType::Performance))
+        .await?.show()?;
 
         Ok(())
     }
@@ -449,20 +454,22 @@ pub fn get_code_examples(category: String) -> String {
     #[tokio::main]
     async fn main() -> Result<(), Box<dyn Error>> {
 
-        let ticker_symbols = vec!["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"];
+        let ticker_symbols = vec!["NVDA", "GOOG", "AAPL",
+        "MSFT", "BTC-USD"];
 
         let portfolio = Portfolio::builder()
-                           .ticker_symbols(ticker_symbols)
-                           .benchmark_symbol("^GSPC")
-                           .start_date("2023-01-01")
-                           .end_date("2024-12-31")
-                           .interval(Interval::OneDay)
-                           .confidence_level(0.95)
-                           .risk_free_rate(0.02)
-                           .objective_function(ObjectiveFunction::MaxSharpe)
-                           .build().await?;
+                .ticker_symbols(ticker_symbols)
+                .benchmark_symbol("^GSPC")
+                .start_date("2023-01-01")
+                .end_date("2024-12-31")
+                .interval(Interval::OneDay)
+                .confidence_level(0.95)
+                .risk_free_rate(0.02)
+                .objective_function(ObjectiveFunction::MaxSharpe)
+                .build().await?;
 
-        portfolio.report(Some(ReportType::Performance)).await?.show()?;
+        portfolio.report(Some(ReportType::Performance))
+        .await?.show()?;
 
         Ok(())
     }

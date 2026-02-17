@@ -2,7 +2,11 @@ use dioxus::prelude::*;
 use std::collections::HashMap;
 
 #[component]
-pub fn CodeContainer(codes: HashMap<String, String>, id: String) -> Element {
+pub fn CodeContainer(
+    codes: HashMap<String, String>,
+    id: String,
+    active_lang: Signal<String>,
+) -> Element {
     // Ordered list of languages to display (only those present in the map)
     let available_langs: Vec<(&str, &str, &str)> = vec![
         ("rs", "Rust", "devicon-rust-plain"),
@@ -17,9 +21,15 @@ pub fn CodeContainer(codes: HashMap<String, String>, id: String) -> Element {
         .map(|(key, label, icon)| (key.to_string(), label.to_string(), icon.to_string()))
         .collect();
 
-    // Default to first available language
-    let default_lang = tabs.first().map(|(k, _, _)| k.clone()).unwrap_or_default();
-    let mut active_lang = use_signal(move || default_lang.clone());
+    // If the current active_lang is not available in this code set, fall back to first available
+    let active = active_lang.read().clone();
+    let is_valid = tabs.iter().any(|(k, _, _)| *k == active);
+    if !is_valid {
+        if let Some((first_key, _, _)) = tabs.first() {
+            active_lang.set(first_key.clone());
+        }
+    }
+
     let mut copied = use_signal(|| false);
 
     // Map language key to Prism.js class
@@ -50,8 +60,8 @@ pub fn CodeContainer(codes: HashMap<String, String>, id: String) -> Element {
     // Re-trigger Prism syntax highlighting whenever the language/code changes.
     // Reading `active_lang` signal inside the closure creates a reactive
     // subscription so Dioxus re-runs the effect on every language switch.
-    // Uses a single JS eval with internal setTimeout to avoid multiple .await
-    // points that can throw WASM errors during rapid re-renders.
+    // Uses requestAnimationFrame for near-immediate highlighting after DOM update,
+    // with a short polling fallback only when Prism.js hasn't loaded yet.
     let id_for_effect = id.clone();
     use_effect(move || {
         let active = active_lang.read().clone();
@@ -92,21 +102,27 @@ pub fn CodeContainer(codes: HashMap<String, String>, id: String) -> Element {
                 function tryHighlight() {{
                     try {{
                         var el = document.getElementById(elId);
-                        if (!el) return;
+                        if (!el) {{
+                            if (attempts < maxAttempts) {{
+                                attempts++;
+                                requestAnimationFrame(tryHighlight);
+                            }}
+                            return;
+                        }}
                         if (typeof Prism !== 'undefined' && typeof Prism.highlightElement === 'function') {{
                             Prism.highlightElement(el);
                             applyMobileWrap(el);
                         }} else if (attempts < maxAttempts) {{
                             attempts++;
-                            setTimeout(tryHighlight, 100);
+                            setTimeout(tryHighlight, 50);
                         }} else {{
                             applyMobileWrap(el);
                         }}
                     }} catch(e) {{}}
                 }}
 
-                // Initial delay to let the DOM update, then start polling
-                setTimeout(tryHighlight, 60);
+                // Use requestAnimationFrame for near-immediate execution after DOM paint
+                requestAnimationFrame(tryHighlight);
             }})();
             "#,
             el_id = el_id

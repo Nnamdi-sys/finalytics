@@ -93,6 +93,7 @@ pub fn Performance() -> Element {
                     border-radius: 10px;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     box-sizing: border-box;
+                    overflow: visible;
                 "#,
                 div {
                     style: r#"
@@ -100,6 +101,7 @@ pub fn Performance() -> Element {
                         padding: 20px;
                         border-radius: 10px;
                         box-sizing: border-box;
+                        overflow: visible;
                     "#,
                     form {
                         style: r#"
@@ -107,6 +109,7 @@ pub fn Performance() -> Element {
                             flex-wrap: wrap;
                             gap: 16px;
                             align-items: flex-end;
+                            overflow: visible;
                         "#,
                         onsubmit: move |e| {
                             charts.clear();
@@ -130,10 +133,16 @@ pub fn Performance() -> Element {
                         },
 
                         // Symbol input
-                        Symbol { symbol: symbol, title: "Symbol" }
+                        div {
+                            style: "min-width: 250px; flex: 1; position: relative; z-index: 20;",
+                            Symbol { symbol: symbol, title: "Symbol" }
+                        }
 
                         // Benchmark input
-                        Symbol { symbol: benchmark_symbol, title: "Benchmark Symbol" }
+                        div {
+                            style: "min-width: 250px; flex: 1; position: relative; z-index: 19;",
+                            Symbol { symbol: benchmark_symbol, title: "Benchmark Symbol" }
+                        }
 
                         // Date range
                         div {

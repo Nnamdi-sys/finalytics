@@ -26,17 +26,7 @@ pub enum Page {
 pub fn App() -> Element {
     let active_page = use_signal(|| Page::Home);
     let mut is_sidebar_open = use_signal(|| true);
-
-    // On first mount, detect mobile viewport and start with sidebar closed
-    use_effect(move || {
-        spawn(async move {
-            if let Ok(val) = dioxus::document::eval("window.innerWidth").await {
-                if val.as_f64().unwrap_or(1024.0) <= 768.0 {
-                    is_sidebar_open.set(false);
-                }
-            }
-        });
-    });
+    let mut has_user_toggled = use_signal(|| false);
 
     rsx! {
         head {
@@ -68,20 +58,27 @@ pub fn App() -> Element {
         }
 
         div {
-            class: "app-shell",
+            class: if *has_user_toggled.read() { "app-shell user-toggled" } else { "app-shell" },
 
             // Mobile hamburger/close toggle — always rendered, visible only on small screens
             button {
                 class: "mobile-hamburger",
                 onclick: move |_| {
-                    let current = *is_sidebar_open.read();
-                    is_sidebar_open.set(!current);
+                    if !*has_user_toggled.read() {
+                        // First tap on mobile: signal was true (desktop default)
+                        // but sidebar was hidden by CSS. Just mark toggled so
+                        // the CSS rule lifts and the sidebar slides in.
+                        has_user_toggled.set(true);
+                    } else {
+                        let current = *is_sidebar_open.read();
+                        is_sidebar_open.set(!current);
+                    }
                 },
-                i { class: if *is_sidebar_open.read() { "bi bi-x-lg" } else { "bi bi-list" } }
+                i { class: if *is_sidebar_open.read() && *has_user_toggled.read() { "bi bi-x-lg" } else { "bi bi-list" } }
             }
 
             // Backdrop overlay — visible on mobile when sidebar is open
-            if *is_sidebar_open.read() {
+            if *is_sidebar_open.read() && *has_user_toggled.read() {
                 div {
                     class: "sidebar-backdrop",
                     onclick: move |_| is_sidebar_open.set(false),
@@ -171,6 +168,16 @@ pub fn App() -> Element {
                     padding: 16px 10px;
                     /* On mobile the sidebar overlays, so content always takes full width */
                     width: 100%;
+                }}
+
+                /*
+                 * Before user interacts, hide sidebar on mobile even if
+                 * is_sidebar_open is true (its desktop default).
+                 * Once user-toggled is on the shell, normal open/collapsed
+                 * classes take over.
+                 */
+                .app-shell:not(.user-toggled) .sidebar.open {{
+                    transform: translateX(-100%);
                 }}
             }}
 

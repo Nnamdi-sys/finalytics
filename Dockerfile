@@ -10,7 +10,7 @@ COPY rust rust
 # Copy the local web directory into the Docker image
 COPY web web
 
-# Install necessary dependencies for SQLite3, OpenSSL, nlopt, and build tools
+# Install necessary dependencies for OpenSSL, nlopt, and build tools
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -18,13 +18,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     perl \
     cpanminus \
-    make
+    make \
+    curl
 
 # Install libipc-cmd-perl
 RUN cpanm IPC::Cmd
 
 # Install Dioxus CLI and add wasm32-unknown-unknown target
-RUN cargo install dioxus-cli --locked && rustup target add wasm32-unknown-unknown
+RUN cargo install dioxus-cli@0.6.3 --locked && rustup target add wasm32-unknown-unknown
 
 # Change the working directory to the web directory
 WORKDIR /src/web

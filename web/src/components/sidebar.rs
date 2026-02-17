@@ -7,9 +7,10 @@ static LOGO: Asset = asset!("/public/images/logo.svg");
 pub fn SideBar(active_page: Signal<Page>, is_sidebar_open: Signal<bool>) -> Element {
     let mut is_ticker_open = use_signal(|| true);
 
-    // Helper: set the active page. Sidebar open/close is manual by the user.
+    // Helper: set the active page and collapse the sidebar.
     let mut navigate = move |page: Page| {
         active_page.set(page);
+        is_sidebar_open.set(false);
     };
 
     rsx! {
