@@ -109,7 +109,7 @@ pub fn Symbol(symbol: Signal<String>, title: String) -> Element {
                         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                         max-height: 200px;
                         overflow-y: auto;
-                        z-index: 1000;
+                        z-index: 1100;
                     "#,
                     for (sym, name) in suggestions.read().iter().cloned() {
                         div {
@@ -136,7 +136,7 @@ pub fn Symbol(symbol: Signal<String>, title: String) -> Element {
                         left: 0;
                         width: 100vw;
                         height: 100vh;
-                        z-index: 999;
+                        z-index: 1099;
                     "#,
                     onclick: onclick_outside,
                 }
@@ -320,7 +320,7 @@ pub fn Symbols(symbols: Signal<String>) -> Element {
                         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                         max-height: 200px;
                         overflow-y: auto;
-                        z-index: 1000;
+                        z-index: 1100;
                     "#,
                     for (sym, name) in suggestions.read().iter().cloned() {
                         div {
@@ -346,7 +346,7 @@ pub fn Symbols(symbols: Signal<String>) -> Element {
                         left: 0;
                         width: 100vw;
                         height: 100vh;
-                        z-index: 999;
+                        z-index: 1099;
                     "#,
                     onclick: onclick_outside,
                 }
