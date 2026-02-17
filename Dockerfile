@@ -14,7 +14,6 @@ COPY web web
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
-    libsqlite3-dev \
     cmake \
     g++ \
     perl \
@@ -38,7 +37,7 @@ FROM debian:bookworm AS runner
 
 # Install necessary dependencies
 RUN apt-get update && apt-get install -y \
-    openssl libssl3 ca-certificates libsqlite3-0
+    openssl libssl3 ca-certificates
 
 # Set the working directory to /web
 WORKDIR /web

@@ -1,15 +1,21 @@
-use dioxus::prelude::*;
-use dioxus::logger::tracing::info;
-use crate::server::{get_ticker_charts, PerformanceTabs, TickerTabs};
-use crate::components::symbols::Symbol;
 use crate::components::display::PerformanceDisplay;
+use crate::components::symbols::Symbol;
+use crate::server::{get_ticker_charts, PerformanceTabs, TickerTabs};
+use dioxus::logger::tracing::info;
+use dioxus::prelude::*;
 
 #[component]
 pub fn Performance() -> Element {
     let symbol = use_signal(|| "AAPL".to_string());
     let benchmark_symbol = use_signal(|| "^GSPC".to_string());
-    let mut start_date = use_signal(|| "2023-01-01".to_string());
-    let mut end_date = use_signal(|| "2024-12-31".to_string());
+    let default_start = chrono::Utc::now()
+        .checked_sub_signed(chrono::Duration::days(365))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+    let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let mut start_date = use_signal(|| default_start);
+    let mut end_date = use_signal(|| default_end);
     let mut interval = use_signal(|| "1d".to_string());
     let mut confidence_level = use_signal(|| 0.95);
     let mut risk_free_rate = use_signal(|| 0.02);
@@ -44,7 +50,7 @@ pub fn Performance() -> Element {
             String::from("performance"),
             String::new(),
         )
-            .await
+        .await
         {
             Ok(TickerTabs::Performance(tabs)) => tabs,
             Ok(_) => PerformanceTabs {
@@ -60,7 +66,6 @@ pub fn Performance() -> Element {
                 performance_stats_table: format!("Error: {e}"),
             },
         }
-
     });
 
     rsx! {

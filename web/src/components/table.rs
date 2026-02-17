@@ -37,17 +37,10 @@ pub fn TableContainer(html: String, title: String) -> Element {
 
     rsx! {
         div {
-            class: "tab-pane fade show active",
-            style: "padding: 5px;",
+            class: "tab-pane fade show active table-responsive-wrapper",
             // Fallback title above the table
             div {
-                style: r#"
-                    font-weight: bold;
-                    color: #006400;
-                    font-size: 18px;
-                    margin-bottom: 10px;
-                    text-align: center;
-                "#,
+                class: "table-title",
                 "{title}"
             }
             // Required CSS
@@ -71,5 +64,83 @@ pub fn TableContainer(html: String, title: String) -> Element {
                 style: "width:100%;"
             }
         }
+
+        style { r#"
+            /* ========== Table Wrapper ========== */
+            .table-responsive-wrapper {{
+                padding: 5px;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                box-sizing: border-box;
+            }}
+
+            .table-title {{
+                font-weight: bold;
+                color: #006400;
+                font-size: 18px;
+                margin-bottom: 10px;
+                text-align: center;
+            }}
+
+            /* Make DataTables controls stack better on mobile */
+            .table-responsive-wrapper .dataTables_wrapper {{
+                width: 100%;
+                overflow-x: auto;
+            }}
+
+            /* ========== Tablet (<=768px) ========== */
+            @media (max-width: 768px) {{
+                .table-responsive-wrapper {{
+                    padding: 3px;
+                }}
+
+                .table-title {{
+                    font-size: 15px;
+                    margin-bottom: 6px;
+                }}
+
+                /* Ensure table doesn't overflow — allow horizontal scroll */
+                .table-responsive-wrapper table {{
+                    font-size: 13px;
+                }}
+
+                .table-responsive-wrapper .dataTables_wrapper .dataTables_filter,
+                .table-responsive-wrapper .dataTables_wrapper .dataTables_length {{
+                    float: none;
+                    text-align: center;
+                    margin-bottom: 8px;
+                }}
+
+                .table-responsive-wrapper .dataTables_wrapper .dataTables_info,
+                .table-responsive-wrapper .dataTables_wrapper .dataTables_paginate {{
+                    float: none;
+                    text-align: center;
+                    margin-top: 8px;
+                }}
+            }}
+
+            /* ========== Small Phones (<=480px) ========== */
+            @media (max-width: 480px) {{
+                .table-responsive-wrapper {{
+                    padding: 2px;
+                }}
+
+                .table-title {{
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                }}
+
+                .table-responsive-wrapper table {{
+                    font-size: 11px;
+                }}
+
+                .table-responsive-wrapper table th,
+                .table-responsive-wrapper table td {{
+                    padding: 4px 6px;
+                    white-space: nowrap;
+                }}
+            }}
+        "# }
     }
 }

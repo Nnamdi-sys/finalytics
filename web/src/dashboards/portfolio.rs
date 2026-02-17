@@ -1,16 +1,22 @@
-use dioxus::prelude::*;
-use dioxus::logger::tracing::info;
 use crate::components::display::PortfolioDisplay;
-use crate::server::{get_portfolio_charts, PortfolioTabs};
 use crate::components::symbols::{Symbol, Symbols};
 use crate::components::weights::WeightAllocationInputs;
+use crate::server::{get_portfolio_charts, PortfolioTabs};
+use dioxus::logger::tracing::info;
+use dioxus::prelude::*;
 
 #[component]
 pub fn Portfolio() -> Element {
     let symbols = use_signal(|| "AAPL,MSFT,NVDA,BTC-USD".to_string());
     let benchmark_symbol = use_signal(|| "^GSPC".to_string());
-    let mut start_date = use_signal(|| "2023-01-01".to_string());
-    let mut end_date = use_signal(|| "2024-12-31".to_string());
+    let default_start = chrono::Utc::now()
+        .checked_sub_signed(chrono::Duration::days(365))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+    let default_end = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let mut start_date = use_signal(|| default_start);
+    let mut end_date = use_signal(|| default_end);
     let mut interval = use_signal(|| "1d".to_string());
     let mut confidence_level = use_signal(|| 0.95);
     let mut risk_free_rate = use_signal(|| 0.02);
@@ -58,7 +64,7 @@ pub fn Portfolio() -> Element {
             weight_ranges(),
             allocations(),
         )
-            .await
+        .await
         {
             Ok(charts) => charts,
             Err(e) => PortfolioTabs {
@@ -74,15 +80,26 @@ pub fn Portfolio() -> Element {
 
     // Sync allocations and weight_ranges with symbols count
     use_effect(move || {
-        let symbol_count = symbols().split(',').filter(|s| !s.trim().is_empty()).count();
+        let symbol_count = symbols()
+            .split(',')
+            .filter(|s| !s.trim().is_empty())
+            .count();
         match *weight_mode.read() {
             Some(ref mode) if mode == "allocation" => {
-                if allocations.read().as_ref().map_or(true, |a| a.len() != symbol_count) {
+                if allocations
+                    .read()
+                    .as_ref()
+                    .map_or(true, |a| a.len() != symbol_count)
+                {
                     allocations.set(Some(vec![1.0 / symbol_count as f64; symbol_count]));
                 }
             }
             Some(ref mode) if mode == "weights" => {
-                if weight_ranges.read().as_ref().map_or(true, |w| w.len() != symbol_count) {
+                if weight_ranges
+                    .read()
+                    .as_ref()
+                    .map_or(true, |w| w.len() != symbol_count)
+                {
                     weight_ranges.set(Some(vec![(0.1, 0.5); symbol_count]));
                 }
             }
@@ -108,7 +125,8 @@ pub fn Portfolio() -> Element {
                     }
                     for &alloc in allocs.iter() {
                         if !(0.0..=1.0).contains(&alloc) {
-                            allocation_error.set("Allocations must be between 0 and 1.".to_string());
+                            allocation_error
+                                .set("Allocations must be between 0 and 1.".to_string());
                             return false;
                         }
                     }
@@ -121,11 +139,17 @@ pub fn Portfolio() -> Element {
                 if let Some(ranges) = ranges {
                     for (i, &(min, max)) in ranges.iter().enumerate() {
                         if !(0.0..=1.0).contains(&min) || !(0.0..=1.0).contains(&max) {
-                            weights_error.set(format!("Weight range for symbol {} must be between 0 and 1.", i + 1));
+                            weights_error.set(format!(
+                                "Weight range for symbol {} must be between 0 and 1.",
+                                i + 1
+                            ));
                             return false;
                         }
                         if min > max {
-                            weights_error.set(format!("Min weight must be <= max weight for symbol {}.", i + 1));
+                            weights_error.set(format!(
+                                "Min weight must be <= max weight for symbol {}.",
+                                i + 1
+                            ));
                             return false;
                         }
                     }

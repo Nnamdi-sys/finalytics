@@ -1,34 +1,42 @@
-use dioxus::prelude::*;
-use dioxus::logger::tracing::info;
-use chrono::{Local, Duration};
-use std::collections::HashMap;
 use crate::components::chart::ChartContainer;
 use crate::components::symbols::Symbol;
-use crate::components::utils::Loading;
 use crate::components::table::TableContainer;
+use crate::components::utils::Loading;
+use crate::server::{
+    get_screener_data, get_screener_performance, get_screener_portfolio, get_screener_symbols,
+};
 use crate::server::{get_screener_metadata, ScreenerMetadata};
-use crate::server::{get_screener_data, get_screener_performance, get_screener_portfolio, get_screener_symbols};
+use chrono::{Duration, Local};
+use dioxus::logger::tracing::info;
+use dioxus::prelude::*;
+use std::collections::HashMap;
 
 #[component]
 pub fn Screener() -> Element {
     // Initialize Signals with default values
     let quote_type = use_signal(|| "EQUITY".to_string());
-    let filters = use_signal(|| vec![
-        r#"{"operator": "eq", "operands": ["region", "us"]}"#.to_string(),
-        r#"{"operator": "eq", "operands": ["exchange", "NMS"]}"#.to_string()
-    ]);
+    let filters = use_signal(|| {
+        vec![
+            r#"{"operator": "eq", "operands": ["region", "us"]}"#.to_string(),
+            r#"{"operator": "eq", "operands": ["exchange", "NMS"]}"#.to_string(),
+        ]
+    });
     let sort_field = use_signal(|| "intradaymarketcap".to_string());
     let sort_descending = use_signal(|| true);
     let offset = use_signal(|| 0);
     let size = use_signal(|| 50);
     let active_tab = use_signal(|| 1);
     let benchmark_symbol = use_signal(|| "^GSPC".to_string());
-    let start_date = use_signal(|| (Local::now() - Duration::days(365)).format("%Y-%m-%d").to_string());
+    let start_date = use_signal(|| {
+        (Local::now() - Duration::days(365))
+            .format("%Y-%m-%d")
+            .to_string()
+    });
     let end_date = use_signal(|| Local::now().format("%Y-%m-%d").to_string());
     let risk_free_rate = use_signal(|| 0.02);
     let objective_function = use_signal(|| "max_sharpe".to_string());
     let fetch_data = use_signal(|| false);
-
+    let tickers_submitted = use_signal(|| false);
 
     // Log Signal values for debugging
     info!("quote_type: {:?}", quote_type());
@@ -53,6 +61,7 @@ pub fn Screener() -> Element {
         let quote_type = quote_type.read().to_string();
         let filters = filters.read().clone();
         let active_tab = active_tab.read().to_owned();
+        let tickers_submitted = tickers_submitted();
         let data = match active_tab {
             1 | 2 => {
                 match get_screener_data(
@@ -63,20 +72,23 @@ pub fn Screener() -> Element {
                     offset(),
                     size(),
                     active_tab,
-                ).await {
+                )
+                .await
+                {
                     Ok(data) => data,
                     Err(e) => format!("Error: {e}"),
                 }
             }
-            3 => {
+            3 if tickers_submitted => {
                 let symbols = get_screener_symbols(
                     quote_type,
                     filters,
                     sort_field(),
                     sort_descending(),
                     offset(),
-                    size()
-                ).await;
+                    size(),
+                )
+                .await;
 
                 if let Ok(symbols) = symbols {
                     match get_screener_performance(
@@ -85,7 +97,9 @@ pub fn Screener() -> Element {
                         end_date(),
                         benchmark_symbol(),
                         risk_free_rate(),
-                    ).await {
+                    )
+                    .await
+                    {
                         Ok(data) => data,
                         Err(e) => format!("Error: {e}"),
                     }
@@ -93,15 +107,16 @@ pub fn Screener() -> Element {
                     "".to_string()
                 }
             }
-            4 => {
+            4 if tickers_submitted => {
                 let symbols = get_screener_symbols(
                     quote_type,
                     filters,
                     sort_field(),
                     sort_descending(),
                     offset(),
-                    size()
-                ).await;
+                    size(),
+                )
+                .await;
 
                 if let Ok(symbols) = symbols {
                     match get_screener_portfolio(
@@ -111,7 +126,9 @@ pub fn Screener() -> Element {
                         benchmark_symbol(),
                         risk_free_rate(),
                         objective_function(),
-                    ).await {
+                    )
+                    .await
+                    {
                         Ok(data) => data,
                         Err(e) => format!("Error: {e}"),
                     }
@@ -185,12 +202,12 @@ pub fn Screener() -> Element {
                     end_date,
                     risk_free_rate,
                     objective_function,
+                    tickers_submitted,
                 }
             }
         }
     }
 }
-
 
 #[component]
 pub fn ScreenerDashboard(
@@ -201,9 +218,9 @@ pub fn ScreenerDashboard(
     end_date: Signal<String>,
     risk_free_rate: Signal<f64>,
     objective_function: Signal<String>,
+    tickers_submitted: Signal<bool>,
 ) -> Element {
-
-    rsx!{
+    rsx! {
         div {
             class: "tab-content",
 
@@ -233,8 +250,8 @@ pub fn ScreenerDashboard(
                         class: if *active_tab.read() == 3 { "nav-link active" } else { "nav-link" },
                         onclick: move |_| {
                             active_tab.set(3);
+                            tickers_submitted.set(false);
                             screener_data.clear();
-                            screener_data.restart();
                         },
                         "Performance"
                     }
@@ -242,8 +259,8 @@ pub fn ScreenerDashboard(
                         class: if *active_tab.read() == 4 { "nav-link active" } else { "nav-link" },
                         onclick: move |_| {
                             active_tab.set(4);
+                            tickers_submitted.set(false);
                             screener_data.clear();
-                            screener_data.restart();
                         },
                         "Optimization"
                     }
@@ -272,6 +289,7 @@ pub fn ScreenerDashboard(
                                 objective_function,
                                 screener_data,
                                 active_tab,
+                                tickers_submitted,
                             }
                             ScreenerDisplay {
                                 active_tab,
@@ -286,12 +304,8 @@ pub fn ScreenerDashboard(
     }
 }
 
-
 #[component]
-pub fn ScreenerDisplay(
-    active_tab: Signal<usize>,
-    screener_data: Resource<String>,
-) -> Element {
+pub fn ScreenerDisplay(active_tab: Signal<usize>, screener_data: Resource<String>) -> Element {
     rsx! {
         div {
             class: "tab-pane fade show active",
@@ -328,29 +342,40 @@ pub fn ScreenerForm(
 ) -> Element {
     let metadata = use_server_future(move || async move {
         get_screener_metadata().await.unwrap_or(ScreenerMetadata {
-            exchange: vec![], region: vec![], sector: vec![],
-            industry: vec![], peer_group: vec![], fund_family: vec![],
-            fund_category: vec![], metrics: HashMap::new(),
+            exchange: vec![],
+            region: vec![],
+            sector: vec![],
+            industry: vec![],
+            peer_group: vec![],
+            fund_family: vec![],
+            fund_category: vec![],
+            metrics: HashMap::new(),
         })
-    })?.value().unwrap();
+    })?
+    .value()
+    .unwrap();
 
     let metrics = use_memo(move || {
-        metadata.metrics.get(&quote_type()).cloned().unwrap_or_default()
+        metadata
+            .metrics
+            .get(&quote_type())
+            .cloned()
+            .unwrap_or_default()
     });
 
-    let mut region        = use_signal(|| "us".to_string());
-    let mut exchange      = use_signal(|| "Any".to_string());
-    let mut sector        = use_signal(|| "Any".to_string());
-    let mut industry      = use_signal(|| "Any".to_string());
-    let mut peer_group    = use_signal(|| "Any".to_string());
-    let mut fund_family   = use_signal(|| "Any".to_string());
+    let mut region = use_signal(|| "us".to_string());
+    let mut exchange = use_signal(|| "Any".to_string());
+    let mut sector = use_signal(|| "Any".to_string());
+    let mut industry = use_signal(|| "Any".to_string());
+    let mut peer_group = use_signal(|| "Any".to_string());
+    let mut fund_family = use_signal(|| "Any".to_string());
     let mut fund_category = use_signal(|| "Any".to_string());
 
     let default_sort_field = match quote_type.read().as_str() {
-        "EQUITY"|"CRYPTOCURRENCY" => ("intradaymarketcap","Market Cap"),
-        "ETF"|"MUTUALFUND"        => ("fundnetassets","Fund Net Assets"),
-        "INDEX"|"FUTURE"          => ("percentchange","Percent Change"),
-        _                         => ("",""),
+        "EQUITY" | "CRYPTOCURRENCY" => ("intradaymarketcap", "Market Cap"),
+        "ETF" | "MUTUALFUND" => ("fundnetassets", "Fund Net Assets"),
+        "INDEX" | "FUTURE" => ("percentchange", "Percent Change"),
+        _ => ("", ""),
     };
 
     rsx! {
@@ -821,7 +846,6 @@ pub fn ScreenerForm(
     }
 }
 
-
 #[component]
 pub fn ScreenerTickersForm(
     benchmark_symbol: Signal<String>,
@@ -831,6 +855,7 @@ pub fn ScreenerTickersForm(
     objective_function: Signal<String>,
     screener_data: Resource<String>,
     active_tab: Signal<usize>,
+    tickers_submitted: Signal<bool>,
 ) -> Element {
     rsx! {
         div {
@@ -848,7 +873,10 @@ pub fn ScreenerTickersForm(
                             .parse::<f64>()
                             .unwrap_or(0.0)
                     );
-                    objective_function.set(e.values()["objective_function"].as_value());
+                    if let Some(val) = e.values().get("objective_function") {
+                        objective_function.set(val.as_value());
+                    }
+                    tickers_submitted.set(true);
                     screener_data.restart();
                 },
 

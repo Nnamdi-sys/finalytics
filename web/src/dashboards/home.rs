@@ -1,6 +1,5 @@
 use crate::components::chart::ChartContainer;
 use crate::components::code::CodeContainer;
-use dioxus::logger::tracing::info;
 use dioxus::prelude::*;
 use std::collections::HashMap;
 
@@ -9,356 +8,103 @@ static PORTFOLIO_HTML: &str = include_str!("../../public/html/portfolio.html");
 
 #[component]
 pub fn Home() -> Element {
-    // Assemble maps
-    let mut code_map: HashMap<String, HashMap<String, String>> = HashMap::new();
-    code_map.insert("ticker".to_string(), {
-        let mut m = HashMap::new();
-        m.insert("rs".to_string(), get_code_examples("ticker_rs".to_string()));
-        m.insert("py".to_string(), get_code_examples("ticker_py".to_string()));
-        m.insert("go".to_string(), get_code_examples("ticker_go".to_string()));
-        m.insert("js".to_string(), get_code_examples("ticker_js".to_string()));
-        m
-    });
-    code_map.insert("portfolio".to_string(), {
-        let mut m = HashMap::new();
-        m.insert(
+    // Build code maps for ticker and portfolio examples
+    let ticker_codes: HashMap<String, String> = HashMap::from([
+        ("rs".to_string(), get_code_examples("ticker_rs".to_string())),
+        ("py".to_string(), get_code_examples("ticker_py".to_string())),
+        ("go".to_string(), get_code_examples("ticker_go".to_string())),
+        ("js".to_string(), get_code_examples("ticker_js".to_string())),
+    ]);
+    let portfolio_codes: HashMap<String, String> = HashMap::from([
+        (
             "rs".to_string(),
             get_code_examples("portfolio_rs".to_string()),
-        );
-        m.insert(
+        ),
+        (
             "py".to_string(),
             get_code_examples("portfolio_py".to_string()),
-        );
-        m.insert(
+        ),
+        (
             "go".to_string(),
             get_code_examples("portfolio_go".to_string()),
-        );
-        m.insert(
+        ),
+        (
             "js".to_string(),
             get_code_examples("portfolio_js".to_string()),
-        );
-        m
-    });
+        ),
+    ]);
 
     // UI state
     let mut example_type = use_signal(|| "ticker".to_string());
-    let mut language = use_signal(|| "rs".to_string());
-
-    info!("Example Type: {:?}", example_type());
-    info!("Language: {:?}", language());
 
     rsx! {
         // Header section
         div {
-            style: r#"
-                padding: 10px;
-                margin-top: 10px;
-                margin-bottom: 0px;
-                font-family: 'Poppins', sans-serif;
-                text-align: center;
-            "#,
+            class: "home-header",
             h1 {
-                style: r#"
-                    font-size: 40px;
-                    font-weight: 700;
-                    margin-bottom: 20px;
-                    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-                    background: linear-gradient(
-                        90deg,
-                        rgba(46,125,50,1) 0%,
-                        rgba(76,175,80,1) 50%,
-                        rgba(46,125,50,1) 100%
-                    );
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    display: inline-block;
-                "#,
+                class: "home-title",
                 "Financial Analytics Powered by Rust"
             }
             div {
-                style: r#"
-                    text-align: center;
-                    margin-bottom: 20px;
-                "#,
+                class: "home-badges",
                 a {
                     href: "https://crates.io/crates/finalytics",
                     target: "_blank",
-                    style: r#"
-                        text-decoration: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 2px;
-                        margin: 0 10px;
-                    "#,
+                    class: "home-badge-link",
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/crates/v/finalytics", alt: "Crates.io version" }
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/crates/d/finalytics?color=orange", alt: "Crates.io downloads" }
                 }
                 a {
                     href: "https://pypi.org/project/finalytics",
                     target: "_blank",
-                    style: r#"
-                        text-decoration: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 2px;
-                        margin: 0 10px;
-                    "#,
+                    class: "home-badge-link",
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/pypi/v/finalytics?color=blue", alt: "PyPI version" }
                     img { style: r#"height: 20px;"#, src: "https://static.pepy.tech/badge/finalytics", alt: "PyPI downloads" }
                 }
                 a {
                     href: "https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics",
                     target: "_blank",
-                    style: r#"
-                        text-decoration: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 10px;
-                        margin: 0 10px;
-                    "#,
+                    class: "home-badge-link",
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/badge/go-reference-blue?logo=go", alt: "Go Reference" }
                 }
                 a {
                     href: "https://www.npmjs.com/package/finalytics",
                     target: "_blank",
-                    style: r#"
-                        text-decoration: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 10px;
-                        margin: 0 10px;
-                    "#,
+                    class: "home-badge-link",
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/npm/v/finalytics?color=green", alt: "NPM version" }
                 }
                 a {
                     href: "https://github.com/Nnamdi-sys/finalytics",
                     target: "_blank",
-                    style: r#"
-                        text-decoration: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 10px;
-                        margin: 0 10px;
-                    "#,
+                    class: "home-badge-link",
                     img { style: r#"height: 20px;"#, src: "https://img.shields.io/github/stars/Nnamdi-sys/finalytics?style=social", alt: "GitHub stars" }
                 }
             }
             p {
-                style: r#"
-                    font-size: 20px;
-                    color: #424242;
-                    line-height: 1.6;
-                    text-align: center;
-                    margin: 10px;
-                "#,
+                class: "home-description",
                 "Finalytics is a high-performance Rust library for security analysis and portfolio optimization, with bindings for Python, Node.js and Go."
             }
         }
 
         // Examples container
         div {
-            style: r#"
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                padding: 10px;
-                margin: 10px;
-            "#,
+            class: "home-examples",
 
-            // Code card with unified dark background
+            // Code container — language tabs are built into the component header
             div {
-                style: r#"
-                    flex: 1 1 calc(50% - 20px);
-                    min-width: 300px;
-                    background: #2b303b;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                    display: flex;
-                    flex-direction: column;
-                "#,
-                div {
-                    style: r#"
-                        display: flex;
-                        gap: 8px;
-                        margin-bottom: 10px;
-                        background: #2b303b;
-                        padding: 10px;
-                    "#,
-                    button {
-                        style: if language() == "rs" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #2E7D32;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #333;
-                            "#
-                        },
-                        onclick: move |_| language.set("rs".to_string()),
-                        i { class: "devicon-rust-plain me-2" },
-                        "Rust"
-                    }
-                    button {
-                        style: if language() == "py" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #2E7D32;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #333;
-                            "#
-                        },
-                        onclick: move |_| language.set("py".to_string()),
-                        i { class: "devicon-python-plain me-2" },
-                        "Python"
-                    }
-                    button {
-                        style: if language() == "go" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #2E7D32;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #333;
-                            "#
-                        },
-                        onclick: move |_| language.set("go".to_string()),
-                        i { class: "devicon-go-plain me-2" },
-                        "Go"
-                    }
-                    button {
-                        style: if language() == "js" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #2E7D32;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #fff;
-                                background-color: #333;
-                            "#
-                        },
-                        onclick: move |_| language.set("js".to_string()),
-                        i { class: "devicon-javascript-plain me-2" },
-                        "Node.js"
-                    }
-                }
-                div {
-                    style: r#"
-                        flex: 1;
-                        background: #2b303b;
-                        color: white;
-                        overflow-x: auto;
-                        padding: 10px;
-                        display: flex;
-                        flex-direction: column;
-                    "#,
-                    {
-                        let key = format!("code-{}-{}", example_type(), language());
-                        match (example_type().as_str(), language().as_str()) {
-                            ("ticker", "rs") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["ticker"]["rs"].clone(),
-                                    language: "rs".to_string(),
-                                    id: "code-rs"
-                                }
-                            },
-                            ("ticker", "py") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["ticker"]["py"].clone(),
-                                    language: "py".to_string(),
-                                    id: "code-py"
-                                }
-                            },
-                            ("ticker", "go") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["ticker"]["go"].clone(),
-                                    language: "go".to_string(),
-                                    id: "code-go"
-                                }
-                            },
-                            ("ticker", "js") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["ticker"]["js"].clone(),
-                                    language: "js".to_string(),
-                                    id: "code-js"
-                                }
-                            },
-                            ("portfolio", "rs") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["portfolio"]["rs"].clone(),
-                                    language: "rs".to_string(),
-                                    id: "code-rs"
-                                }
-                            },
-                            ("portfolio", "py") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["portfolio"]["py"].clone(),
-                                    language: "py".to_string(),
-                                    id: "code-py"
-                                }
-                            },
-                            ("portfolio", "go") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["portfolio"]["go"].clone(),
-                                    language: "go".to_string(),
-                                    id: "code-go"
-                                }
-                            },
-                            ("portfolio", "js") => rsx! {
-                                CodeContainer {
-                                    key: "{key}",
-                                    code: code_map["portfolio"]["js"].clone(),
-                                    language: "js".to_string(),
-                                    id: "code-js"
-                                }
-                            },
-                            _ => rsx! { div { "Error: Invalid code selection" } },
+                class: "home-card home-card--code",
+                {
+                    let codes = if example_type() == "portfolio" {
+                        portfolio_codes.clone()
+                    } else {
+                        ticker_codes.clone()
+                    };
+                    let key = format!("code-{}", example_type());
+                    rsx! {
+                        CodeContainer {
+                            key: "{key}",
+                            codes: codes,
+                            id: "code-example"
                         }
                     }
                 }
@@ -366,89 +112,26 @@ pub fn Home() -> Element {
 
             // Chart card with tabs
             div {
-                style: r#"
-                    flex: 1 1 calc(50% - 20px);
-                    min-width: 300px;
-                    background: white;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-                    display: flex;
-                    flex-direction: column;
-                "#,
+                class: "home-card home-card--chart",
                 div {
-                    style: r#"
-                        display: flex;
-                        gap: 8px;
-                        margin-bottom: 10px;
-                    "#,
+                    class: "home-example-buttons",
                     button {
-                        style: if example_type() == "ticker" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #2E7D32;
-                                background-color: #d0d0d0;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #2E7D32;
-                                background-color: #f0f0f0;
-                            "#
-                        },
+                        class: if example_type() == "ticker" { "home-example-btn home-example-btn--active" } else { "home-example-btn" },
                         onclick: move |_| example_type.set("ticker".to_string()),
                         i { class: "bi bi-graph-up me-2" },
-                        "Ticker"
+                        span { "Ticker" }
                     }
                     button {
-                        style: if example_type() == "portfolio" {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #2E7D32;
-                                background-color: #d0d0d0;
-                            "#
-                        } else {
-                            r#"
-                                padding: 5px 10px;
-                                border: none;
-                                cursor: pointer;
-                                font-weight: bold;
-                                color: #2E7D32;
-                                background-color: #f0f0f0;
-                            "#
-                        },
+                        class: if example_type() == "portfolio" { "home-example-btn home-example-btn--active" } else { "home-example-btn" },
                         onclick: move |_| example_type.set("portfolio".to_string()),
                         i { class: "bi bi-pie-chart me-2" },
-                        "Portfolio"
+                        span { "Portfolio" }
                     }
                 }
                 div {
-                    style: r#"
-                        flex: 1;
-                        text-align: center;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 10px;
-                        max-height: 800px; /* Match CodeContainer height */
-                        overflow-y: auto; /* Enable scrolling */
-                    "#,
+                    class: "home-chart-body",
                     div {
-                        style: r#"
-                            width: 100%;
-                            height: 100%; /* Fill parent container */
-                            object-fit: contain;
-                            border-radius: 4px;
-                            display: block; /* Ensure link fills container */
-                        "#,
+                        class: "home-chart-inner",
                         {
                             let key = format!("chart-{}", example_type());
                             match example_type().as_str() {
@@ -473,6 +156,249 @@ pub fn Home() -> Element {
                 }
             }
         }
+
+        // Home page responsive styles
+        HomeStyles {}
+    }
+}
+
+/// Shared responsive CSS for the home page.
+#[component]
+fn HomeStyles() -> Element {
+    rsx! {
+        style { r#"
+            /* ========== Header ========== */
+            .home-header {{
+                padding: 10px;
+                margin-top: 10px;
+                margin-bottom: 0;
+                font-family: 'Poppins', sans-serif;
+                text-align: center;
+            }}
+
+            .home-title {{
+                font-size: clamp(22px, 5vw, 40px);
+                font-weight: 700;
+                margin-bottom: 20px;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+                background: linear-gradient(
+                    90deg,
+                    rgba(46,125,50,1) 0%,
+                    rgba(76,175,80,1) 50%,
+                    rgba(46,125,50,1) 100%
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                display: inline-block;
+                line-height: 1.3;
+            }}
+
+            .home-badges {{
+                text-align: center;
+                margin-bottom: 20px;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px 16px;
+            }}
+
+            .home-badge-link {{
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 2px;
+            }}
+
+            .home-description {{
+                font-size: clamp(14px, 3vw, 20px);
+                color: #424242;
+                line-height: 1.6;
+                text-align: center;
+                margin: 10px;
+            }}
+
+            /* ========== Examples Container ========== */
+            .home-examples {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 20px;
+                padding: 10px;
+                margin: 10px;
+                box-sizing: border-box;
+            }}
+
+            /* ========== Cards (shared) ========== */
+            .home-card {{
+                flex: 1 1 calc(50% - 20px);
+                min-width: 280px;
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                display: flex;
+                flex-direction: column;
+                box-sizing: border-box;
+                overflow: hidden;
+            }}
+
+            .home-card--code {{
+                background: #282c34;
+                border: none;
+                box-shadow: none;
+                overflow: visible;
+            }}
+
+            .home-card--chart {{
+                background: white;
+            }}
+
+            /* ========== Example Type Buttons (chart card) ========== */
+            .home-example-buttons {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 10px;
+                padding: 10px 10px 0 10px;
+            }}
+
+            .home-example-btn {{
+                padding: 5px 10px;
+                border: none;
+                cursor: pointer;
+                font-weight: bold;
+                color: #2E7D32;
+                background-color: #f0f0f0;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                border-radius: 4px;
+                font-size: 14px;
+                white-space: nowrap;
+            }}
+
+            .home-example-btn--active {{
+                background-color: #d0d0d0;
+            }}
+
+            /* ========== Chart Body ========== */
+            .home-chart-body {{
+                flex: 1;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 10px;
+                max-height: 800px;
+                overflow-y: auto;
+                min-height: 0;
+            }}
+
+            .home-chart-inner {{
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                border-radius: 4px;
+                display: block;
+            }}
+
+            /* ========== Tablet (<=768px) ========== */
+            @media (max-width: 768px) {{
+                .home-header {{
+                    padding: 8px;
+                    margin-top: 5px;
+                }}
+
+                .home-title {{
+                    margin-bottom: 12px;
+                }}
+
+                .home-badges {{
+                    gap: 6px 10px;
+                    margin-bottom: 12px;
+                }}
+
+                .home-badge-link img {{
+                    height: 18px !important;
+                }}
+
+                .home-description {{
+                    margin: 6px;
+                }}
+
+                .home-examples {{
+                    gap: 14px;
+                    padding: 6px;
+                    margin: 6px;
+                }}
+
+                /* Stack cards vertically on tablet */
+                .home-card {{
+                    flex: 1 1 100%;
+                    min-width: 0;
+                }}
+
+                .home-example-buttons {{
+                    gap: 6px;
+                    padding: 8px 8px 0 8px;
+                }}
+
+                .home-example-btn {{
+                    padding: 4px 8px;
+                    font-size: 12px;
+                }}
+
+                .home-chart-body {{
+                    max-height: 50vh;
+                    padding: 6px;
+                }}
+            }}
+
+            /* ========== Small Phones (<=480px) ========== */
+            @media (max-width: 480px) {{
+                .home-header {{
+                    padding: 4px;
+                    margin-top: 2px;
+                }}
+
+                .home-title {{
+                    margin-bottom: 8px;
+                }}
+
+                .home-badges {{
+                    gap: 4px 6px;
+                    margin-bottom: 8px;
+                }}
+
+                .home-badge-link img {{
+                    height: 16px !important;
+                }}
+
+                .home-description {{
+                    margin: 4px;
+                    line-height: 1.4;
+                }}
+
+                .home-examples {{
+                    gap: 10px;
+                    padding: 4px;
+                    margin: 4px;
+                }}
+
+                .home-example-buttons {{
+                    gap: 4px;
+                    padding: 6px 6px 0 6px;
+                }}
+
+                .home-example-btn {{
+                    padding: 4px 6px;
+                    font-size: 11px;
+                    gap: 2px;
+                }}
+
+                .home-chart-body {{
+                    max-height: 40vh;
+                    padding: 4px;
+                }}
+            }}
+        "# }
     }
 }
 

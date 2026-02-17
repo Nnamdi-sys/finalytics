@@ -1,14 +1,17 @@
-use dioxus::document::eval;
-use dioxus::prelude::*;
-use crate::server::{FinancialsTabs, NewsTabs, PortfolioTabs};
-use crate::server::PerformanceTabs;
-use crate::server::OptionsTabs;
 use crate::components::chart::ChartContainer;
 use crate::components::table::TableContainer;
 use crate::components::utils::Loading;
+use crate::server::OptionsTabs;
+use crate::server::PerformanceTabs;
+use crate::server::{FinancialsTabs, NewsTabs, PortfolioTabs};
+use dioxus::document::eval;
+use dioxus::prelude::*;
 
 #[component]
-pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Option<String>>) -> Element {
+pub fn PortfolioDisplay(
+    charts: Resource<PortfolioTabs>,
+    weight_mode: Signal<Option<String>>,
+) -> Element {
     rsx! {
         script {
             r#"
@@ -23,25 +26,13 @@ pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Opt
 
         // Wrap everything in a vertical flex layout
         div {
-            style: r#"
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-            "#,
+            class: "display-wrapper",
 
             // Horizontal Sticky Nav Bar
             nav {
-                style: r#"
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background-color: #ffffff;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                "#,
+                class: "display-nav",
                 div {
-                    style: r#"display: flex; flex-wrap: wrap; gap: 12px;"#,
+                    class: "display-nav-buttons",
 
                     if weight_mode.read().is_none() || weight_mode.read().as_deref() == Some("weights") {
                         button {
@@ -99,14 +90,7 @@ pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Opt
 
             // Scrollable Content Below the Nav
             div {
-                style: r#"
-                    width: 100%;
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    background-color: #ffffff;
-                "#,
+                class: "display-content",
 
                 match &*charts.value().read_unchecked() {
                     Some(charts) => rsx! {
@@ -115,14 +99,7 @@ pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Opt
                             if weight_mode.read().is_none() || weight_mode.read().as_deref() == Some("weights") {
                                 div {
                                     id: "optimization_chart",
-                                    style: r#"
-                                        width: 100%;
-                                        height: 800px;
-                                        border: 1px solid #e0e0e0;
-                                        border-radius: 6px;
-                                        padding: 8px;
-                                        overflow: hidden;
-                                    "#,
+                                    class: "display-chart-container",
                                     ChartContainer { html: html.clone(), id: "optimization_chart" }
                                 }
                             }
@@ -131,68 +108,35 @@ pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Opt
                         // Performance Chart
                         div {
                             id: "performance_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.performance_chart.clone(), id: "performance_chart" }
                         }
 
                         // Performance Stats Table
                         div {
                             id: "performance_stats_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.performance_stats_table.clone(), title: "Performance Stats" }
                         }
 
                         // Returns Table
                         div {
                             id: "returns_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.returns_table.clone(), title: "Returns Data" }
                         }
 
                         // Returns Chart
                         div {
                             id: "returns_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.returns_chart.clone(), id: "returns_chart" }
                         }
 
                         // Returns Matrix
                         div {
                             id: "returns_matrix",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.returns_matrix.clone(), id: "returns_matrix" }
                         }
                     },
@@ -200,6 +144,9 @@ pub fn PortfolioDisplay(charts: Resource<PortfolioTabs>, weight_mode: Signal<Opt
                 }
             }
         }
+
+        // Shared responsive styles
+        DisplayStyles {}
     }
 }
 
@@ -219,25 +166,13 @@ pub fn PerformanceDisplay(charts: Resource<PerformanceTabs>) -> Element {
 
         // Wrap everything in a vertical flex layout
         div {
-            style: r#"
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-            "#,
+            class: "display-wrapper",
 
             // Horizontal Sticky Nav Bar
             nav {
-                style: r#"
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background-color: #ffffff;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                "#,
+                class: "display-nav",
                 div {
-                    style: r#"display: flex; flex-wrap: wrap; gap: 12px;"#,
+                    class: "display-nav-buttons",
                     button {
                         class: "nav-link",
                         onclick: move |_| {
@@ -275,64 +210,31 @@ pub fn PerformanceDisplay(charts: Resource<PerformanceTabs>) -> Element {
 
             // Scrollable Content Below the Nav
             div {
-                style: r#"
-                    width: 100%;
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    background-color: #ffffff;
-                "#,
+                class: "display-content",
                 match &*charts.value().read_unchecked() {
                     Some(charts) => rsx! {
                         // OHLCV Table
                         div {
                             id: "ohlcv_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.ohlcv_table.clone(), title: "Price Data" }
                         }
                         // Candlestick Chart
                         div {
                             id: "candlestick_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.candlestick_chart.clone(), id: "candlestick_chart" }
                         }
                         // Performance Chart
                         div {
                             id: "performance_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.performance_chart.clone(), id: "performance_chart" }
                         }
                         // Performance Stats Table
                         div {
                             id: "performance_stats_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.performance_stats_table.clone(), title: "Performance Stats" }
                         }
                     },
@@ -340,6 +242,9 @@ pub fn PerformanceDisplay(charts: Resource<PerformanceTabs>) -> Element {
                 }
             }
         }
+
+        // Shared responsive styles
+        DisplayStyles {}
     }
 }
 
@@ -359,25 +264,13 @@ pub fn OptionsDisplay(charts: Resource<OptionsTabs>) -> Element {
 
         // Wrap everything in a vertical flex layout
         div {
-            style: r#"
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-            "#,
+            class: "display-wrapper",
 
             // Horizontal Sticky Nav Bar
             nav {
-                style: r#"
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background-color: #ffffff;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                "#,
+                class: "display-nav",
                 div {
-                    style: r#"display: flex; flex-wrap: wrap; gap: 12px;"#,
+                    class: "display-nav-buttons",
                     button {
                         class: "nav-link",
                         onclick: move |_| {
@@ -423,77 +316,37 @@ pub fn OptionsDisplay(charts: Resource<OptionsTabs>) -> Element {
 
             // Scrollable Content Below the Nav
             div {
-                style: r#"
-                    width: 100%;
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    background-color: #ffffff;
-                "#,
+                class: "display-content",
                 match &*charts.value().read_unchecked() {
                     Some(charts) => rsx! {
                         // Options Chain Table
                         div {
                             id: "options_chain",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.options_chain.clone(), title: "Options Chain" }
                         }
                         // Volatility Surface Table
                         div {
                             id: "volatility_surface_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.volatility_surface_table.clone(), title: "Volatility Surface Data" }
                         }
                         // Volatility Smile Chart
                         div {
                             id: "volatility_smile",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.volatility_smile.clone(), id: "volatility_smile" }
                         }
-                        // Volatility Skew Chart
+                        // Volatility Term Structure Chart
                         div {
                             id: "volatility_term_structure",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.volatility_term_structure.clone(), id: "volatility_term_structure" }
                         }
                         // Volatility Surface Chart
                         div {
                             id: "volatility_surface_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.volatility_surface_chart.clone(), id: "volatility_surface_chart" }
                         }
                     },
@@ -501,6 +354,9 @@ pub fn OptionsDisplay(charts: Resource<OptionsTabs>) -> Element {
                 }
             }
         }
+
+        // Shared responsive styles
+        DisplayStyles {}
     }
 }
 
@@ -520,25 +376,13 @@ pub fn NewsDisplay(charts: Resource<NewsTabs>) -> Element {
 
         // Wrap everything in a vertical flex layout
         div {
-            style: r#"
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-            "#,
+            class: "display-wrapper",
 
             // Horizontal Sticky Nav Bar
             nav {
-                style: r#"
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background-color: #ffffff;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                "#,
+                class: "display-nav",
                 div {
-                    style: r#"display: flex; flex-wrap: wrap; gap: 12px;"#,
+                    class: "display-nav-buttons",
                     button {
                         class: "nav-link",
                         onclick: move |_| {
@@ -560,39 +404,19 @@ pub fn NewsDisplay(charts: Resource<NewsTabs>) -> Element {
 
             // Scrollable Content Below the Nav
             div {
-                style: r#"
-                    width: 100%;
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    background-color: #ffffff;
-                "#,
+                class: "display-content",
                 match &*charts.value().read_unchecked() {
                     Some(charts) => rsx! {
                         // News Sentiment Table
                         div {
                             id: "news_sentiment_table",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.news_sentiment_table.clone(), title: "News Sentiment Data" }
                         }
                         // News Sentiment Chart
                         div {
                             id: "news_sentiment_chart",
-                            style: r#"
-                                width: 100%;
-                                height: 800px;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: hidden;
-                            "#,
+                            class: "display-chart-container",
                             ChartContainer { html: charts.news_sentiment_chart.clone(), id: "news_sentiment_chart" }
                         }
                     },
@@ -600,6 +424,9 @@ pub fn NewsDisplay(charts: Resource<NewsTabs>) -> Element {
                 }
             }
         }
+
+        // Shared responsive styles
+        DisplayStyles {}
     }
 }
 
@@ -619,25 +446,13 @@ pub fn FinancialsDisplay(charts: Resource<FinancialsTabs>) -> Element {
 
         // Wrap everything in a vertical flex layout
         div {
-            style: r#"
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-            "#,
+            class: "display-wrapper",
 
             // Horizontal Sticky Nav Bar
             nav {
-                style: r#"
-                    position: sticky;
-                    top: 0;
-                    z-index: 1000;
-                    background-color: #ffffff;
-                    padding: 12px 16px;
-                    border-bottom: 1px solid #e0e0e0;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-                "#,
+                class: "display-nav",
                 div {
-                    style: r#"display: flex; flex-wrap: wrap; gap: 12px;"#,
+                    class: "display-nav-buttons",
                     button {
                         class: "nav-link",
                         onclick: move |_| {
@@ -675,62 +490,31 @@ pub fn FinancialsDisplay(charts: Resource<FinancialsTabs>) -> Element {
 
             // Scrollable Content Below the Nav
             div {
-                style: r#"
-                    width: 100%;
-                    padding: 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    background-color: #ffffff;
-                "#,
+                class: "display-content",
                 match &*charts.value().read_unchecked() {
                     Some(charts) => rsx! {
                         // Income Statement Table
                         div {
                             id: "income_statement",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.income_statement.clone(), title: "Income Statement" }
                         }
                         // Balance Sheet Table
                         div {
                             id: "balance_sheet",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.balance_sheet.clone(), title: "Balance Sheet" }
                         }
                         // Cash Flow Statement Table
                         div {
                             id: "cashflow_statement",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.cashflow_statement.clone(), title: "Cash Flow Statement" }
                         }
                         // Financial Ratios Table
                         div {
                             id: "financial_ratios",
-                            style: r#"
-                                width: 100%;
-                                border: 1px solid #e0e0e0;
-                                border-radius: 6px;
-                                padding: 8px;
-                                overflow: auto;
-                            "#,
+                            class: "display-table-container",
                             TableContainer { html: charts.financial_ratios.clone(), title: "Financial Ratios" }
                         }
                     },
@@ -738,5 +522,152 @@ pub fn FinancialsDisplay(charts: Resource<FinancialsTabs>) -> Element {
                 }
             }
         }
+
+        // Shared responsive styles
+        DisplayStyles {}
+    }
+}
+
+/// Shared responsive CSS for all display components.
+/// Rendered as a `<style>` block — browsers de-duplicate identical style blocks,
+/// so it is safe (and simple) to include this from every display component.
+#[component]
+fn DisplayStyles() -> Element {
+    rsx! {
+        style { r#"
+            /* ========== Display Wrapper ========== */
+            .display-wrapper {{
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }}
+
+            /* ========== Sticky Nav Bar ========== */
+            .display-nav {{
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                background-color: #ffffff;
+                padding: 12px 16px;
+                border-bottom: 1px solid #e0e0e0;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }}
+
+            .display-nav-buttons {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+            }}
+
+            .display-nav-buttons .nav-link {{
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                white-space: nowrap;
+            }}
+
+            /* ========== Content Area ========== */
+            .display-content {{
+                width: 100%;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                background-color: #ffffff;
+                box-sizing: border-box;
+            }}
+
+            /* ========== Chart Containers ========== */
+            .display-chart-container {{
+                width: 100%;
+                height: 800px;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px;
+                overflow: hidden;
+                box-sizing: border-box;
+            }}
+
+            /* ========== Table Containers ========== */
+            .display-table-container {{
+                width: 100%;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px;
+                overflow: auto;
+                box-sizing: border-box;
+            }}
+
+            /* ========== Tablet (≤ 768px) ========== */
+            @media (max-width: 768px) {{
+                .display-nav {{
+                    padding: 8px 10px;
+                }}
+
+                .display-nav-buttons {{
+                    gap: 6px;
+                }}
+
+                .display-nav-buttons .nav-link {{
+                    font-size: 13px;
+                    padding: 6px 8px;
+                    gap: 4px;
+                }}
+
+                .display-nav-buttons .nav-link i {{
+                    font-size: 14px !important;
+                }}
+
+                /* On mobile, hide label text and show only icons to save space */
+                .display-nav-buttons .nav-link span {{
+                    display: none;
+                }}
+
+                .display-content {{
+                    padding: 10px 6px;
+                    gap: 12px;
+                }}
+
+                .display-chart-container {{
+                    height: 450px;
+                    padding: 4px;
+                }}
+
+                .display-table-container {{
+                    padding: 4px;
+                }}
+            }}
+
+            /* ========== Small Phones (≤ 480px) ========== */
+            @media (max-width: 480px) {{
+                .display-nav {{
+                    padding: 6px 6px;
+                }}
+
+                .display-nav-buttons {{
+                    gap: 4px;
+                    justify-content: center;
+                }}
+
+                .display-nav-buttons .nav-link {{
+                    font-size: 12px;
+                    padding: 6px 6px;
+                }}
+
+                .display-content {{
+                    padding: 8px 4px;
+                    gap: 10px;
+                }}
+
+                .display-chart-container {{
+                    height: 350px;
+                    border-radius: 4px;
+                }}
+
+                .display-table-container {{
+                    border-radius: 4px;
+                }}
+            }}
+        "# }
     }
 }
