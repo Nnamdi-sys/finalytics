@@ -1,19 +1,60 @@
 use dioxus::prelude::*;
-use std::sync::Mutex;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "server")]
-use std::str::FromStr;
 #[cfg(feature = "server")]
 use finalytics::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+#[cfg(feature = "server")]
+use std::str::FromStr;
 
-static EMBEDDED_DATALIST: &[u8] = include_bytes!("../datalist.bin");
+#[server]
+pub async fn search_symbols(query: String) -> Result<Vec<(String, String)>, ServerFnError> {
+    if query.trim().is_empty() {
+        return Ok(vec![]);
+    }
 
-pub static ALL_SYMBOLS_DATALIST: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    let map: HashMap<String, String> = bincode::deserialize(EMBEDDED_DATALIST).unwrap();
-    Mutex::new(map)
-});
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://query2.finance.yahoo.com/v1/finance/search")
+        .query(&[
+            ("q", query.as_str()),
+            ("quotesCount", "10"),
+            ("newsCount", "0"),
+            ("enableFuzzyQuery", "false"),
+        ])
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        )
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to fetch symbols: {}", e)))?;
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| ServerFnError::new(format!("Failed to parse response: {}", e)))?;
+
+    let results = json["quotes"]
+        .as_array()
+        .map(|quotes| {
+            quotes
+                .iter()
+                .filter_map(|q| {
+                    let symbol = q["symbol"].as_str()?.to_string();
+                    let name = q["shortname"]
+                        .as_str()
+                        .or(q["longname"].as_str())
+                        .unwrap_or("Unknown")
+                        .to_string();
+                    Some((symbol, name))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(results)
+}
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct PortfolioTabs {
@@ -42,7 +83,7 @@ pub async fn get_portfolio_charts(
     let report_html = tokio::task::spawn_blocking(move || {
         let constraints = Constraints {
             asset_weights: constraints,
-            categorical_weights: None
+            categorical_weights: None,
         };
         let rt = tokio::runtime::Handle::current();
 
@@ -111,8 +152,8 @@ pub async fn get_portfolio_charts(
             })
         })
     })
-        .await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     report_html
 }
@@ -185,20 +226,31 @@ pub async fn get_ticker_charts(
                         .risk_free_rate(risk_free_rate)
                         .build();
                     let ohlcv_table = ticker.ohlcv_table().await.unwrap().to_html().unwrap();
-                    let candlestick_chart = ticker.candlestick_chart(None, None).await.unwrap().to_html();
-                    let performance_chart = ticker.performance_chart(None, None).await.unwrap().to_html();
-                    let performance_stats_table = ticker.performance_stats_table().await.unwrap().to_html().unwrap();
+                    let candlestick_chart = ticker
+                        .candlestick_chart(None, None)
+                        .await
+                        .unwrap()
+                        .to_html();
+                    let performance_chart = ticker
+                        .performance_chart(None, None)
+                        .await
+                        .unwrap()
+                        .to_html();
+                    let performance_stats_table = ticker
+                        .performance_stats_table()
+                        .await
+                        .unwrap()
+                        .to_html()
+                        .unwrap();
                     Ok(TickerTabs::Performance(PerformanceTabs {
                         ohlcv_table,
                         candlestick_chart,
                         performance_chart,
                         performance_stats_table,
                     }))
-                },
+                }
                 "financials" => {
-                    let ticker = Ticker::builder()
-                        .ticker(&symbol)
-                        .build();
+                    let ticker = Ticker::builder().ticker(&symbol).build();
                     let frequency = StatementFrequency::from_str(&frequency).unwrap();
                     let financials = ticker.financials_tables(frequency, None).await.unwrap();
                     let income_statement = financials.income_statement.to_html().unwrap();
@@ -211,7 +263,7 @@ pub async fn get_ticker_charts(
                         cashflow_statement,
                         financial_ratios,
                     }))
-                },
+                }
                 "options" => {
                     let ticker = Ticker::builder()
                         .ticker(&symbol)
@@ -231,26 +283,37 @@ pub async fn get_ticker_charts(
                         volatility_term_structure,
                         volatility_surface_chart,
                     }))
-                },
+                }
                 "news" => {
                     let ticker = Ticker::builder()
                         .ticker(&symbol)
                         .start_date(&start_date)
                         .end_date(&end_date)
                         .build();
-                    let news_sentiment_table = ticker.news_sentiment_table().await.unwrap().to_html().unwrap();
-                    let news_sentiment_chart = ticker.news_sentiment_chart(None, None).await.unwrap().to_html();
+                    let news_sentiment_table = ticker
+                        .news_sentiment_table()
+                        .await
+                        .unwrap()
+                        .to_html()
+                        .unwrap();
+                    let news_sentiment_chart = ticker
+                        .news_sentiment_chart(None, None)
+                        .await
+                        .unwrap()
+                        .to_html();
                     Ok(TickerTabs::News(NewsTabs {
                         news_sentiment_table,
                         news_sentiment_chart,
                     }))
-                },
-                _ => Err(ServerFnError::ServerError("Invalid report type".to_string())),
+                }
+                _ => Err(ServerFnError::ServerError(
+                    "Invalid report type".to_string(),
+                )),
             }
         })
     })
-        .await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     charts
 }
@@ -263,21 +326,32 @@ pub async fn get_screener_data(
     sort_descending: bool,
     offset: usize,
     size: usize,
-    active_tab: usize
+    active_tab: usize,
 ) -> Result<String, ServerFnError<String>> {
     let screener = tokio::task::spawn_blocking(move || {
         let quote_type = QuoteType::from_str(&quote_type).unwrap();
-        let filters = filters.into_iter()
+        let filters = filters
+            .into_iter()
             .map(ScreenerFilter::Custom)
             .collect::<Vec<_>>();
         let sort_field = if !sort_field.is_empty() {
             let quote_type = match quote_type {
-                QuoteType::Equity => ScreenerMetric::Equity(EquityScreener::from_str(&sort_field).unwrap()),
-                QuoteType::MutualFund => ScreenerMetric::MutualFund(MutualFundScreener::from_str(&sort_field).unwrap()),
+                QuoteType::Equity => {
+                    ScreenerMetric::Equity(EquityScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::MutualFund => {
+                    ScreenerMetric::MutualFund(MutualFundScreener::from_str(&sort_field).unwrap())
+                }
                 QuoteType::Etf => ScreenerMetric::Etf(EtfScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Index => ScreenerMetric::Index(IndexScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Future => ScreenerMetric::Future(FutureScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Crypto => ScreenerMetric::Crypto(CryptoScreener::from_str(&sort_field).unwrap()),
+                QuoteType::Index => {
+                    ScreenerMetric::Index(IndexScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::Future => {
+                    ScreenerMetric::Future(FutureScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::Crypto => {
+                    ScreenerMetric::Crypto(CryptoScreener::from_str(&sort_field).unwrap())
+                }
             };
             Some(quote_type)
         } else {
@@ -292,21 +366,23 @@ pub async fn get_screener_data(
                 sort_descending,
                 offset,
                 size,
-            }.build().await.unwrap();
+            }
+            .build()
+            .await
+            .unwrap();
 
             match active_tab {
                 1 => screener.overview().to_html().unwrap(),
                 2 => screener.metrics().await.unwrap().to_html().unwrap(),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         })
     })
-        .await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(screener)
 }
-
 
 #[cfg(feature = "server")]
 use finalytics::data::yahoo::screeners::screeners::FieldMetadata;
@@ -332,24 +408,39 @@ pub struct ScreenerMetadata {
     pub metrics: HashMap<String, HashMap<String, FieldMetadata>>,
 }
 
-
 #[server]
 pub async fn get_screener_metadata() -> Result<ScreenerMetadata, ServerFnError> {
     let metadata = ScreenerMetadata {
-        exchange: Exchange::iter().map(|s| (s.to_string(), s.full_name().to_string())).collect(),
-        region: Region::iter().map(|s| (s.to_string(), s.full_name().to_string())).collect(),
+        exchange: Exchange::iter()
+            .map(|s| (s.to_string(), s.full_name().to_string()))
+            .collect(),
+        region: Region::iter()
+            .map(|s| (s.to_string(), s.full_name().to_string()))
+            .collect(),
         sector: Sector::VARIANTS.iter().map(|&s| s.to_string()).collect(),
         industry: Industry::VARIANTS.iter().map(|&s| s.to_string()).collect(),
         peer_group: PeerGroup::VARIANTS.iter().map(|&s| s.to_string()).collect(),
-        fund_family: FundFamily::VARIANTS.iter().map(|&s| s.to_string()).collect(),
-        fund_category: FundCategory::VARIANTS.iter().map(|&s| s.to_string()).collect(),
+        fund_family: FundFamily::VARIANTS
+            .iter()
+            .map(|&s| s.to_string())
+            .collect(),
+        fund_category: FundCategory::VARIANTS
+            .iter()
+            .map(|&s| s.to_string())
+            .collect(),
         metrics: HashMap::from([
             ("EQUITY".to_string(), EquityScreener::metrics().clone()),
-            ("MUTUALFUND".to_string(), MutualFundScreener::metrics().clone()),
+            (
+                "MUTUALFUND".to_string(),
+                MutualFundScreener::metrics().clone(),
+            ),
             ("ETF".to_string(), EtfScreener::metrics().clone()),
             ("INDEX".to_string(), IndexScreener::metrics().clone()),
             ("FUTURE".to_string(), FutureScreener::metrics().clone()),
-            ("CRYPTOCURRENCY".to_string(), CryptoScreener::metrics().clone()),
+            (
+                "CRYPTOCURRENCY".to_string(),
+                CryptoScreener::metrics().clone(),
+            ),
         ]),
     };
     Ok(metadata)
@@ -366,17 +457,28 @@ pub async fn get_screener_symbols(
 ) -> Result<Vec<String>, ServerFnError<String>> {
     let screener = tokio::task::spawn_blocking(move || {
         let quote_type = QuoteType::from_str(&quote_type).unwrap();
-        let filters = filters.into_iter()
+        let filters = filters
+            .into_iter()
             .map(ScreenerFilter::Custom)
             .collect::<Vec<_>>();
         let sort_field = if !sort_field.is_empty() {
             let quote_type = match quote_type {
-                QuoteType::Equity => ScreenerMetric::Equity(EquityScreener::from_str(&sort_field).unwrap()),
-                QuoteType::MutualFund => ScreenerMetric::MutualFund(MutualFundScreener::from_str(&sort_field).unwrap()),
+                QuoteType::Equity => {
+                    ScreenerMetric::Equity(EquityScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::MutualFund => {
+                    ScreenerMetric::MutualFund(MutualFundScreener::from_str(&sort_field).unwrap())
+                }
                 QuoteType::Etf => ScreenerMetric::Etf(EtfScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Index => ScreenerMetric::Index(IndexScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Future => ScreenerMetric::Future(FutureScreener::from_str(&sort_field).unwrap()),
-                QuoteType::Crypto => ScreenerMetric::Crypto(CryptoScreener::from_str(&sort_field).unwrap()),
+                QuoteType::Index => {
+                    ScreenerMetric::Index(IndexScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::Future => {
+                    ScreenerMetric::Future(FutureScreener::from_str(&sort_field).unwrap())
+                }
+                QuoteType::Crypto => {
+                    ScreenerMetric::Crypto(CryptoScreener::from_str(&sort_field).unwrap())
+                }
             };
             Some(quote_type)
         } else {
@@ -391,17 +493,19 @@ pub async fn get_screener_symbols(
                 sort_descending,
                 offset,
                 size,
-            }.build().await.unwrap();
+            }
+            .build()
+            .await
+            .unwrap();
 
             screener.symbols
         })
     })
-        .await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(screener)
 }
-
 
 #[server]
 pub async fn get_screener_performance(
@@ -409,7 +513,7 @@ pub async fn get_screener_performance(
     start_date: String,
     end_date: String,
     benchmark_symbol: String,
-    risk_free_rate: f64
+    risk_free_rate: f64,
 ) -> Result<String, ServerFnError<String>> {
     let chart = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Handle::current();
@@ -425,11 +529,17 @@ pub async fn get_screener_performance(
                 .confidence_level(0.95)
                 .risk_free_rate(risk_free_rate)
                 .build();
-            let stats = tickers.performance_stats_table().await.unwrap().to_html().unwrap();
+            let stats = tickers
+                .performance_stats_table()
+                .await
+                .unwrap()
+                .to_html()
+                .unwrap();
             stats
         })
-    }).await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    })
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(chart)
 }
@@ -458,11 +568,13 @@ pub async fn get_screener_portfolio(
                 .risk_free_rate(risk_free_rate)
                 .objective_function(ObjectiveFunction::from_str(&objective_function).unwrap())
                 .build()
-                .await.unwrap();
+                .await
+                .unwrap();
             portfolio.optimization_chart(None, None).unwrap().to_html()
         })
-    }).await
-        .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
+    })
+    .await
+    .map_err(|e| ServerFnError::<String>::ServerError(format!("Blocking task failed: {e}")))?;
 
     Ok(chart)
 }

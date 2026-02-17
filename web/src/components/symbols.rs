@@ -1,5 +1,5 @@
+use crate::server::search_symbols;
 use dioxus::prelude::*;
-use crate::server::ALL_SYMBOLS_DATALIST;
 
 #[component]
 pub fn Symbol(symbol: Signal<String>, title: String) -> Element {
@@ -8,56 +8,43 @@ pub fn Symbol(symbol: Signal<String>, title: String) -> Element {
     let mut is_dropdown_open = use_signal(|| false); // Controls dropdown visibility
     let mut has_interacted = use_signal(|| false); // Tracks user interaction
     let mut is_selected = use_signal(|| false); // Tracks if a suggestion was selected
-    let max_suggestions = 10; // Limit for performance
+    let mut search_generation = use_signal(|| 0u64); // Guards against stale async responses
 
-    // Update suggestions on input change
+    // Fetch suggestions from server when input changes
     use_effect(move || {
         if !*has_interacted.read() || *is_selected.read() {
             *suggestions.write() = vec![];
             *is_dropdown_open.write() = false;
             return;
         }
-        let query = input_value.read().to_lowercase();
+        let query = input_value.read().clone();
         if query.is_empty() {
             *suggestions.write() = vec![];
             *is_dropdown_open.write() = false;
             return;
         }
 
-        let datalist = ALL_SYMBOLS_DATALIST.lock().unwrap();
-        let mut scored: Vec<(f32, (String, String))> = datalist
-            .iter()
-            .filter(|(sym, name)| {
-                sym.to_lowercase().contains(&query) || name.to_lowercase().contains(&query)
-            })
-            .map(|(sym, name)| {
-                let sym_lower = sym.to_lowercase();
-                let name_lower = name.to_lowercase();
-                let score = if sym_lower == query || name_lower == query {
-                    3.0 // Exact match
-                } else if sym_lower.starts_with(&query) {
-                    2.5 // Symbol prefix
-                } else if name_lower.starts_with(&query) {
-                    2.0 // Name prefix
-                } else if sym_lower.contains(&query) {
-                    1.5 // Symbol substring
-                } else {
-                    1.0 // Name substring
-                };
-                (score, (sym.clone(), name.clone()))
-            })
-            .collect();
+        // Increment generation to invalidate any in-flight requests
+        *search_generation.write() += 1;
+        let current_gen = *search_generation.read();
 
-        // Sort by score (descending) and take top max_suggestions
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        let filtered: Vec<(String, String)> = scored
-            .into_iter()
-            .take(max_suggestions)
-            .map(|(_score, pair)| pair)
-            .collect();
-
-        *suggestions.write() = filtered;
-        *is_dropdown_open.write() = !suggestions.read().is_empty();
+        spawn(async move {
+            match search_symbols(query).await {
+                Ok(results) => {
+                    // Only apply results if this is still the latest search
+                    if *search_generation.read() == current_gen {
+                        *is_dropdown_open.write() = !results.is_empty();
+                        *suggestions.write() = results;
+                    }
+                }
+                Err(_) => {
+                    if *search_generation.read() == current_gen {
+                        *suggestions.write() = vec![];
+                        *is_dropdown_open.write() = false;
+                    }
+                }
+            }
+        });
     });
 
     // Handle input change
@@ -160,19 +147,24 @@ pub fn Symbol(symbol: Signal<String>, title: String) -> Element {
 
 #[component]
 pub fn Symbols(symbols: Signal<String>) -> Element {
-    let mut input_value = use_signal(|| String::new() ); // Tracks current input
+    let mut input_value = use_signal(|| String::new()); // Tracks current input
     let mut selected_symbols = use_signal(|| {
         if symbols.read().is_empty() {
             vec![]
         } else {
-            symbols.read().split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<String>>()
+            symbols
+                .read()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<String>>()
         }
     }); // Internal Vec of selected symbols
     let mut suggestions = use_signal::<Vec<(String, String)>>(|| vec![]); // (symbol, name) pairs
     let mut is_dropdown_open = use_signal(|| false);
     let mut has_interacted = use_signal(|| false);
     let mut is_selected = use_signal(|| false);
-    let max_suggestions = 10;
+    let mut search_generation = use_signal(|| 0u64); // Guards against stale async responses
 
     // Sync selected_symbols with symbols signal
     use_effect(move || {
@@ -180,55 +172,47 @@ pub fn Symbols(symbols: Signal<String>) -> Element {
         symbols.set(new_value);
     });
 
-    // Update suggestions on input change
+    // Fetch suggestions from server when input changes
     use_effect(move || {
         if !*has_interacted.read() || *is_selected.read() {
             *suggestions.write() = vec![];
             *is_dropdown_open.write() = false;
             return;
         }
-        let query = input_value.read().to_lowercase();
+        let query = input_value.read().clone();
         if query.is_empty() {
             *suggestions.write() = vec![];
             *is_dropdown_open.write() = false;
             return;
         }
 
-        let datalist = ALL_SYMBOLS_DATALIST.lock().unwrap();
+        // Increment generation to invalidate any in-flight requests
+        *search_generation.write() += 1;
+        let current_gen = *search_generation.read();
         let current_symbols = selected_symbols.read().clone();
-        let mut scored: Vec<(f32, (String, String))> = datalist
-            .iter()
-            .filter(|(sym, name)| {
-                // Exclude already selected symbols
-                !current_symbols.contains(sym) && (sym.to_lowercase().contains(&query) || name.to_lowercase().contains(&query))
-            })
-            .map(|(sym, name)| {
-                let sym_lower = sym.to_lowercase();
-                let name_lower = name.to_lowercase();
-                let score = if sym_lower == query || name_lower == query {
-                    3.0
-                } else if sym_lower.starts_with(&query) {
-                    2.5
-                } else if name_lower.starts_with(&query) {
-                    2.0
-                } else if sym_lower.contains(&query) {
-                    1.5
-                } else {
-                    1.0
-                };
-                (score, (sym.clone(), name.clone()))
-            })
-            .collect();
 
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        let filtered: Vec<(String, String)> = scored
-            .into_iter()
-            .take(max_suggestions)
-            .map(|(_score, pair)| pair)
-            .collect();
-
-        *suggestions.write() = filtered;
-        *is_dropdown_open.write() = !suggestions.read().is_empty();
+        spawn(async move {
+            match search_symbols(query).await {
+                Ok(results) => {
+                    // Only apply results if this is still the latest search
+                    if *search_generation.read() == current_gen {
+                        // Exclude already-selected symbols from suggestions
+                        let filtered: Vec<(String, String)> = results
+                            .into_iter()
+                            .filter(|(sym, _)| !current_symbols.contains(sym))
+                            .collect();
+                        *is_dropdown_open.write() = !filtered.is_empty();
+                        *suggestions.write() = filtered;
+                    }
+                }
+                Err(_) => {
+                    if *search_generation.read() == current_gen {
+                        *suggestions.write() = vec![];
+                        *is_dropdown_open.write() = false;
+                    }
+                }
+            }
+        });
     });
 
     // Handle input change
@@ -257,7 +241,9 @@ pub fn Symbols(symbols: Signal<String>) -> Element {
 
     // Handle remove symbol
     let mut remove_symbol = move |symbol_to_remove: String| {
-        selected_symbols.write().retain(|sym| sym != &symbol_to_remove);
+        selected_symbols
+            .write()
+            .retain(|sym| sym != &symbol_to_remove);
     };
 
     // Handle click outside to close dropdown

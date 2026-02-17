@@ -8,8 +8,13 @@ pub fn ChartContainer(html: String, id: String) -> Element {
     let script = if let Ok(regex) = regex {
         regex
             .captures(&html)
-            .and_then(|caps| caps.get(1)
-                .map(|m| m.as_str().trim().replace(r#","config":{"fillFrame":true,"responsive":true}"#, "")))
+            .and_then(|caps| {
+                caps.get(1).map(|m| {
+                    m.as_str()
+                        .trim()
+                        .replace(r#","config":{"fillFrame":true,"responsive":true}"#, "")
+                })
+            })
             .unwrap_or_default()
     } else {
         String::new()

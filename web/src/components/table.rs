@@ -27,7 +27,7 @@ pub fn TableContainer(html: String, title: String) -> Element {
                 r#"$('table.{}').DataTable({{
                     title: '{}',"#,
                 class, title
-            )
+            ),
         );
     }
 
@@ -55,7 +55,7 @@ pub fn TableContainer(html: String, title: String) -> Element {
             link { rel: "stylesheet", href: "https://cdn.datatables.net/2.2.0/css/dataTables.dataTables.css" }
             link { rel: "stylesheet", href: "https://cdn.datatables.net/buttons/2.2.3/css/buttons.dataTables.min.css" }
             link { rel: "stylesheet", href: "https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css" }
-            
+
             // Required JS
             script { src: "https://code.jquery.com/jquery-3.6.0.min.js" }
             script { src: "https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js" }
@@ -63,7 +63,7 @@ pub fn TableContainer(html: String, title: String) -> Element {
             script { src: "https://cdn.datatables.net/buttons/2.2.3/js/buttons.html5.min.js" }
             script { src: "https://cdn.datatables.net/buttons/2.2.3/js/buttons.colVis.min.js" }
             script { src: "https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js" }
-            
+
             // Table element
             table {
                 id: "dataTable",
