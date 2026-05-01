@@ -32,6 +32,35 @@ typedef struct Tickers {
 
 typedef struct Tickers *TickersHandle;
 
+/**
+ * Retrieve the last error message set by any `finalytics_*` function on the
+ * current thread.
+ *
+ * Returns a heap-allocated C string that the caller **must** free with
+ * `finalytics_free_string()`.  If no error has been recorded the returned
+ * string is empty (`""`).
+ *
+ * # Usage from C
+ *
+ * ```c
+ * int rc = finalytics_ticker_get_price_history(handle, &output);
+ * if (rc != 0) {
+ *     char *err = finalytics_last_error();
+ *     fprintf(stderr, "error: %s\n", err);
+ *     finalytics_free_string(err);
+ * }
+ * ```
+ */
+char *finalytics_last_error(void);
+
+/**
+ * Clear the thread-local error buffer.
+ *
+ * Optional – callers that check `finalytics_last_error()` only after a
+ * non-zero return code don't need this.  Useful in test harnesses.
+ */
+void finalytics_clear_last_error(void);
+
 void finalytics_free_string(char *ptr);
 
 PortfolioHandle finalytics_portfolio_new(const char *ticker_symbols,
@@ -46,7 +75,10 @@ PortfolioHandle finalytics_portfolio_new(const char *ticker_symbols,
                                          const char *categorical_constraints,
                                          const char *weights,
                                          const char *tickers_data,
-                                         const char *benchmark_data);
+                                         const char *benchmark_data,
+                                         const char *transactions,
+                                         const char *rebalance_strategy,
+                                         const char *scheduled_cash_flows);
 
 void finalytics_portfolio_free(PortfolioHandle handle);
 
@@ -69,12 +101,23 @@ int finalytics_portfolio_asset_returns_chart(PortfolioHandle handle,
                                              unsigned int width,
                                              char **output);
 
+int finalytics_portfolio_value_chart(PortfolioHandle handle,
+                                     unsigned int height,
+                                     unsigned int width,
+                                     char **output);
+
 int finalytics_portfolio_returns_matrix(PortfolioHandle handle,
                                         unsigned int height,
                                         unsigned int width,
                                         char **output);
 
 int finalytics_portfolio_report(PortfolioHandle handle, const char *report_type, char **output);
+
+int finalytics_portfolio_update_dates(PortfolioHandle handle,
+                                      const char *start_date,
+                                      const char *end_date);
+
+int finalytics_portfolio_transaction_history(PortfolioHandle handle, char **output);
 
 ScreenerHandle finalytics_screener_new(const char *quote_type,
                                        const char *filters,

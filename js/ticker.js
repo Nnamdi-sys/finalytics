@@ -1,7 +1,7 @@
-import ffi from '@2060.io/ffi-napi';
-import ref from 'ref-napi';
-import Polars from 'nodejs-polars';
-import { Chart, dfToJSON, getNativeLibPath } from './utils.js';
+import ffi from "@2060.io/ffi-napi";
+import ref from "ref-napi";
+import Polars from "nodejs-polars";
+import { Chart, dfToJSON, getNativeLibPath, getLastError } from "./utils.js";
 
 // Define C types
 const TickerHandle = ref.types.void; // Opaque pointer
@@ -11,28 +11,62 @@ const CharPtrPtr = ref.refType(CharPtr);
 
 // Load the finalytics library
 const lib = ffi.Library(getNativeLibPath(), {
-  finalytics_ticker_new: [TickerHandlePtr, [
-    CharPtr, CharPtr, CharPtr, CharPtr, CharPtr,
-    'double', 'double', CharPtr, CharPtr
-  ]],
-  finalytics_ticker_free: ['void', [TickerHandlePtr]],
-  finalytics_free_string: ['void', [CharPtr]],
-  finalytics_ticker_get_quote: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_get_summary_stats: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_get_price_history: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_get_options_chain: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_get_news: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_get_income_statement: ['int', [TickerHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_ticker_get_balance_sheet: ['int', [TickerHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_ticker_get_cashflow_statement: ['int', [TickerHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_ticker_get_financial_ratios: ['int', [TickerHandlePtr, CharPtr, CharPtrPtr]],
-  finalytics_ticker_volatility_surface: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_performance_stats: ['int', [TickerHandlePtr, CharPtrPtr]],
-  finalytics_ticker_performance_chart: ['int', [TickerHandlePtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_ticker_candlestick_chart: ['int', [TickerHandlePtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_ticker_options_chart: ['int', [TickerHandlePtr, CharPtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_ticker_news_sentiment_chart: ['int', [TickerHandlePtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_ticker_report: ['int', [TickerHandlePtr, CharPtr, CharPtrPtr]],
+  finalytics_ticker_new: [
+    TickerHandlePtr,
+    [
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      "double",
+      "double",
+      CharPtr,
+      CharPtr,
+    ],
+  ],
+  finalytics_ticker_free: ["void", [TickerHandlePtr]],
+  finalytics_free_string: ["void", [CharPtr]],
+  finalytics_ticker_get_quote: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_get_summary_stats: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_get_price_history: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_get_options_chain: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_get_news: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_get_income_statement: [
+    "int",
+    [TickerHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_ticker_get_balance_sheet: [
+    "int",
+    [TickerHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_ticker_get_cashflow_statement: [
+    "int",
+    [TickerHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_ticker_get_financial_ratios: [
+    "int",
+    [TickerHandlePtr, CharPtr, CharPtrPtr],
+  ],
+  finalytics_ticker_volatility_surface: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_performance_stats: ["int", [TickerHandlePtr, CharPtrPtr]],
+  finalytics_ticker_performance_chart: [
+    "int",
+    [TickerHandlePtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_ticker_candlestick_chart: [
+    "int",
+    [TickerHandlePtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_ticker_options_chart: [
+    "int",
+    [TickerHandlePtr, CharPtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_ticker_news_sentiment_chart: [
+    "int",
+    [TickerHandlePtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_ticker_report: ["int", [TickerHandlePtr, CharPtr, CharPtrPtr]],
 });
 
 /**
@@ -63,7 +97,7 @@ class Ticker {
       const outputPtr = ref.alloc(CharPtrPtr);
       const result = lib.finalytics_ticker_get_quote(this.handle, outputPtr);
       if (result !== 0) {
-        return reject(new Error(`Failed to get quote: error code ${result}`));
+        return reject(getLastError("Failed to get quote"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -84,9 +118,12 @@ class Ticker {
   async getSummaryStats() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_summary_stats(this.handle, outputPtr);
+      const result = lib.finalytics_ticker_get_summary_stats(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get summary stats: error code ${result}`));
+        return reject(getLastError("Failed to get summary stats"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -107,9 +144,12 @@ class Ticker {
   async getPriceHistory() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_price_history(this.handle, outputPtr);
+      const result = lib.finalytics_ticker_get_price_history(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get price history: error code ${result}`));
+        return reject(getLastError("Failed to get price history"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -130,9 +170,12 @@ class Ticker {
   async getOptionsChain() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_options_chain(this.handle, outputPtr);
+      const result = lib.finalytics_ticker_get_options_chain(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get options chain: error code ${result}`));
+        return reject(getLastError("Failed to get options chain"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -155,7 +198,7 @@ class Ticker {
       const outputPtr = ref.alloc(CharPtrPtr);
       const result = lib.finalytics_ticker_get_news(this.handle, outputPtr);
       if (result !== 0) {
-        return reject(new Error(`Failed to get news: error code ${result}`));
+        return reject(getLastError("Failed to get news"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -178,9 +221,14 @@ class Ticker {
   async getIncomeStatement(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_income_statement(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_ticker_get_income_statement(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get income statement: error code ${result}`));
+        return reject(getLastError("Failed to get income statement"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -203,9 +251,14 @@ class Ticker {
   async getBalanceSheet(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_balance_sheet(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_ticker_get_balance_sheet(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get balance sheet: error code ${result}`));
+        return reject(getLastError("Failed to get balance sheet"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -228,9 +281,14 @@ class Ticker {
   async getCashflowStatement(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_cashflow_statement(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_ticker_get_cashflow_statement(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get cash flow statement: error code ${result}`));
+        return reject(getLastError("Failed to get cash flow statement"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -252,9 +310,13 @@ class Ticker {
   async getFinancialRatios(frequency) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_get_financial_ratios(this.handle, frequency, outputPtr);
+      const result = lib.finalytics_ticker_get_financial_ratios(
+        this.handle,
+        frequency,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get financial ratios: error code ${result}`));
+        return reject(getLastError("Failed to get financial ratios"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -275,9 +337,12 @@ class Ticker {
   async volatilitySurface() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_volatility_surface(this.handle, outputPtr);
+      const result = lib.finalytics_ticker_volatility_surface(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get volatility surface: error code ${result}`));
+        return reject(getLastError("Failed to get volatility surface"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -305,9 +370,12 @@ class Ticker {
   async performanceStats() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_performance_stats(this.handle, outputPtr);
+      const result = lib.finalytics_ticker_performance_stats(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get performance stats: error code ${result}`));
+        return reject(getLastError("Failed to get performance stats"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -337,9 +405,14 @@ class Ticker {
   async performanceChart(height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_performance_chart(this.handle, height, width, outputPtr);
+      const result = lib.finalytics_ticker_performance_chart(
+        this.handle,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get performance chart: error code ${result}`));
+        return reject(getLastError("Failed to get performance chart"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -366,9 +439,14 @@ class Ticker {
   async candlestickChart(height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_candlestick_chart(this.handle, height, width, outputPtr);
+      const result = lib.finalytics_ticker_candlestick_chart(
+        this.handle,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get candlestick chart: error code ${result}`));
+        return reject(getLastError("Failed to get candlestick chart"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -392,9 +470,15 @@ class Ticker {
   async optionsChart(chartType, height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_options_chart(this.handle, chartType, height, width, outputPtr);
+      const result = lib.finalytics_ticker_options_chart(
+        this.handle,
+        chartType,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get options chart: error code ${result}`));
+        return reject(getLastError("Failed to get options chart"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -417,9 +501,14 @@ class Ticker {
   async newsSentimentChart(height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_news_sentiment_chart(this.handle, height, width, outputPtr);
+      const result = lib.finalytics_ticker_news_sentiment_chart(
+        this.handle,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get news sentiment chart: error code ${result}`));
+        return reject(getLastError("Failed to get news sentiment chart"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -448,9 +537,13 @@ class Ticker {
   async report(reportType) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_ticker_report(this.handle, reportType, outputPtr);
+      const result = lib.finalytics_ticker_report(
+        this.handle,
+        reportType,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get report: error code ${result}`));
+        return reject(getLastError("Failed to get report"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -488,11 +581,11 @@ class TickerBuilder {
    * - benchmarkData: null
    */
   constructor() {
-    this.symbolValue = '';
-    this.startDateValue = '';
-    this.endDateValue = '';
-    this.intervalValue = '1d';
-    this.benchmarkSymbolValue = '';
+    this.symbolValue = "";
+    this.startDateValue = "";
+    this.endDateValue = "";
+    this.intervalValue = "1d";
+    this.benchmarkSymbolValue = "";
     this.confidenceLevelValue = 0.95;
     this.riskFreeRateValue = 0.02;
     this.tickerDataValue = null;
@@ -504,63 +597,90 @@ class TickerBuilder {
    * @param {string} value - The ticker symbol (e.g., 'AAPL').
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  symbol(value) { this.symbolValue = value; return this; }
+  symbol(value) {
+    this.symbolValue = value;
+    return this;
+  }
 
   /**
    * Sets the start date for the data period.
    * @param {string} value - The start date in YYYY-MM-DD format.
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  startDate(value) { this.startDateValue = value; return this; }
+  startDate(value) {
+    this.startDateValue = value;
+    return this;
+  }
 
   /**
    * Sets the end date for the data period.
    * @param {string} value - The end date in YYYY-MM-DD format.
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  endDate(value) { this.endDateValue = value; return this; }
+  endDate(value) {
+    this.endDateValue = value;
+    return this;
+  }
 
   /**
    * Sets the data interval.
    * @param {string} value - The data interval (e.g., '2m', '5m', '15m', '30m', '1h', '1d', '1wk', '1mo', '3mo').
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  interval(value) { this.intervalValue = value; return this; }
+  interval(value) {
+    this.intervalValue = value;
+    return this;
+  }
 
   /**
    * Sets the benchmark symbol.
    * @param {string} value - The benchmark symbol (e.g., '^GSPC').
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  benchmarkSymbol(value) { this.benchmarkSymbolValue = value; return this; }
+  benchmarkSymbol(value) {
+    this.benchmarkSymbolValue = value;
+    return this;
+  }
 
   /**
    * Sets the confidence level for VaR and ES calculations.
    * @param {number} value - The confidence level (e.g., 0.95 for 95% confidence).
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  confidenceLevel(value) { this.confidenceLevelValue = value; return this; }
+  confidenceLevel(value) {
+    this.confidenceLevelValue = value;
+    return this;
+  }
 
   /**
    * Sets the risk-free rate for calculations.
    * @param {number} value - The risk-free rate (e.g., 0.02 for 2%).
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  riskFreeRate(value) { this.riskFreeRateValue = value; return this; }
+  riskFreeRate(value) {
+    this.riskFreeRateValue = value;
+    return this;
+  }
 
   /**
    * Sets custom ticker data.
    * @param {Polars.DataFrame|null} value - A Polars DataFrame containing custom ticker data (null if not used).
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  tickerData(value) { this.tickerDataValue = value; return this; }
+  tickerData(value) {
+    this.tickerDataValue = value;
+    return this;
+  }
 
   /**
    * Sets custom benchmark data.
    * @param {Polars.DataFrame|null} value - A Polars DataFrame containing custom benchmark data (null if not used).
    * @returns {TickerBuilder} The builder instance for method chaining.
    */
-  benchmarkData(value) { this.benchmarkDataValue = value; return this; }
+  benchmarkData(value) {
+    this.benchmarkDataValue = value;
+    return this;
+  }
 
   /**
    * Constructs the Ticker instance with the configured parameters.
@@ -579,9 +699,13 @@ class TickerBuilder {
    * ticker.free();
    */
   async build() {
-    if (!this.symbolValue) throw new Error('Symbol is required');
-    const tickerDataJson = this.tickerDataValue ? dfToJSON(this.tickerDataValue) : '';
-    const benchmarkDataJson = this.benchmarkDataValue ? dfToJSON(this.benchmarkDataValue) : '';
+    if (!this.symbolValue) throw new Error("Symbol is required");
+    const tickerDataJson = this.tickerDataValue
+      ? dfToJSON(this.tickerDataValue)
+      : "";
+    const benchmarkDataJson = this.benchmarkDataValue
+      ? dfToJSON(this.benchmarkDataValue)
+      : "";
     return new Promise((resolve, reject) => {
       const handle = lib.finalytics_ticker_new(
         this.symbolValue,
@@ -592,10 +716,10 @@ class TickerBuilder {
         this.confidenceLevelValue,
         this.riskFreeRateValue,
         tickerDataJson || null,
-        benchmarkDataJson || null
+        benchmarkDataJson || null,
       );
       if (!handle || handle.isNull()) {
-        return reject(new Error('Failed to create Ticker'));
+        return reject(getLastError("Failed to create Ticker"));
       }
       resolve(new Ticker(handle));
     });

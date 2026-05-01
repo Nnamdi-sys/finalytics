@@ -1,4 +1,5 @@
 use crate::utils::dataframe_to_json;
+use crate::{catch_panic, set_last_error, set_last_error_from_err};
 use finalytics::data::yahoo::screeners::builder::ScreenerBuilder;
 use finalytics::prelude::{
     CryptoScreener, EquityScreener, EtfScreener, FutureScreener, IndexScreener, MutualFundScreener,
@@ -16,7 +17,16 @@ pub type ScreenerHandle = *mut Screener;
 
 // Helper to convert Rust string to C string
 fn to_c_string(s: String) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
+    CString::new(s)
+        .unwrap_or_else(|_| CString::new("(string contained NUL byte)").unwrap())
+        .into_raw()
+}
+
+/// Helper to create a tokio runtime, setting last error on failure.
+fn make_runtime() -> Result<Runtime, ()> {
+    Runtime::new().map_err(|e| {
+        set_last_error(format!("Failed to create async runtime: {e}"));
+    })
 }
 
 // Create a new Screener
@@ -29,69 +39,83 @@ pub extern "C" fn finalytics_screener_new(
     offset: c_uint,
     size: c_uint,
 ) -> ScreenerHandle {
-    let quote_type = unsafe { CStr::from_ptr(quote_type).to_str().unwrap_or("EQUITY") };
-    let filters = unsafe { CStr::from_ptr(filters).to_str().unwrap_or("[]") };
-    let sort_field = unsafe {
-        if sort_field.is_null() {
-            None
-        } else {
-            Some(CStr::from_ptr(sort_field).to_str().unwrap_or(""))
-        }
-    };
-    let sort_descending = sort_descending != 0;
-    let offset = offset as usize;
-    let size = if size == 0 { 250 } else { size as usize };
-
-    let quote_type = QuoteType::from_str(quote_type).unwrap_or(QuoteType::Equity);
-    let filters: Vec<String> = serde_json::from_str(filters).unwrap();
-    let filters = filters
-        .into_iter()
-        .map(ScreenerFilter::Custom)
-        .collect::<Vec<_>>();
-    let sort_field = sort_field
-        .map(|f| {
-            if f.is_empty() {
+    let result = catch_panic(std::panic::AssertUnwindSafe(|| {
+        let quote_type_str = unsafe { CStr::from_ptr(quote_type).to_str().unwrap_or("EQUITY") };
+        let filters_str = unsafe { CStr::from_ptr(filters).to_str().unwrap_or("[]") };
+        let sort_field_str = unsafe {
+            if sort_field.is_null() {
                 None
             } else {
-                Some(match quote_type {
-                    QuoteType::Equity => ScreenerMetric::Equity(
-                        EquityScreener::from_str(f).unwrap_or(EquityScreener::MarketCapIntraday),
-                    ),
-                    QuoteType::MutualFund => ScreenerMetric::MutualFund(
-                        MutualFundScreener::from_str(f)
-                            .unwrap_or(MutualFundScreener::FundNetAssets),
-                    ),
-                    QuoteType::Etf => ScreenerMetric::Etf(
-                        EtfScreener::from_str(f).unwrap_or(EtfScreener::FundNetAssets),
-                    ),
-                    QuoteType::Index => ScreenerMetric::Index(
-                        IndexScreener::from_str(f).unwrap_or(IndexScreener::PercentChange),
-                    ),
-                    QuoteType::Future => ScreenerMetric::Future(
-                        FutureScreener::from_str(f).unwrap_or(FutureScreener::PercentChange),
-                    ),
-                    QuoteType::Crypto => ScreenerMetric::Crypto(
-                        CryptoScreener::from_str(f).unwrap_or(CryptoScreener::MarketCapIntraday),
-                    ),
-                })
+                Some(CStr::from_ptr(sort_field).to_str().unwrap_or(""))
             }
-        })
-        .unwrap_or(None);
+        };
+        let sort_descending = sort_descending != 0;
+        let offset = offset as usize;
+        let size = if size == 0 { 250 } else { size as usize };
 
-    let screener_builder = ScreenerBuilder {
-        quote_type: Some(quote_type),
-        filters,
-        sort_field,
-        sort_descending,
-        offset,
-        size,
-    };
+        let quote_type = QuoteType::from_str(quote_type_str).unwrap_or(QuoteType::Equity);
+        let filters: Vec<String> = serde_json::from_str(filters_str).unwrap_or_default();
+        let filters = filters
+            .into_iter()
+            .map(ScreenerFilter::Custom)
+            .collect::<Vec<_>>();
+        let sort_field = sort_field_str
+            .map(|f| {
+                if f.is_empty() {
+                    None
+                } else {
+                    Some(match quote_type {
+                        QuoteType::Equity => ScreenerMetric::Equity(
+                            EquityScreener::from_str(f)
+                                .unwrap_or(EquityScreener::MarketCapIntraday),
+                        ),
+                        QuoteType::MutualFund => ScreenerMetric::MutualFund(
+                            MutualFundScreener::from_str(f)
+                                .unwrap_or(MutualFundScreener::FundNetAssets),
+                        ),
+                        QuoteType::Etf => ScreenerMetric::Etf(
+                            EtfScreener::from_str(f).unwrap_or(EtfScreener::FundNetAssets),
+                        ),
+                        QuoteType::Index => ScreenerMetric::Index(
+                            IndexScreener::from_str(f).unwrap_or(IndexScreener::PercentChange),
+                        ),
+                        QuoteType::Future => ScreenerMetric::Future(
+                            FutureScreener::from_str(f).unwrap_or(FutureScreener::PercentChange),
+                        ),
+                        QuoteType::Crypto => ScreenerMetric::Crypto(
+                            CryptoScreener::from_str(f)
+                                .unwrap_or(CryptoScreener::MarketCapIntraday),
+                        ),
+                    })
+                }
+            })
+            .unwrap_or(None);
 
-    let rt = Runtime::new().unwrap();
-    let screener = rt
-        .block_on(screener_builder.build())
-        .unwrap_or_else(|err| panic!("Failed to create Screener: {}", err));
-    Box::into_raw(Box::new(screener))
+        let screener_builder = ScreenerBuilder {
+            quote_type: Some(quote_type),
+            filters,
+            sort_field,
+            sort_descending,
+            offset,
+            size,
+        };
+
+        let rt = match make_runtime() {
+            Ok(rt) => rt,
+            Err(()) => return std::ptr::null_mut(),
+        };
+        match rt.block_on(screener_builder.build()) {
+            Ok(screener) => Box::into_raw(Box::new(screener)),
+            Err(e) => {
+                set_last_error_from_err("Failed to build screener", &*e);
+                std::ptr::null_mut()
+            }
+        }
+    }));
+    match result {
+        Ok(ptr) => ptr,
+        Err(()) => std::ptr::null_mut(),
+    }
 }
 
 // Free Screener
@@ -131,15 +155,25 @@ pub extern "C" fn finalytics_screener_overview(
 ) -> c_int {
     let screener = unsafe {
         if handle.is_null() {
+            set_last_error("Screener handle is null".into());
             return -1;
         }
         &*handle
     };
-    let json = dataframe_to_json(&mut screener.result.clone()).unwrap();
-    unsafe {
-        *output = to_c_string(json);
+    match dataframe_to_json(&mut screener.result.clone()) {
+        Ok(json) => {
+            unsafe {
+                *output = to_c_string(json);
+            }
+            0
+        }
+        Err(e) => {
+            set_last_error(format!(
+                "Failed to serialize screener overview to JSON: {e}"
+            ));
+            -1
+        }
     }
-    0
 }
 
 // Get metrics
@@ -150,20 +184,32 @@ pub extern "C" fn finalytics_screener_metrics(
 ) -> c_int {
     let screener = unsafe {
         if handle.is_null() {
+            set_last_error("Screener handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(screener.metrics()) {
-        Ok(metrics) => {
-            let json = dataframe_to_json(&mut metrics.data.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(metrics) => match dataframe_to_json(&mut metrics.data.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize screener metrics to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch screener metrics", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -175,15 +221,22 @@ pub extern "C" fn finalytics_screener_display(
 ) -> c_int {
     let screener = unsafe {
         if handle.is_null() {
+            set_last_error("Screener handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     let overview = screener.overview();
     let metrics = match rt.block_on(screener.metrics()) {
         Ok(metrics) => metrics,
-        Err(_) => return -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch screener metrics for display", &*e);
+            return -1;
+        }
     };
     let overview_html = overview.to_html().unwrap_or_default();
     let metrics_html = metrics.to_html().unwrap_or_default();

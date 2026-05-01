@@ -46,6 +46,7 @@ pub fn Portfolio() -> Element {
             return PortfolioTabs {
                 optimization_chart: None,
                 performance_chart: String::new(),
+                portfolio_value_chart: String::new(),
                 performance_stats_table: String::new(),
                 returns_table: String::new(),
                 returns_chart: String::new(),
@@ -70,6 +71,7 @@ pub fn Portfolio() -> Element {
             Err(e) => PortfolioTabs {
                 optimization_chart: Some(format!("Error: {e}")),
                 performance_chart: format!("Error: {e}"),
+                portfolio_value_chart: format!("Error: {e}"),
                 performance_stats_table: format!("Error: {e}"),
                 returns_table: format!("Error: {e}"),
                 returns_chart: format!("Error: {e}"),
@@ -362,6 +364,9 @@ pub fn Portfolio() -> Element {
                                 option { value: "min_var", "Min VaR" }
                                 option { value: "min_cvar", "Min CVaR" }
                                 option { value: "min_drawdown", "Min Drawdown" }
+                                option { value: "risk_parity", "Risk Parity" }
+                                option { value: "max_diversification", "Max Diversification" }
+                                option { value: "hierarchical_risk_parity", "Hierarchical Risk Parity" }
                             }
                         }
                         div {

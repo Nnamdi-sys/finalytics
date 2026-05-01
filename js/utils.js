@@ -1,5 +1,7 @@
-import fs from 'fs';
-import os from 'os';
+import ffi from "@2060.io/ffi-napi";
+import ref from "ref-napi";
+import fs from "fs";
+import os from "os";
 import path from "path";
 import open from "open";
 import { fileURLToPath } from "url";
@@ -51,87 +53,150 @@ class Chart {
  * @param {Object} columnTypes - Object mapping column names to their types (e.g., 'Float64', 'Int64').
  * @returns {Object} - New object with float columns coerced.
  */
- function ensureFloatColumnsWithDecimal(data, columnTypes) {
-   const result = {};
-   for (const col of Object.keys(data)) {
-     if (columnTypes[col] && columnTypes[col].toString().toLowerCase().includes('float')) {
-       result[col] = data[col].map(v => {
-         if (typeof v === 'number' && Number.isInteger(v)) {
-           // Value is a float column but has no decimal, so force decimal
-           return v.toFixed(1);
-         }
-         return v;
-       });
-     } else {
-       result[col] = data[col];
-     }
-   }
-   return result;
- }
+function ensureFloatColumnsWithDecimal(data, columnTypes) {
+  const result = {};
+  for (const col of Object.keys(data)) {
+    if (
+      columnTypes[col] &&
+      columnTypes[col].toString().toLowerCase().includes("float")
+    ) {
+      result[col] = data[col].map((v) => {
+        if (typeof v === "number" && Number.isInteger(v)) {
+          // Value is a float column but has no decimal, so force decimal
+          return v.toFixed(1);
+        }
+        return v;
+      });
+    } else {
+      result[col] = data[col];
+    }
+  }
+  return result;
+}
 
 /**
  * Converts a Polars DataFrame to a column-oriented JSON string.
  * @param {DataFrame} df - The Polars DataFrame.
  * @returns {string} - The column-oriented JSON string.
  */
- function dfToJSON(df) {
-   const columnOrientedData = df.toObject();
-   const columnTypes = {};
-   df.columns.forEach((col, idx) => {
-     columnTypes[col] = df.dtypes[idx];
-   });
-   const fixedData = ensureFloatColumnsWithDecimal(columnOrientedData, columnTypes);
-   return JSON.stringify(fixedData, null, 2);
- }
- 
- function getNativeLibPath() {
-   const platform = os.platform();
-   const arch = os.arch();
- 
-   let candidatePaths = [];
- 
-   if (platform === 'darwin') {
-     const dylib = arch === 'arm64'
-       ? 'libfinalytics_ffi_aarch64.dylib'
-       : 'libfinalytics_ffi_x86_64.dylib';
-     candidatePaths = [
-       path.join(__dirname, 'lib', 'macos', dylib),
-       path.join(__dirname, dylib),
-       path.join(process.cwd(), dylib)
-     ];
-   } else if (platform === 'win32') {
-     candidatePaths = [
-       path.join(__dirname, 'lib', 'windows', 'finalytics_ffi.dll'),
-       path.join(__dirname, 'finalytics_ffi.dll'),
-       path.join(process.cwd(), 'finalytics_ffi.dll')
-     ];
-   } else if (platform === 'linux') {
-     candidatePaths = [
-       path.join(__dirname, 'lib', 'linux', 'libfinalytics_ffi.so'),
-       path.join(__dirname, 'libfinalytics_ffi.so'),
-       path.join(process.cwd(), 'libfinalytics_ffi.so')
-     ];
-   } else {
-     throw new Error(`Unsupported platform: ${platform}`);
-   }
- 
-   // Return the first candidate that exists
-   for (const candidate of candidatePaths) {
-     if (fs.existsSync(candidate)) {
-       return candidate;
-     }
-   }
- 
-   // Fallback: let ffi-napi search by name (if in system path)
-   if (platform === 'darwin') {
-     return 'libfinalytics_ffi.dylib';
-   } else if (platform === 'win32') {
-     return 'finalytics_ffi.dll';
-   } else if (platform === 'linux') {
-     return 'libfinalytics_ffi.so';
-   }
-   
-   throw new Error('Native library not found for platform: ' + platform);
- }
+function dfToJSON(df) {
+  const columnOrientedData = df.toObject();
+  const columnTypes = {};
+  df.columns.forEach((col, idx) => {
+    columnTypes[col] = df.dtypes[idx];
+  });
+  const fixedData = ensureFloatColumnsWithDecimal(
+    columnOrientedData,
+    columnTypes,
+  );
+  return JSON.stringify(fixedData, null, 2);
+}
 
-export { Chart, dfToJSON, getNativeLibPath };
+function getNativeLibPath() {
+  const platform = os.platform();
+  const arch = os.arch();
+
+  let candidatePaths = [];
+
+  if (platform === "darwin") {
+    const dylib =
+      arch === "arm64"
+        ? "libfinalytics_ffi_aarch64.dylib"
+        : "libfinalytics_ffi_x86_64.dylib";
+    candidatePaths = [
+      path.join(__dirname, "lib", "macos", dylib),
+      path.join(__dirname, dylib),
+      path.join(process.cwd(), dylib),
+    ];
+  } else if (platform === "win32") {
+    candidatePaths = [
+      path.join(__dirname, "lib", "windows", "finalytics_ffi.dll"),
+      path.join(__dirname, "finalytics_ffi.dll"),
+      path.join(process.cwd(), "finalytics_ffi.dll"),
+    ];
+  } else if (platform === "linux") {
+    candidatePaths = [
+      path.join(__dirname, "lib", "linux", "libfinalytics_ffi.so"),
+      path.join(__dirname, "libfinalytics_ffi.so"),
+      path.join(process.cwd(), "libfinalytics_ffi.so"),
+    ];
+  } else {
+    throw new Error(`Unsupported platform: ${platform}`);
+  }
+
+  // Return the first candidate that exists
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  // Fallback: let ffi-napi search by name (if in system path)
+  if (platform === "darwin") {
+    return "libfinalytics_ffi.dylib";
+  } else if (platform === "win32") {
+    return "finalytics_ffi.dll";
+  } else if (platform === "linux") {
+    return "libfinalytics_ffi.so";
+  }
+
+  throw new Error("Native library not found for platform: " + platform);
+}
+
+// ---------------------------------------------------------------------------
+// Shared error-retrieval binding
+// ---------------------------------------------------------------------------
+//
+// Every JS consumer module (ticker.js, tickers.js, portfolio.js, screener.js)
+// loads its own ffi.Library instance, but they all need access to
+// `finalytics_last_error` and `finalytics_free_string` for rich error
+// messages.  We expose a single shared helper here so the logic lives in one
+// place.
+
+const CharPtr = ref.types.CString;
+
+let _errorLib = null;
+
+/**
+ * Returns (and caches) a minimal ffi.Library that only binds the two
+ * error-related C functions.  The native library path is resolved via
+ * `getNativeLibPath()`.
+ */
+function getErrorLib() {
+  if (!_errorLib) {
+    _errorLib = ffi.Library(getNativeLibPath(), {
+      finalytics_last_error: [CharPtr, []],
+      finalytics_free_string: ["void", [CharPtr]],
+    });
+  }
+  return _errorLib;
+}
+
+/**
+ * Retrieves the last error message set by any `finalytics_*` FFI call on the
+ * current thread.  If the message is empty an `Error` with the supplied
+ * `fallback` text is returned instead.
+ *
+ * @param {string} fallback - Human-readable context shown when no detailed
+ *   error is available (e.g. "failed to get quote").
+ * @returns {Error} An `Error` whose `.message` contains either the full Rust
+ *   error chain or the fallback string.
+ */
+function getLastError(fallback) {
+  try {
+    const errLib = getErrorLib();
+    const cStr = errLib.finalytics_last_error();
+    if (cStr && !cStr.isNull()) {
+      const msg = cStr.toString ? cStr.toString() : ref.readCString(cStr, 0);
+      errLib.finalytics_free_string(cStr);
+      if (msg && msg.length > 0) {
+        return new Error(msg);
+      }
+    }
+  } catch (_) {
+    // If anything goes wrong reading the error, fall through to the fallback.
+  }
+  return new Error(fallback);
+}
+
+export { Chart, dfToJSON, getNativeLibPath, getLastError };

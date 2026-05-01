@@ -134,13 +134,13 @@ pub fn Performance() -> Element {
 
                         // Symbol input
                         div {
-                            style: "min-width: 250px; flex: 1; position: relative; z-index: 20;",
+                            style: "min-width: 250px; flex: 1;",
                             Symbol { symbol: symbol, title: "Symbol" }
                         }
 
                         // Benchmark input
                         div {
-                            style: "min-width: 250px; flex: 1; position: relative; z-index: 19;",
+                            style: "min-width: 250px; flex: 1;",
                             Symbol { symbol: benchmark_symbol, title: "Benchmark Symbol" }
                         }
 

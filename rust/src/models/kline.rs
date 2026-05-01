@@ -1,18 +1,16 @@
+use crate::utils::date_utils::to_date;
+use chrono::{NaiveDateTime, TimeZone, Utc};
+use polars::prelude::*;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
-use polars::prelude::*;
-use chrono::{TimeZone, NaiveDateTime, Utc};
-use crate::utils::date_utils::to_date;
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct IntervalDays {
     pub average: f64,
     pub mode: f64,
 }
-
 
 /// KLINE Struct
 ///
@@ -52,7 +50,7 @@ pub struct IntervalDays {
 ///
 ///     // Method 2: Load from JSON files
 ///     let msft_json = KLINE::from_json("MSFT", "../examples/datasets/msft.json")?;
-///     let btc_json = KLINE::from_json("BTC-USD", "../examples/datasets/btc.json")?;
+///     let btc_json = KLINE::from_json("BTC-USD", "../examples/datasets/btcusd.json")?;
 ///
 ///     // Method 3: Load from Polars DataFrame
 ///     let df = KLINE::from_csv("NVDA","../examples/datasets/nvda.csv")?.to_dataframe()?;
@@ -76,8 +74,21 @@ pub struct IntervalDays {
 ///     // Generate a Multiple Ticker Report
 ///     tickers.report(Some(ReportType::Performance)).await?.show()?;
 ///
-///     // Portfolio optimization
-///     let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
+///     // Portfolio optimization (in-sample performance stats computed automatically)
+///     let mut portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+///     portfolio.report(Some(ReportType::Optimization)).await?.show()?;
+///
+///     // Optionally: update with new KLINE data for out-of-sample evaluation
+///     let eval_tickers = vec![
+///         KLINE::from_csv("AAPL", "../examples/datasets/aapl.csv")?,
+///         KLINE::from_csv("GOOG", "../examples/datasets/goog.csv")?,
+///         KLINE::from_csv("MSFT", "../examples/datasets/msft.csv")?,
+///         KLINE::from_csv("BTC-USD", "../examples/datasets/btcusd.csv")?,
+///         KLINE::from_csv("NVDA", "../examples/datasets/nvda.csv")?,
+///     ];
+///     let eval_bench = KLINE::from_csv("^GSPC", "../examples/datasets/gspc.csv")?;
+///     portfolio.update_data(eval_tickers, Some(eval_bench)).await?;
+///     portfolio.performance_stats()?;
 ///     portfolio.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///     Ok(())
@@ -169,10 +180,7 @@ impl KLINE {
             }
         }
 
-        IntervalDays {
-            average: avg,
-            mode,
-        }
+        IntervalDays { average: avg, mode }
     }
 
     pub fn start_date(&self) -> String {
@@ -189,7 +197,7 @@ impl KLINE {
         let len = self.timestamp.len();
 
         if self.close.len() != len {
-            return Err( "close length does not match timestamp".into());
+            return Err("close length does not match timestamp".into());
         }
 
         let check_length = |name: &str, opt_vec: &Option<Vec<f64>>| -> Result<(), Box<dyn Error>> {
@@ -215,14 +223,15 @@ impl KLINE {
         let adj_close_data = self.adjclose.clone().unwrap_or_else(|| self.close.clone());
 
         // Convert timestamps to datetime
-        let datetime_vec: Result<Vec<NaiveDateTime>, _> = self.timestamp
+        let datetime_vec: Result<Vec<NaiveDateTime>, _> = self
+            .timestamp
             .iter()
             .map(|&ts| {
                 Utc.timestamp_opt(ts, 0)
                     .single()
-                    .ok_or_else(|| PolarsError::ComputeError(
-                        format!("Invalid timestamp: {ts}").into()
-                    ))
+                    .ok_or_else(|| {
+                        PolarsError::ComputeError(format!("Invalid timestamp: {ts}").into())
+                    })
                     .map(|dt| dt.naive_utc())
             })
             .collect();
@@ -244,37 +253,77 @@ impl KLINE {
     }
 
     pub fn from_dataframe(ticker: &str, df: &DataFrame) -> Result<KLINE, Box<dyn Error>> {
-        let timestamp = df.column("timestamp")?.i64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<i64>>();
-    
+        let timestamp = df
+            .column("timestamp")?
+            .i64()?
+            .to_vec()
+            .iter()
+            .map(|&x| x.unwrap_or_default())
+            .collect::<Vec<i64>>();
+
         let open = match df.column("open") {
-            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Ok(col) => Some(
+                col.f64()?
+                    .to_vec()
+                    .iter()
+                    .map(|&x| x.unwrap_or_default())
+                    .collect::<Vec<f64>>(),
+            ),
             Err(_) => None,
         };
-    
+
         let high = match df.column("high") {
-            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Ok(col) => Some(
+                col.f64()?
+                    .to_vec()
+                    .iter()
+                    .map(|&x| x.unwrap_or_default())
+                    .collect::<Vec<f64>>(),
+            ),
             Err(_) => None,
         };
-    
+
         let low = match df.column("low") {
-            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Ok(col) => Some(
+                col.f64()?
+                    .to_vec()
+                    .iter()
+                    .map(|&x| x.unwrap_or_default())
+                    .collect::<Vec<f64>>(),
+            ),
             Err(_) => None,
         };
-    
-        let close = df.column("close")?.f64()?.to_vec().iter()
-            .map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>();
-    
+
+        let close = df
+            .column("close")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|&x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+
         let volume = match df.column("volume") {
-            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Ok(col) => Some(
+                col.f64()?
+                    .to_vec()
+                    .iter()
+                    .map(|&x| x.unwrap_or_default())
+                    .collect::<Vec<f64>>(),
+            ),
             Err(_) => None,
         };
-    
+
         let adjclose = match df.column("adjclose") {
-            Ok(col) => Some(col.f64()?.to_vec().iter().map(|&x| x.unwrap_or_default()).collect::<Vec<f64>>()),
+            Ok(col) => Some(
+                col.f64()?
+                    .to_vec()
+                    .iter()
+                    .map(|&x| x.unwrap_or_default())
+                    .collect::<Vec<f64>>(),
+            ),
             Err(_) => None,
         };
-    
+
         Ok(KLINE {
             ticker: ticker.to_string(),
             timestamp,
@@ -286,7 +335,6 @@ impl KLINE {
             adjclose,
         })
     }
-
 
     pub fn from_csv(ticker: &str, path: &str) -> Result<Self, Box<dyn Error>> {
         let df = CsvReadOptions::default()
@@ -374,5 +422,4 @@ impl KLINE {
 
         Ok(kline)
     }
-
 }

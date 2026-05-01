@@ -1,9 +1,41 @@
+# ── Editors & IDEs ───────────────────────────────────────────────────────────
 .idea
-.venv
-target
-venv
-node_modules
-.DS_Store
 .zed
 
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
 
+# ── Rust / Cargo ─────────────────────────────────────────────────────────────
+target
+
+# ── Python ───────────────────────────────────────────────────────────────────
+.venv
+venv
+__pycache__/
+*.py[cod]
+
+# Maturin / Python packaging output
+dist/
+*.whl
+*.egg-info/
+
+# ── Node.js / JavaScript ─────────────────────────────────────────────────────
+node_modules
+npm-debug.log*
+
+# Temp HTML files written by Chart.show() in js/utils.js
+temp_*.html
+
+# ── Native FFI Binaries ───────────────────────────────────────────────────────
+*.dylib
+*.so
+*.dll
+*.a
+*.lib
+
+# release_ffi.sh build staging directory
+ffi/lib/
+
+# ── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.*

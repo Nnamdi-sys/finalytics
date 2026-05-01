@@ -22,7 +22,7 @@ pub async fn save_code_images() {
 
     println!("Ticker Performance Chart Saved");
 
-    let portfolio = Portfolio::builder()
+    let mut portfolio = Portfolio::builder()
         .ticker_symbols(vec!["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"])
         .benchmark_symbol("^GSPC")
         .start_date("2023-01-01")
@@ -34,6 +34,8 @@ pub async fn save_code_images() {
         .build()
         .await
         .unwrap();
+
+    portfolio.optimize().unwrap();
 
     portfolio
         .optimization_chart(None, None)

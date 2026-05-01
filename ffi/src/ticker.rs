@@ -1,4 +1,5 @@
 use crate::utils::{dataframe_from_json, dataframe_to_json, series_to_json};
+use crate::{catch_panic, set_last_error, set_last_error_from_err};
 use finalytics::prelude::*;
 
 use serde_json::json;
@@ -12,7 +13,16 @@ pub type TickerHandle = *mut Ticker;
 
 // Helper to convert Rust string to C string
 fn to_c_string(s: String) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
+    CString::new(s)
+        .unwrap_or_else(|_| CString::new("(string contained NUL byte)").unwrap())
+        .into_raw()
+}
+
+/// Helper to create a tokio runtime, setting last error on failure.
+fn make_runtime() -> Result<Runtime, ()> {
+    Runtime::new().map_err(|e| {
+        set_last_error(format!("Failed to create async runtime: {e}"));
+    })
 }
 
 // Create a new Ticker
@@ -28,42 +38,96 @@ pub extern "C" fn finalytics_ticker_new(
     ticker_data: *const c_char,
     benchmark_data: *const c_char,
 ) -> TickerHandle {
-    let symbol = unsafe { CStr::from_ptr(symbol).to_str().unwrap_or("") };
-    let start_date = unsafe { CStr::from_ptr(start_date).to_str().unwrap_or("") };
-    let end_date = unsafe { CStr::from_ptr(end_date).to_str().unwrap_or("") };
-    let interval = unsafe { CStr::from_ptr(interval).to_str().unwrap_or("1d") };
-    let benchmark_symbol = unsafe { CStr::from_ptr(benchmark_symbol).to_str().unwrap_or("^GSPC") };
-    let ticker_data = unsafe {
-        if ticker_data.is_null() {
-            None
-        } else {
-            let ticker_data = CStr::from_ptr(ticker_data).to_str().unwrap_or("");
-            let df = dataframe_from_json(ticker_data).unwrap();
-            Some(KLINE::from_dataframe(symbol, &df).unwrap())
+    let result = catch_panic(std::panic::AssertUnwindSafe(|| {
+        let symbol = unsafe { CStr::from_ptr(symbol).to_str().unwrap_or("") };
+        let start_date = unsafe { CStr::from_ptr(start_date).to_str().unwrap_or("") };
+        let end_date = unsafe { CStr::from_ptr(end_date).to_str().unwrap_or("") };
+        let interval_str = unsafe { CStr::from_ptr(interval).to_str().unwrap_or("1d") };
+        let benchmark_symbol = unsafe {
+            if benchmark_symbol.is_null() {
+                None
+            } else {
+                let s = CStr::from_ptr(benchmark_symbol).to_str().unwrap_or("");
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            }
+        };
+        let ticker_data = unsafe {
+            if ticker_data.is_null() {
+                None
+            } else {
+                let ticker_data_str = CStr::from_ptr(ticker_data).to_str().unwrap_or("");
+                let df = match dataframe_from_json(ticker_data_str) {
+                    Ok(df) => df,
+                    Err(e) => {
+                        set_last_error(format!(
+                            "Failed to parse ticker data JSON for '{symbol}': {e}"
+                        ));
+                        return std::ptr::null_mut();
+                    }
+                };
+                match KLINE::from_dataframe(symbol, &df) {
+                    Ok(kline) => Some(kline),
+                    Err(e) => {
+                        set_last_error_from_err(
+                            &format!("Failed to build KLINE from ticker data for '{symbol}'"),
+                            &*e,
+                        );
+                        return std::ptr::null_mut();
+                    }
+                }
+            }
+        };
+        let benchmark_data = unsafe {
+            if benchmark_data.is_null() {
+                None
+            } else {
+                let benchmark_data_str = CStr::from_ptr(benchmark_data).to_str().unwrap_or("");
+                let df = match dataframe_from_json(benchmark_data_str) {
+                    Ok(df) => df,
+                    Err(e) => {
+                        set_last_error(format!("Failed to parse benchmark data JSON: {e}"));
+                        return std::ptr::null_mut();
+                    }
+                };
+                let bench_name = benchmark_symbol.as_deref().unwrap_or("Benchmark");
+                match KLINE::from_dataframe(bench_name, &df) {
+                    Ok(kline) => Some(kline),
+                    Err(e) => {
+                        set_last_error_from_err(
+                            &format!(
+                                "Failed to build KLINE from benchmark data for '{bench_name}'"
+                            ),
+                            &*e,
+                        );
+                        return std::ptr::null_mut();
+                    }
+                }
+            }
+        };
+        let interval = Interval::from_str(interval_str).unwrap_or(Interval::OneDay);
+        let mut builder = Ticker::builder()
+            .ticker(symbol)
+            .start_date(start_date)
+            .end_date(end_date)
+            .interval(interval)
+            .confidence_level(confidence_level)
+            .risk_free_rate(risk_free_rate)
+            .ticker_data(ticker_data)
+            .benchmark_data(benchmark_data);
+        if let Some(ref sym) = benchmark_symbol {
+            builder = builder.benchmark_symbol(sym);
         }
-    };
-    let benchmark_data = unsafe {
-        if benchmark_data.is_null() {
-            None
-        } else {
-            let benchmark_data = CStr::from_ptr(benchmark_data).to_str().unwrap_or("");
-            let df = dataframe_from_json(benchmark_data).unwrap();
-            Some(KLINE::from_dataframe(benchmark_symbol, &df).unwrap())
-        }
-    };
-    let interval = Interval::from_str(interval).unwrap_or(Interval::OneDay);
-    let ticker = Ticker::builder()
-        .ticker(symbol)
-        .start_date(start_date)
-        .end_date(end_date)
-        .interval(interval)
-        .benchmark_symbol(benchmark_symbol)
-        .confidence_level(confidence_level)
-        .risk_free_rate(risk_free_rate)
-        .ticker_data(ticker_data)
-        .benchmark_data(benchmark_data)
-        .build();
-    Box::into_raw(Box::new(ticker))
+        let ticker = builder.build();
+        Box::into_raw(Box::new(ticker))
+    }));
+    match result {
+        Ok(ptr) => ptr,
+        Err(()) => std::ptr::null_mut(),
+    }
 }
 
 // Free Ticker
@@ -84,11 +148,15 @@ pub extern "C" fn finalytics_ticker_get_quote(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_quote()) {
         Ok(quote) => {
             let json = json!({
@@ -110,7 +178,10 @@ pub extern "C" fn finalytics_ticker_get_quote(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch quote", &*e);
+            -1
+        }
     }
 }
 
@@ -122,21 +193,38 @@ pub extern "C" fn finalytics_ticker_get_summary_stats(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_ticker_stats()) {
-        Ok(stats) => {
-            let df = stats.to_dataframe().unwrap();
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(stats) => match stats.to_dataframe() {
+            Ok(df) => match dataframe_to_json(&mut df.clone()) {
+                Ok(json) => {
+                    unsafe {
+                        *output = to_c_string(json);
+                    }
+                    0
+                }
+                Err(e) => {
+                    set_last_error(format!("Failed to serialize summary stats to JSON: {e}"));
+                    -1
+                }
+            },
+            Err(e) => {
+                set_last_error_from_err("Failed to convert summary stats to DataFrame", &*e);
+                -1
             }
-            0
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch summary stats", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -148,20 +236,32 @@ pub extern "C" fn finalytics_ticker_get_price_history(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_chart()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize price history to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch price history", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -173,20 +273,32 @@ pub extern "C" fn finalytics_ticker_get_options_chain(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_options()) {
-        Ok(options) => {
-            let json = dataframe_to_json(&mut options.chain.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(options) => match dataframe_to_json(&mut options.chain.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize options chain to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch options chain", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -198,20 +310,32 @@ pub extern "C" fn finalytics_ticker_get_news(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_news()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize news to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch news", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -225,6 +349,7 @@ pub extern "C" fn finalytics_ticker_get_income_statement(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -232,20 +357,31 @@ pub extern "C" fn finalytics_ticker_get_income_statement(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_financials(
         StatementType::IncomeStatement,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize income statement to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch income statement", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -259,6 +395,7 @@ pub extern "C" fn finalytics_ticker_get_balance_sheet(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -266,20 +403,31 @@ pub extern "C" fn finalytics_ticker_get_balance_sheet(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_financials(
         StatementType::BalanceSheet,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize balance sheet to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch balance sheet", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -293,6 +441,7 @@ pub extern "C" fn finalytics_ticker_get_cashflow_statement(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -300,20 +449,33 @@ pub extern "C" fn finalytics_ticker_get_cashflow_statement(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_financials(
         StatementType::CashFlowStatement,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!(
+                    "Failed to serialize cashflow statement to JSON: {e}"
+                ));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch cashflow statement", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -326,22 +488,34 @@ pub extern "C" fn finalytics_ticker_get_financial_ratios(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.get_financials(StatementType::FinancialRatios, frequency, None)) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize financial ratios to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch financial ratios", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -353,20 +527,34 @@ pub extern "C" fn finalytics_ticker_volatility_surface(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.volatility_surface()) {
-        Ok(surface) => {
-            let json = dataframe_to_json(&mut &mut surface.ivols_df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(surface) => match dataframe_to_json(&mut surface.ivols_df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!(
+                    "Failed to serialize volatility surface to JSON: {e}"
+                ));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to compute volatility surface", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -378,13 +566,26 @@ pub extern "C" fn finalytics_ticker_performance_stats(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.performance_stats()) {
         Ok(stats) => {
+            let security_prices =
+                series_to_json(&stats.security_prices).unwrap_or_else(|_| "null".to_string());
+            let security_returns =
+                series_to_json(&stats.security_returns).unwrap_or_else(|_| "null".to_string());
+            let benchmark_returns = stats
+                .benchmark_returns
+                .as_ref()
+                .map(|br| series_to_json(br).unwrap_or_else(|_| "null".to_string()))
+                .unwrap_or_else(|| "null".to_string());
             let json = json!({
                 "Symbol": stats.ticker_symbol,
                 "Benchmark": stats.benchmark_symbol,
@@ -409,9 +610,9 @@ pub extern "C" fn finalytics_ticker_performance_stats(
                 "Maximum Drawdown": stats.performance_stats.maximum_drawdown,
                 "Value at Risk": stats.performance_stats.value_at_risk,
                 "Expected Shortfall": stats.performance_stats.expected_shortfall,
-                "Security Prices": series_to_json(&stats.security_prices).unwrap(),
-                "Security Returns": series_to_json(&stats.security_returns).unwrap(),
-                "Benchmark Returns": series_to_json(&stats.benchmark_returns).unwrap(),
+                "Security Prices": security_prices,
+                "Security Returns": security_returns,
+                "Benchmark Returns": benchmark_returns,
             })
             .to_string();
             unsafe {
@@ -419,7 +620,10 @@ pub extern "C" fn finalytics_ticker_performance_stats(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to compute performance stats", &*e);
+            -1
+        }
     }
 }
 
@@ -433,6 +637,7 @@ pub extern "C" fn finalytics_ticker_performance_chart(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -447,7 +652,10 @@ pub extern "C" fn finalytics_ticker_performance_chart(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.performance_chart(height, width)) {
         Ok(plot) => {
             let html = plot.to_html();
@@ -456,7 +664,10 @@ pub extern "C" fn finalytics_ticker_performance_chart(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate performance chart", &*e);
+            -1
+        }
     }
 }
 
@@ -470,6 +681,7 @@ pub extern "C" fn finalytics_ticker_candlestick_chart(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -484,7 +696,10 @@ pub extern "C" fn finalytics_ticker_candlestick_chart(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.candlestick_chart(height, width)) {
         Ok(plot) => {
             let html = plot.to_html();
@@ -493,7 +708,10 @@ pub extern "C" fn finalytics_ticker_candlestick_chart(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate candlestick chart", &*e);
+            -1
+        }
     }
 }
 
@@ -508,6 +726,7 @@ pub extern "C" fn finalytics_ticker_options_chart(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -523,14 +742,22 @@ pub extern "C" fn finalytics_ticker_options_chart(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.options_charts(height, width)) {
         Ok(charts) => {
             let plot = match chart_type {
                 "surface" => charts.volatility_surface,
                 "smile" => charts.volatility_smile,
                 "term_structure" => charts.volatility_term_structure,
-                _ => return -1,
+                other => {
+                    set_last_error(format!(
+                        "Invalid options chart type: '{other}'. Choose 'surface', 'smile', or 'term_structure'"
+                    ));
+                    return -1;
+                }
             };
             let html = plot.to_html();
             unsafe {
@@ -538,7 +765,10 @@ pub extern "C" fn finalytics_ticker_options_chart(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate options charts", &*e);
+            -1
+        }
     }
 }
 
@@ -552,6 +782,7 @@ pub extern "C" fn finalytics_ticker_news_sentiment_chart(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -566,7 +797,10 @@ pub extern "C" fn finalytics_ticker_news_sentiment_chart(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.news_sentiment_chart(height, width)) {
         Ok(plot) => {
             let html = plot.to_html();
@@ -575,7 +809,10 @@ pub extern "C" fn finalytics_ticker_news_sentiment_chart(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate news sentiment chart", &*e);
+            -1
+        }
     }
 }
 
@@ -588,6 +825,7 @@ pub extern "C" fn finalytics_ticker_report(
 ) -> c_int {
     let ticker = unsafe {
         if handle.is_null() {
+            set_last_error("Ticker handle is null".into());
             return -1;
         }
         &*handle
@@ -598,7 +836,10 @@ pub extern "C" fn finalytics_ticker_report(
     } else {
         ReportType::from_str(report_type).unwrap_or(ReportType::Performance)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(ticker.report(Some(report_type))) {
         Ok(report) => {
             let html = report.to_html();
@@ -607,6 +848,9 @@ pub extern "C" fn finalytics_ticker_report(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate report", &*e);
+            -1
+        }
     }
 }

@@ -11,8 +11,15 @@ cargo build --release
 # Step 3: Generate the C header
 cbindgen --config cbindgen.toml --crate finalytics-ffi --output include/finalytics.h
 
-# Step 4: Copy artifacts to go/ directory
+# Step 4: Copy artifacts to js/ directory
+# Use the arch-specific dylib name that getNativeLibPath() in utils.js looks for
+ARCH=$(uname -m)
+if [ "$ARCH" = "arm64" ]; then
+  DYLIB_DEST="libfinalytics_ffi_aarch64.dylib"
+else
+  DYLIB_DEST="libfinalytics_ffi_x86_64.dylib"
+fi
 cp include/finalytics.h ../js
-cp ../target/release/libfinalytics_ffi.dylib ../js
+cp ../target/release/libfinalytics_ffi.dylib "../js/$DYLIB_DEST"
 
 echo "FFI artifacts generated and copied successfully!"

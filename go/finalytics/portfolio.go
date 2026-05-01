@@ -35,6 +35,9 @@ type PortfolioBuilder struct {
 	weights                string
 	tickersData            []dataframe.DataFrame
 	benchmarkData          *dataframe.DataFrame
+	transactions           string
+	rebalanceStrategy      string
+	scheduledCashFlows     string
 }
 
 // NewPortfolioBuilder initializes a new PortfolioBuilder with default values.
@@ -84,6 +87,9 @@ func NewPortfolioBuilder() *PortfolioBuilder {
 		weights:                "{}",
 		tickersData:            nil,
 		benchmarkData:          nil,
+		transactions:           "[]",
+		rebalanceStrategy:      "{}",
+		scheduledCashFlows:     "[]",
 	}
 }
 
@@ -202,7 +208,10 @@ func (b *PortfolioBuilder) RiskFreeRate(riskFreeRate float64) *PortfolioBuilder 
 // ObjectiveFunction sets the objective function for optimization.
 //
 // Parameters:
-//   - objectiveFunction: The objective function (e.g., "max_sharpe", "max_sortino", "max_return", "min_vol", "min_var", "min_cvar", "min_drawdown").
+//   - objectiveFunction: The objective function. Supported values:
+//     "max_sharpe", "max_sortino", "max_return", "min_vol", "min_var",
+//     "min_cvar", "min_drawdown", "risk_parity", "max_diversification",
+//     "hierarchical_risk_parity"
 //
 // Returns:
 //   - *PortfolioBuilder: The builder instance for method chaining.
@@ -292,6 +301,51 @@ func (b *PortfolioBuilder) TickersData(tickersData []dataframe.DataFrame) *Portf
 //	builder := finalytics.NewPortfolioBuilder().BenchmarkData(nil)
 func (b *PortfolioBuilder) BenchmarkData(benchmarkData *dataframe.DataFrame) *PortfolioBuilder {
 	b.benchmarkData = benchmarkData
+	return b
+}
+
+// Transactions sets ad-hoc per-asset transactions (additions / withdrawals).
+//
+// Parameters:
+//   - transactions: JSON string defining transactions. Format:
+//     `[{"date":"2024-01-15","ticker":"AAPL","amount":5000},{"date":"2024-06-01","ticker":"MSFT","amount":-2000}]`
+//     Positive amounts are additions, negative are withdrawals.
+//
+// Returns:
+//   - *PortfolioBuilder: The builder instance for method chaining.
+func (b *PortfolioBuilder) Transactions(transactions string) *PortfolioBuilder {
+	b.transactions = transactions
+	return b
+}
+
+// RebalanceStrategy sets the rebalancing strategy for the portfolio simulation.
+//
+// Parameters:
+//   - rebalanceStrategy: JSON string defining the strategy. Formats:
+//     `{"type":"calendar","frequency":"monthly"}` — rebalance on a fixed calendar schedule
+//     `{"type":"threshold","threshold":0.05}` — rebalance when any weight drifts > threshold
+//     `{"type":"calendar_or_threshold","frequency":"quarterly","threshold":0.05}` — either trigger
+//     Frequency values: "monthly", "quarterly", "semi_annually", "annually"
+//
+// Returns:
+//   - *PortfolioBuilder: The builder instance for method chaining.
+func (b *PortfolioBuilder) RebalanceStrategy(rebalanceStrategy string) *PortfolioBuilder {
+	b.rebalanceStrategy = rebalanceStrategy
+	return b
+}
+
+// ScheduledCashFlows sets recurring cash flow schedules for the portfolio simulation.
+//
+// Parameters:
+//   - scheduledCashFlows: JSON string defining the schedules. Format:
+//     `[{"amount":2000,"frequency":"monthly","start_date":null,"end_date":null,"allocation":"pro_rata"}]`
+//     Amount: positive = addition, negative = withdrawal.
+//     Allocation: "pro_rata", "rebalance", or {"custom":[0.4,0.3,0.2,0.1]}
+//
+// Returns:
+//   - *PortfolioBuilder: The builder instance for method chaining.
+func (b *PortfolioBuilder) ScheduledCashFlows(scheduledCashFlows string) *PortfolioBuilder {
+	b.scheduledCashFlows = scheduledCashFlows
 	return b
 }
 
@@ -412,6 +466,18 @@ func (b *PortfolioBuilder) Build() (*Portfolio, error) {
 		cBenchmarkData = nil
 	}
 
+	// Handle transactions
+	cTransactions := C.CString(b.transactions)
+	defer C.free(unsafe.Pointer(cTransactions))
+
+	// Handle rebalance strategy
+	cRebalanceStrategy := C.CString(b.rebalanceStrategy)
+	defer C.free(unsafe.Pointer(cRebalanceStrategy))
+
+	// Handle scheduled cash flows
+	cScheduledCashFlows := C.CString(b.scheduledCashFlows)
+	defer C.free(unsafe.Pointer(cScheduledCashFlows))
+
 	// Call the Rust function (or C FFI function)
 	handle := C.finalytics_portfolio_new(
 		cTickerSymbols,
@@ -427,9 +493,12 @@ func (b *PortfolioBuilder) Build() (*Portfolio, error) {
 		cweights,
 		cTickersData,
 		cBenchmarkData,
+		cTransactions,
+		cRebalanceStrategy,
+		cScheduledCashFlows,
 	)
 	if handle == nil {
-		return nil, errors.New("failed to create Portfolio")
+		return nil, getLastError("failed to create Portfolio")
 	}
 	return &Portfolio{handle: handle}, nil
 }
@@ -507,7 +576,7 @@ func (p *Portfolio) OptimizationResults() (map[string]any, error) {
 	var cOutput *C.char
 	result := C.finalytics_portfolio_optimization_results(p.handle, &cOutput)
 	if result != 0 {
-		return nil, fmt.Errorf("failed to get optimization results: error code %d", result)
+		return nil, getLastError("failed to get optimization results")
 	}
 	return parseJSONResult(cOutput)
 }
@@ -559,7 +628,7 @@ func (p *Portfolio) OptimizationChart(height, width uint) (HTML, error) {
 	var cOutput *C.char
 	result := C.finalytics_portfolio_optimization_chart(p.handle, C.uint(height), C.uint(width), &cOutput)
 	if result != 0 {
-		return HTML{}, fmt.Errorf("failed to get optimization chart: error code %d", result)
+		return HTML{}, getLastError("failed to get optimization chart")
 	}
 	defer C.finalytics_free_string(cOutput)
 	htmlStr := C.GoString(cOutput)
@@ -613,7 +682,7 @@ func (p *Portfolio) PerformanceChart(height, width uint) (HTML, error) {
 	var cOutput *C.char
 	result := C.finalytics_portfolio_performance_chart(p.handle, C.uint(height), C.uint(width), &cOutput)
 	if result != 0 {
-		return HTML{}, fmt.Errorf("failed to get performance chart: error code %d", result)
+		return HTML{}, getLastError("failed to get performance chart")
 	}
 	defer C.finalytics_free_string(cOutput)
 	htmlStr := C.GoString(cOutput)
@@ -627,45 +696,46 @@ func (p *Portfolio) PerformanceChart(height, width uint) (HTML, error) {
 //   - error: An error if the performance statistics retrieval fails.
 //
 // Example:
-//   package main
 //
-//   import (
-//   	"fmt"
-//   	"github.com/Nnamdi-sys/finalytics/go/finalytics"
-//   	"github.com/go-gota/gota/dataframe"
-//   )
+//	  package main
 //
-//   func main() {
-//		portfolio, err := finalytics.NewPortfolioBuilder().
-//			TickerSymbols([]string{"AAPL", "MSFT", "NVDA", "BTC-USD"}).
-//			BenchmarkSymbol("^GSPC").
-//			StartDate("2023-01-01").
-//			EndDate("2023-12-31").
-//			Interval("1d").
-//			ConfidenceLevel(0.95).
-//			RiskFreeRate(0.02).
-//			ObjectiveFunction("max_sharpe").
-//			Build()
-//		if err != nil {
-//			fmt.Printf("Failed to create Portfolio: %v\n", err)
-//			return
-//		}
-//		defer portfolio.Free()
+//	  import (
+//	  	"fmt"
+//	  	"github.com/Nnamdi-sys/finalytics/go/finalytics"
+//	  	"github.com/go-gota/gota/dataframe"
+//	  )
 //
-//   	perfStats, err := portfolio.PerformanceStats()
-//   	if err != nil {
-//   		fmt.Printf("Failed to get performance stats: %v\n", err)
-//   		return
-//   	}
-//   	fmt.Printf("Performance Stats:\n%v\n", perfStats)
-//   }
+//	  func main() {
+//			portfolio, err := finalytics.NewPortfolioBuilder().
+//				TickerSymbols([]string{"AAPL", "MSFT", "NVDA", "BTC-USD"}).
+//				BenchmarkSymbol("^GSPC").
+//				StartDate("2023-01-01").
+//				EndDate("2023-12-31").
+//				Interval("1d").
+//				ConfidenceLevel(0.95).
+//				RiskFreeRate(0.02).
+//				ObjectiveFunction("max_sharpe").
+//				Build()
+//			if err != nil {
+//				fmt.Printf("Failed to create Portfolio: %v\n", err)
+//				return
+//			}
+//			defer portfolio.Free()
+//
+//	  	perfStats, err := portfolio.PerformanceStats()
+//	  	if err != nil {
+//	  		fmt.Printf("Failed to get performance stats: %v\n", err)
+//	  		return
+//	  	}
+//	  	fmt.Printf("Performance Stats:\n%v\n", perfStats)
+//	  }
 func (t *Portfolio) PerformanceStats() (dataframe.DataFrame, error) {
-    var cOutput *C.char
-    result := C.finalytics_portfolio_performance_stats(t.handle, &cOutput)
-    if result != 0 {
-        return dataframe.DataFrame{}, fmt.Errorf("failed to get performance stats: error code %d", result)
-    }
-    return parseJSONToDataFrame(cOutput)
+	var cOutput *C.char
+	result := C.finalytics_portfolio_performance_stats(t.handle, &cOutput)
+	if result != 0 {
+		return dataframe.DataFrame{}, getLastError("failed to get performance stats")
+	}
+	return parseJSONToDataFrame(cOutput)
 }
 
 // AssetReturnsChart retrieves the asset returns chart for the portfolio as an HTML object.
@@ -715,7 +785,27 @@ func (p *Portfolio) AssetReturnsChart(height, width uint) (HTML, error) {
 	var cOutput *C.char
 	result := C.finalytics_portfolio_asset_returns_chart(p.handle, C.uint(height), C.uint(width), &cOutput)
 	if result != 0 {
-		return HTML{}, fmt.Errorf("failed to get asset returns chart: error code %d", result)
+		return HTML{}, getLastError("failed to get asset returns chart")
+	}
+	defer C.finalytics_free_string(cOutput)
+	htmlStr := C.GoString(cOutput)
+	return HTML{Content: htmlStr}, nil
+}
+
+// PortfolioValueChart retrieves the portfolio value over time chart as an HTML object.
+//
+// Parameters:
+//   - height: The height of the chart (0 for default).
+//   - width: The width of the chart (0 for default).
+//
+// Returns:
+//   - HTML: An HTML object containing the portfolio value chart.
+//   - error: An error if the chart retrieval fails.
+func (p *Portfolio) PortfolioValueChart(height, width uint) (HTML, error) {
+	var cOutput *C.char
+	result := C.finalytics_portfolio_value_chart(p.handle, C.uint(height), C.uint(width), &cOutput)
+	if result != 0 {
+		return HTML{}, getLastError("failed to get portfolio value chart")
 	}
 	defer C.finalytics_free_string(cOutput)
 	htmlStr := C.GoString(cOutput)
@@ -769,7 +859,7 @@ func (p *Portfolio) ReturnsMatrix(height, width uint) (HTML, error) {
 	var cOutput *C.char
 	result := C.finalytics_portfolio_returns_matrix(p.handle, C.uint(height), C.uint(width), &cOutput)
 	if result != 0 {
-		return HTML{}, fmt.Errorf("failed to get returns matrix: error code %d", result)
+		return HTML{}, getLastError("failed to get returns matrix")
 	}
 	defer C.finalytics_free_string(cOutput)
 	htmlStr := C.GoString(cOutput)
@@ -818,13 +908,67 @@ func (p *Portfolio) ReturnsMatrix(height, width uint) (HTML, error) {
 //		}
 //		report.Show()
 //	}
+//
+// UpdateDates updates the portfolio's date range and re-fetches data for out-of-sample evaluation.
+//
+// This method is for portfolios built from Yahoo Finance data (not custom data).
+// It rebuilds all underlying ticker and benchmark data for the new date range.
+// The optimization result (weights) is preserved so they can be evaluated
+// out-of-sample on the new period.
+//
+// After calling this method, call PerformanceStats() to evaluate the
+// optimized weights on the new data (it recomputes automatically).
+//
+// Parameters:
+//   - startDate: New start date (e.g., "2024-01-01").
+//   - endDate: New end date (e.g., "2024-12-31").
+//
+// Returns:
+//   - error: An error if the update fails.
+//
+// Example:
+//
+//	portfolio.UpdateDates("2024-01-01", "2024-12-31")
+//	stats, _ := portfolio.PerformanceStats()
+//	fmt.Println(stats)
+func (p *Portfolio) UpdateDates(startDate, endDate string) error {
+	cStartDate := C.CString(startDate)
+	defer C.free(unsafe.Pointer(cStartDate))
+	cEndDate := C.CString(endDate)
+	defer C.free(unsafe.Pointer(cEndDate))
+
+	result := C.finalytics_portfolio_update_dates(p.handle, cStartDate, cEndDate)
+	if result != 0 {
+		return getLastError("failed to update portfolio dates")
+	}
+	return nil
+}
+
+// TransactionHistory retrieves the transaction history table for the portfolio.
+//
+// Returns a table of all transaction events during the simulation, including
+// rebalances, cash flows, and combined events. Each row includes portfolio
+// value before/after, per-asset values, trade amounts, turnover, cumulative TWR and MWR.
+//
+// Returns:
+//   - dataframe.DataFrame: A DataFrame containing the transaction history.
+//   - error: An error if the retrieval fails.
+func (p *Portfolio) TransactionHistory() (dataframe.DataFrame, error) {
+	var cOutput *C.char
+	result := C.finalytics_portfolio_transaction_history(p.handle, &cOutput)
+	if result != 0 {
+		return dataframe.DataFrame{}, getLastError("failed to get transaction history")
+	}
+	return parseJSONToDataFrame(cOutput)
+}
+
 func (p *Portfolio) Report(reportType string) (HTML, error) {
 	cReportType := C.CString(reportType)
 	defer C.free(unsafe.Pointer(cReportType))
 	var cOutput *C.char
 	result := C.finalytics_portfolio_report(p.handle, cReportType, &cOutput)
 	if result != 0 {
-		return HTML{}, fmt.Errorf("failed to get report: error code %d", result)
+		return HTML{}, getLastError("failed to get report")
 	}
 	defer C.finalytics_free_string(cOutput)
 	htmlStr := C.GoString(cOutput)

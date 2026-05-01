@@ -1,7 +1,7 @@
+use crate::prelude::ReportType;
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::error::Error;
-use crate::prelude::ReportType;
 
 pub struct TabbedHtml {
     report_type: ReportType,

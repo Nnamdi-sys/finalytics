@@ -1,6 +1,6 @@
 [package]
 name = "finalytics"
-version = "0.8.9"
+version = "0.9.0"
 authors = ["Nnamdi Olisaeloka <nnamdiolisaeloka@gmail.com>"]
 edition = "2021"
 homepage = "https://finalytics.rs/"
@@ -41,9 +41,3 @@ webbrowser = "1.0.5"
 
 [features]
 kaleido = ["plotly/kaleido", "plotly/kaleido_download"]
-
-
-
-
-
-

@@ -1,10 +1,13 @@
-use std::collections::{BTreeSet, HashMap};
-use std::error::Error;
-use polars::prelude::{concat, Column, DataFrame, IntoLazy, UnionArgs};
-use serde_json::{json, Value};
-use crate::data::yahoo::screeners::{CryptoScreener, EquityScreener, EtfScreener, FieldMetadata, FutureScreener, IndexScreener, MutualFundScreener};
+use crate::data::yahoo::screeners::{
+    CryptoScreener, EquityScreener, EtfScreener, FieldMetadata, FutureScreener, IndexScreener,
+    MutualFundScreener,
+};
 use crate::data::yahoo::web::post_json_response;
 use crate::prelude::{QuoteType, Screener};
+use polars::prelude::{concat, Column, DataFrame, IntoLazy, UnionArgs};
+use serde_json::{json, Value};
+use std::collections::{BTreeSet, HashMap};
+use std::error::Error;
 
 #[derive(Debug)]
 pub enum ScreenerMetric {
@@ -104,7 +107,6 @@ impl ScreenerMetric {
     }
 }
 
-
 #[derive(Debug)]
 pub enum ScreenerFilter {
     Eq(ScreenerMetric, f64),
@@ -114,7 +116,7 @@ pub enum ScreenerFilter {
     Gt(ScreenerMetric, f64),
     Lt(ScreenerMetric, f64),
     Btwn(ScreenerMetric, f64, f64),
-    Custom(String)
+    Custom(String),
 }
 
 impl ScreenerFilter {
@@ -131,7 +133,7 @@ impl ScreenerFilter {
                 "operator": "eq",
                 "operands": [
                     metric.as_str(),
-                    metric.validate_value(val).unwrap()
+                    metric.validate_value(val).unwrap_or_else(|_| val.to_string())
                 ]
             }),
             ScreenerFilter::Gte(metric, val) => json!({
@@ -171,12 +173,14 @@ impl ScreenerFilter {
                 ]
             }),
             ScreenerFilter::Custom(filter_str) => {
-                serde_json::from_str(filter_str).unwrap()
+                serde_json::from_str(filter_str).unwrap_or_else(|e| {
+                    eprintln!("WARNING: invalid custom filter JSON: {e}");
+                    json!({})
+                })
             }
         }
     }
 }
-
 
 #[derive(Default)]
 pub struct ScreenerBuilder {
@@ -218,7 +222,9 @@ impl ScreenerBuilder {
     pub async fn build(self) -> Result<Screener, Box<dyn Error>> {
         let url = "https://query2.finance.yahoo.com/v1/finance/screener".to_string();
         let filters_json: Vec<Value> = self.filters.iter().map(|f| f.to_json()).collect();
-        let quote_type_val = self.quote_type.unwrap(); // Take ownership for final Screener
+        let quote_type_val = self
+            .quote_type
+            .ok_or("quote_type is required for ScreenerBuilder")?;
         let quote_type_str = quote_type_val.as_ref();
         let default_sort_field = match quote_type_val {
             QuoteType::Equity => "intradaymarketcap",
@@ -228,7 +234,11 @@ impl ScreenerBuilder {
             QuoteType::Future => "percentchange",
             QuoteType::Crypto => "intradaymarketcap",
         };
-        let sort_field = self.sort_field.as_ref().map(|m| m.as_str()).unwrap_or(default_sort_field);
+        let sort_field = self
+            .sort_field
+            .as_ref()
+            .map(|m| m.as_str())
+            .unwrap_or(default_sort_field);
         let sort_type = if self.sort_descending { "DESC" } else { "ASC" };
 
         let mut current_offset = self.offset;
@@ -239,19 +249,21 @@ impl ScreenerBuilder {
         while remaining > 0 {
             let chunk_size = std::cmp::min(remaining, 250);
             let payload = json!({
-            "offset": current_offset,
-            "size": chunk_size,
-            "sortField": sort_field,
-            "sortType": sort_type,
-            "quoteType": quote_type_str,
-            "query": {
-                "operator": "AND",
-                "operands": &filters_json
-            }
-        });
+                "offset": current_offset,
+                "size": chunk_size,
+                "sortField": sort_field,
+                "sortType": sort_type,
+                "quoteType": quote_type_str,
+                "query": {
+                    "operator": "AND",
+                    "operands": &filters_json
+                }
+            });
 
             let result = post_json_response(url.clone(), payload).await?;
-            let json_array = result["finance"]["result"][0]["quotes"].as_array().ok_or("No quotes array")?;
+            let json_array = result["finance"]["result"][0]["quotes"]
+                .as_array()
+                .ok_or("No quotes array")?;
             let df = json_to_df(json_array)?;
             let rows_retrieved = df.height();
 
@@ -260,7 +272,10 @@ impl ScreenerBuilder {
             }
 
             // Process symbols from this chunk
-            let symbols: Vec<String> = df.column("Symbol")?.str()?.into_no_null_iter()
+            let symbols: Vec<String> = df
+                .column("Symbol")?
+                .str()?
+                .into_no_null_iter()
                 .map(|s| s.trim_matches('"').to_string())
                 .collect();
             all_symbols.extend(symbols);
@@ -277,15 +292,19 @@ impl ScreenerBuilder {
         }
 
         // Combine all dataframes
-        let result_df = concat(&all_quotes_dfs, UnionArgs {
-            diagonal: true,
-            ..Default::default()
-        })?.collect()?;
+        let result_df = concat(
+            &all_quotes_dfs,
+            UnionArgs {
+                diagonal: true,
+                ..Default::default()
+            },
+        )?
+        .collect()?;
 
         Ok(Screener {
             quote_type: quote_type_val,
             symbols: all_symbols,
-            result: result_df
+            result: result_df,
         })
     }
 }
@@ -310,7 +329,9 @@ fn json_to_df(json_array: &[Value]) -> Result<DataFrame, Box<dyn Error>> {
     for obj in json_array {
         if let Value::Object(map) = obj {
             for key in &all_keys {
-                columns.get_mut(key).unwrap().push(map.get(key).cloned());
+                if let Some(col) = columns.get_mut(key) {
+                    col.push(map.get(key).cloned());
+                }
             }
         }
     }
@@ -356,16 +377,29 @@ fn json_to_df(json_array: &[Value]) -> Result<DataFrame, Box<dyn Error>> {
 }
 
 fn build_series(key: &str, col: &[Option<Value>]) -> Column {
-    if col.iter().all(|v| v.as_ref().map(|v| v.is_number()).unwrap_or(true)) {
-        let vals: Vec<Option<f64>> = col.iter().map(|v| v.as_ref().and_then(|v| v.as_f64())).collect();
+    if col
+        .iter()
+        .all(|v| v.as_ref().map(|v| v.is_number()).unwrap_or(true))
+    {
+        let vals: Vec<Option<f64>> = col
+            .iter()
+            .map(|v| v.as_ref().and_then(|v| v.as_f64()))
+            .collect();
         Column::new(key.into(), vals)
-    } else if col.iter().all(|v| v.as_ref().map(|v| v.is_boolean()).unwrap_or(true)) {
-        let vals: Vec<Option<bool>> = col.iter().map(|v| v.as_ref().and_then(|v| v.as_bool())).collect();
+    } else if col
+        .iter()
+        .all(|v| v.as_ref().map(|v| v.is_boolean()).unwrap_or(true))
+    {
+        let vals: Vec<Option<bool>> = col
+            .iter()
+            .map(|v| v.as_ref().and_then(|v| v.as_bool()))
+            .collect();
         Column::new(key.into(), vals)
     } else {
-        let vals: Vec<Option<String>> = col.iter().map(|v| v.as_ref().map(|v| v.to_string())).collect();
+        let vals: Vec<Option<String>> = col
+            .iter()
+            .map(|v| v.as_ref().map(|v| v.to_string()))
+            .collect();
         Column::new(key.into(), vals)
     }
 }
-
-

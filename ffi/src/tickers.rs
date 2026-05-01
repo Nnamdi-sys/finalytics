@@ -1,8 +1,9 @@
 use crate::portfolio::PortfolioHandle;
 use crate::ticker::TickerHandle;
 use crate::utils::{dataframe_from_json, dataframe_to_json};
+use crate::{catch_panic, set_last_error, set_last_error_from_err};
 use finalytics::prelude::*;
-use polars::prelude::*;
+
 use std::ffi::{c_char, CStr, CString};
 use std::os::raw::{c_int, c_uint};
 use std::str::FromStr;
@@ -13,7 +14,16 @@ pub type TickersHandle = *mut Tickers;
 
 // Helper to convert Rust string to C string
 fn to_c_string(s: String) -> *mut c_char {
-    CString::new(s).unwrap().into_raw()
+    CString::new(s)
+        .unwrap_or_else(|_| CString::new("(string contained NUL byte)").unwrap())
+        .into_raw()
+}
+
+/// Helper to create a tokio runtime, setting last error on failure.
+fn make_runtime() -> Result<Runtime, ()> {
+    Runtime::new().map_err(|e| {
+        set_last_error(format!("Failed to create async runtime: {e}"));
+    })
 }
 
 // Create a new Tickers
@@ -29,50 +39,111 @@ pub extern "C" fn finalytics_tickers_new(
     tickers_data: *const c_char,
     benchmark_data: *const c_char,
 ) -> TickersHandle {
-    let symbols = unsafe { CStr::from_ptr(symbols).to_str().unwrap_or("[]") };
-    let start_date = unsafe { CStr::from_ptr(start_date).to_str().unwrap_or("") };
-    let end_date = unsafe { CStr::from_ptr(end_date).to_str().unwrap_or("") };
-    let interval = unsafe { CStr::from_ptr(interval).to_str().unwrap_or("1d") };
-    let benchmark_symbol = unsafe { CStr::from_ptr(benchmark_symbol).to_str().unwrap_or("^GSPC") };
-    let symbols: Vec<String> = serde_json::from_str(symbols).unwrap_or_default();
-    let symbols_ref: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
-    let interval = Interval::from_str(interval).unwrap_or(Interval::OneDay);
-    let tickers_data = unsafe {
-        if tickers_data.is_null() {
-            None
-        } else {
-            let tickers_data = CStr::from_ptr(tickers_data).to_str().unwrap_or("[]");
-            let tickers_data: Vec<String> = serde_json::from_str(tickers_data).unwrap();
-            let dfs: Vec<DataFrame> = tickers_data.iter().map(|s| 
-                dataframe_from_json(s).unwrap()).collect();
-            Some(symbols_ref
-                .iter()
-                .zip(dfs)
-                .map(|(&symbol, df)| KLINE::from_dataframe(symbol, &df).unwrap())
-                .collect::<Vec<KLINE>>())
+    let result = catch_panic(std::panic::AssertUnwindSafe(|| {
+        let symbols_str = unsafe { CStr::from_ptr(symbols).to_str().unwrap_or("[]") };
+        let start_date = unsafe { CStr::from_ptr(start_date).to_str().unwrap_or("") };
+        let end_date = unsafe { CStr::from_ptr(end_date).to_str().unwrap_or("") };
+        let interval_str = unsafe { CStr::from_ptr(interval).to_str().unwrap_or("1d") };
+        let benchmark_symbol = unsafe {
+            if benchmark_symbol.is_null() {
+                None
+            } else {
+                let s = CStr::from_ptr(benchmark_symbol).to_str().unwrap_or("");
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            }
+        };
+        let symbols: Vec<String> = serde_json::from_str(symbols_str).unwrap_or_default();
+        let symbols_ref: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
+        let interval = Interval::from_str(interval_str).unwrap_or(Interval::OneDay);
+        let tickers_data = unsafe {
+            if tickers_data.is_null() {
+                None
+            } else {
+                let tickers_data_str = CStr::from_ptr(tickers_data).to_str().unwrap_or("[]");
+                let tickers_data_vec: Vec<String> = match serde_json::from_str(tickers_data_str) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        set_last_error(format!("Failed to parse tickers data JSON array: {e}"));
+                        return std::ptr::null_mut();
+                    }
+                };
+                let mut klines = Vec::new();
+                for (i, s) in tickers_data_vec.iter().enumerate() {
+                    let df = match dataframe_from_json(s) {
+                        Ok(df) => df,
+                        Err(e) => {
+                            let sym = symbols_ref.get(i).unwrap_or(&"unknown");
+                            set_last_error(format!(
+                                "Failed to parse ticker data JSON for '{sym}': {e}"
+                            ));
+                            return std::ptr::null_mut();
+                        }
+                    };
+                    let sym = symbols_ref.get(i).unwrap_or(&"unknown");
+                    match KLINE::from_dataframe(sym, &df) {
+                        Ok(kline) => klines.push(kline),
+                        Err(e) => {
+                            set_last_error_from_err(
+                                &format!("Failed to build KLINE from ticker data for '{sym}'"),
+                                &*e,
+                            );
+                            return std::ptr::null_mut();
+                        }
+                    }
+                }
+                Some(klines)
+            }
+        };
+        let benchmark_data = unsafe {
+            if benchmark_data.is_null() {
+                None
+            } else {
+                let benchmark_data_str = CStr::from_ptr(benchmark_data).to_str().unwrap_or("");
+                let df = match dataframe_from_json(benchmark_data_str) {
+                    Ok(df) => df,
+                    Err(e) => {
+                        set_last_error(format!("Failed to parse benchmark data JSON: {e}"));
+                        return std::ptr::null_mut();
+                    }
+                };
+                let bench_name = benchmark_symbol.as_deref().unwrap_or("Benchmark");
+                match KLINE::from_dataframe(bench_name, &df) {
+                    Ok(kline) => Some(kline),
+                    Err(e) => {
+                        set_last_error_from_err(
+                            &format!(
+                                "Failed to build KLINE from benchmark data for '{bench_name}'"
+                            ),
+                            &*e,
+                        );
+                        return std::ptr::null_mut();
+                    }
+                }
+            }
+        };
+        let mut builder = Tickers::builder()
+            .tickers(symbols_ref)
+            .start_date(start_date)
+            .end_date(end_date)
+            .interval(interval)
+            .confidence_level(confidence_level)
+            .risk_free_rate(risk_free_rate)
+            .tickers_data(tickers_data)
+            .benchmark_data(benchmark_data);
+        if let Some(ref sym) = benchmark_symbol {
+            builder = builder.benchmark_symbol(sym);
         }
-    };
-    let benchmark_data = unsafe {
-        if benchmark_data.is_null() {
-            None
-        } else {
-            let benchmark_data = CStr::from_ptr(benchmark_data).to_str().unwrap_or("");
-            let df = dataframe_from_json(benchmark_data).unwrap();
-            Some(KLINE::from_dataframe(benchmark_symbol, &df).unwrap())
-        }
-    };
-    let tickers = Tickers::builder()
-        .tickers(symbols_ref)
-        .start_date(start_date)
-        .end_date(end_date)
-        .interval(interval)
-        .benchmark_symbol(benchmark_symbol)
-        .confidence_level(confidence_level)
-        .risk_free_rate(risk_free_rate)
-        .tickers_data(tickers_data)
-        .benchmark_data(benchmark_data)
-        .build();
-    Box::into_raw(Box::new(tickers))
+        let tickers = builder.build();
+        Box::into_raw(Box::new(tickers))
+    }));
+    match result {
+        Ok(ptr) => ptr,
+        Err(()) => std::ptr::null_mut(),
+    }
 }
 
 // Free Tickers
@@ -93,20 +164,32 @@ pub extern "C" fn finalytics_tickers_get_summary_stats(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_ticker_stats()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize summary stats to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch summary stats", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -118,20 +201,32 @@ pub extern "C" fn finalytics_tickers_get_price_history(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_chart()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize price history to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch price history", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -143,20 +238,32 @@ pub extern "C" fn finalytics_tickers_get_options_chain(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_options()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize options chain to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch options chain", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -168,20 +275,32 @@ pub extern "C" fn finalytics_tickers_get_news(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_news()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize news to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch news", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -195,6 +314,7 @@ pub extern "C" fn finalytics_tickers_get_income_statement(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -202,20 +322,31 @@ pub extern "C" fn finalytics_tickers_get_income_statement(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_financials(
         StatementType::IncomeStatement,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize income statement to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch income statement", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -229,6 +360,7 @@ pub extern "C" fn finalytics_tickers_get_balance_sheet(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -236,20 +368,31 @@ pub extern "C" fn finalytics_tickers_get_balance_sheet(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_financials(
         StatementType::BalanceSheet,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize balance sheet to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch balance sheet", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -263,6 +406,7 @@ pub extern "C" fn finalytics_tickers_get_cashflow_statement(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -270,20 +414,33 @@ pub extern "C" fn finalytics_tickers_get_cashflow_statement(
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
     let formatted = formatted != 0;
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_financials(
         StatementType::CashFlowStatement,
         frequency,
         Some(formatted),
     )) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!(
+                    "Failed to serialize cashflow statement to JSON: {e}"
+                ));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch cashflow statement", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -296,22 +453,34 @@ pub extern "C" fn finalytics_tickers_get_financial_ratios(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
     let frequency = unsafe { CStr::from_ptr(frequency).to_str().unwrap_or("annual") };
     let frequency = StatementFrequency::from_str(frequency).unwrap_or(StatementFrequency::Annual);
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.get_financials(StatementType::FinancialRatios, frequency, None)) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize financial ratios to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to fetch financial ratios", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -323,20 +492,32 @@ pub extern "C" fn finalytics_tickers_returns(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.returns()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!("Failed to serialize returns to JSON: {e}"));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to compute returns", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -348,20 +529,34 @@ pub extern "C" fn finalytics_tickers_performance_stats(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.performance_stats()) {
-        Ok(df) => {
-            let json = dataframe_to_json(&mut df.clone()).unwrap();
-            unsafe {
-                *output = to_c_string(json);
+        Ok(df) => match dataframe_to_json(&mut df.clone()) {
+            Ok(json) => {
+                unsafe {
+                    *output = to_c_string(json);
+                }
+                0
             }
-            0
+            Err(e) => {
+                set_last_error(format!(
+                    "Failed to serialize performance stats to JSON: {e}"
+                ));
+                -1
+            }
+        },
+        Err(e) => {
+            set_last_error_from_err("Failed to compute performance stats", &*e);
+            -1
         }
-        Err(_) => -1,
     }
 }
 
@@ -375,6 +570,7 @@ pub extern "C" fn finalytics_tickers_returns_chart(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -389,7 +585,10 @@ pub extern "C" fn finalytics_tickers_returns_chart(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.returns_chart(height, width)) {
         Ok(plot) => {
             let html = plot.to_html();
@@ -398,7 +597,10 @@ pub extern "C" fn finalytics_tickers_returns_chart(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate returns chart", &*e);
+            -1
+        }
     }
 }
 
@@ -412,6 +614,7 @@ pub extern "C" fn finalytics_tickers_returns_matrix(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -426,7 +629,10 @@ pub extern "C" fn finalytics_tickers_returns_matrix(
     } else {
         Some(width as usize)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.returns_matrix(height, width)) {
         Ok(plot) => {
             let html = plot.to_html();
@@ -435,7 +641,10 @@ pub extern "C" fn finalytics_tickers_returns_matrix(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate returns matrix", &*e);
+            -1
+        }
     }
 }
 
@@ -448,6 +657,7 @@ pub extern "C" fn finalytics_tickers_report(
 ) -> c_int {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return -1;
         }
         &*handle
@@ -458,7 +668,10 @@ pub extern "C" fn finalytics_tickers_report(
     } else {
         ReportType::from_str(report_type).unwrap_or(ReportType::Performance)
     };
-    let rt = Runtime::new().unwrap();
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return -1,
+    };
     match rt.block_on(tickers.report(Some(report_type))) {
         Ok(report) => {
             let html = report.to_html();
@@ -467,7 +680,10 @@ pub extern "C" fn finalytics_tickers_report(
             }
             0
         }
-        Err(_) => -1,
+        Err(e) => {
+            set_last_error_from_err("Failed to generate report", &*e);
+            -1
+        }
     }
 }
 
@@ -479,20 +695,23 @@ pub extern "C" fn finalytics_tickers_get_ticker(
 ) -> TickerHandle {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return std::ptr::null_mut();
         }
         &*handle
     };
     let symbol = unsafe { CStr::from_ptr(symbol).to_str().unwrap_or("") };
-    let ticker = Ticker::builder()
+    let mut builder = Ticker::builder()
         .ticker(symbol)
         .start_date(&tickers.start_date)
         .end_date(&tickers.end_date)
         .interval(tickers.interval)
-        .benchmark_symbol(&tickers.benchmark_symbol)
         .confidence_level(tickers.confidence_level)
-        .risk_free_rate(tickers.risk_free_rate)
-        .build();
+        .risk_free_rate(tickers.risk_free_rate);
+    if let Some(ref sym) = tickers.benchmark_symbol {
+        builder = builder.benchmark_symbol(sym);
+    }
+    let ticker = builder.build();
     Box::into_raw(Box::new(ticker))
 }
 
@@ -507,6 +726,7 @@ pub extern "C" fn finalytics_tickers_optimize(
 ) -> PortfolioHandle {
     let tickers = unsafe {
         if handle.is_null() {
+            set_last_error("Tickers handle is null".into());
             return std::ptr::null_mut();
         }
         &*handle
@@ -522,14 +742,14 @@ pub extern "C" fn finalytics_tickers_optimize(
             .to_str()
             .unwrap_or("[]")
     };
-    let weights = unsafe { CStr::from_ptr(weights).to_str().unwrap_or("[]") };
+    let weights_str = unsafe { CStr::from_ptr(weights).to_str().unwrap_or("[]") };
 
     let objective_function =
         ObjectiveFunction::from_str(objective_function).unwrap_or(ObjectiveFunction::MaxSharpe);
     let asset_constraints: Option<Vec<(f64, f64)>> = serde_json::from_str(asset_constraints).ok();
     let categorical_constraints: Option<Vec<(String, Vec<String>, Vec<(String, f64, f64)>)>> =
         serde_json::from_str(categorical_constraints).ok();
-    let weights: Option<Vec<f64>> = serde_json::from_str(weights).ok();
+    let weights: Option<Vec<f64>> = serde_json::from_str(weights_str).ok();
 
     let constraints = categorical_constraints.map(|cats| Constraints {
         asset_weights: asset_constraints,
@@ -546,28 +766,61 @@ pub extern "C" fn finalytics_tickers_optimize(
         ),
     });
 
-    let rt = Runtime::new().unwrap();
-    let portfolio = rt
-        .block_on(
-            Portfolio::builder()
-                .ticker_symbols(
-                    tickers
-                        .tickers
-                        .iter()
-                        .map(|x| x.ticker.as_str())
-                        .collect::<Vec<&str>>(),
-                )
-                .benchmark_symbol(&tickers.benchmark_symbol)
-                .start_date(&tickers.start_date)
-                .end_date(&tickers.end_date)
-                .interval(tickers.interval)
-                .confidence_level(tickers.confidence_level)
-                .risk_free_rate(tickers.risk_free_rate)
-                .objective_function(objective_function)
-                .constraints(constraints)
-                .weights(weights)
-                .build(),
-        )
-        .unwrap_or_else(|_| panic!("Failed to create Portfolio"));
+    let start_date = tickers.start_date.clone();
+    let end_date = tickers.end_date.clone();
+
+    let rt = match make_runtime() {
+        Ok(rt) => rt,
+        Err(()) => return std::ptr::null_mut(),
+    };
+    let build_result = rt.block_on({
+        let mut builder = Portfolio::builder()
+            .ticker_symbols(
+                tickers
+                    .tickers
+                    .iter()
+                    .map(|x| x.ticker.as_str())
+                    .collect::<Vec<&str>>(),
+            )
+            .start_date(&start_date)
+            .end_date(&end_date)
+            .interval(tickers.interval)
+            .confidence_level(tickers.confidence_level)
+            .risk_free_rate(tickers.risk_free_rate)
+            .objective_function(objective_function)
+            .constraints(constraints)
+            .tickers_data(None)
+            .benchmark_data(None);
+        if let Some(ref sym) = tickers.benchmark_symbol {
+            builder = builder.benchmark_symbol(sym);
+        }
+        if let Some(w) = weights.clone() {
+            builder = builder.weights(w);
+        }
+        builder.build()
+    });
+
+    let mut portfolio = match build_result {
+        Ok(p) => p,
+        Err(e) => {
+            set_last_error_from_err("Failed to build portfolio", &*e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    // If weights are provided, evaluate directly (no optimization).
+    // Otherwise, optimize (which also computes in-sample performance stats).
+    if weights.is_some() {
+        if let Err(e) = portfolio.performance_stats() {
+            set_last_error_from_err("Failed to compute performance stats", &*e);
+            return std::ptr::null_mut();
+        }
+    } else {
+        if let Err(e) = portfolio.optimize() {
+            set_last_error_from_err("Failed to optimize portfolio", &*e);
+            return std::ptr::null_mut();
+        }
+    }
+
     Box::into_raw(Box::new(portfolio))
 }

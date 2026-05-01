@@ -1,3 +1,19 @@
+// Finalytics — Go Examples
+//
+// Installation
+// ────────────
+//   go get github.com/Nnamdi-sys/finalytics/go/finalytics
+//
+//   # Download the required native binary:
+//   curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/refs/heads/main/go/download_binaries.sh
+//   bash download_binaries.sh
+//
+// Full docs: https://pkg.go.dev/github.com/Nnamdi-sys/finalytics/go/finalytics
+//
+// Run this example (from the repo root)
+// ───────────────────────────────────────
+//   bash examples/example.sh go
+
 package main
 
 import (
@@ -10,21 +26,21 @@ import (
 )
 
 func main() {
-	testScreener()
-	testTicker()
-	testTickers()
-	testPortfolioOptimizationOOS()
-	testPortfolioOptimizationConstraints()
-	testPortfolioAllocationRebalancingDCA()
-	testCustomData()
+	screener()
+	ticker()
+	tickers()
+	portfolioOptimizationOOS()
+	portfolioOptimizationConstraints()
+	portfolioAllocationRebalancingDCA()
+	customData()
 }
 
 // ── 1. Screener — Large-Cap NASDAQ Technology Stocks with ROE >= 15% ────────
 
-func testScreener() {
+func screener() {
 	fmt.Println("=== 1. Screener ===")
 
-	screener, err := finalytics.NewScreenerBuilder().
+	s, err := finalytics.NewScreenerBuilder().
 		QuoteType("EQUITY").
 		AddFilter(`{"operator":"eq","operands":["exchange","NMS"]}`).
 		AddFilter(`{"operator":"eq","operands":["sector","Technology"]}`).
@@ -39,26 +55,26 @@ func testScreener() {
 		fmt.Printf("Error creating Screener: %v\n", err)
 		return
 	}
-	defer screener.Free()
+	defer s.Free()
 
-	symbols, _ := screener.Symbols()
+	symbols, _ := s.Symbols()
 	fmt.Println("Symbols:", symbols)
 
-	overview, _ := screener.Overview()
+	overview, _ := s.Overview()
 	fmt.Println("Overview:", overview)
 
-	metrics, _ := screener.Metrics()
+	metrics, _ := s.Metrics()
 	fmt.Println("Metrics:", metrics)
 
-	screener.Display()
+	s.Display()
 }
 
-// ── 2. Ticker — Single security analysis with all report types ──────────────
+// ── 2. Ticker — Single security analysis with all report types ───────────────
 
-func testTicker() {
+func ticker() {
 	fmt.Println("=== 2. Ticker ===")
 
-	ticker, err := finalytics.NewTickerBuilder().
+	t, err := finalytics.NewTickerBuilder().
 		Symbol("AAPL").
 		StartDate("2023-01-01").
 		EndDate("2024-12-31").
@@ -71,10 +87,10 @@ func testTicker() {
 		fmt.Printf("Error creating Ticker: %v\n", err)
 		return
 	}
-	defer ticker.Free()
+	defer t.Free()
 
 	for _, reportType := range []string{"performance", "financials", "options", "news"} {
-		report, err := ticker.Report(reportType)
+		report, err := t.Report(reportType)
 		if err != nil {
 			fmt.Printf("Error in %s report: %v\n", reportType, err)
 			continue
@@ -83,12 +99,12 @@ func testTicker() {
 	}
 }
 
-// ── 3. Tickers — Multiple securities analysis ───────────────────────────────
+// ── 3. Tickers — Multiple securities analysis ────────────────────────────────
 
-func testTickers() {
+func tickers() {
 	fmt.Println("=== 3. Tickers ===")
 
-	tickers, err := finalytics.NewTickersBuilder().
+	ts, err := finalytics.NewTickersBuilder().
 		Symbols([]string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}).
 		StartDate("2023-01-01").
 		EndDate("2024-12-31").
@@ -101,9 +117,9 @@ func testTickers() {
 		fmt.Printf("Error creating Tickers: %v\n", err)
 		return
 	}
-	defer tickers.Free()
+	defer ts.Free()
 
-	report, err := tickers.Report("performance")
+	report, err := ts.Report("performance")
 	if err != nil {
 		fmt.Printf("Error in Tickers report: %v\n", err)
 		return
@@ -113,11 +129,11 @@ func testTickers() {
 
 // ── 4. Portfolio — Optimization with Out-of-Sample Evaluation ───────────────
 
-func testPortfolioOptimizationOOS() {
+func portfolioOptimizationOOS() {
 	fmt.Println("=== 4. Portfolio — Optimization with Out-of-Sample Evaluation ===")
 
-	// Optimize on 2023 - 2024 data (in-sample)
-	portfolio, err := finalytics.NewPortfolioBuilder().
+	// Optimize on 2023-2024 data (in-sample)
+	p, err := finalytics.NewPortfolioBuilder().
 		TickerSymbols([]string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}).
 		BenchmarkSymbol("^GSPC").
 		StartDate("2023-01-01").
@@ -131,9 +147,9 @@ func testPortfolioOptimizationOOS() {
 		fmt.Printf("Error creating Portfolio: %v\n", err)
 		return
 	}
-	defer portfolio.Free()
+	defer p.Free()
 
-	report, err := portfolio.Report("optimization")
+	report, err := p.Report("optimization")
 	if err != nil {
 		fmt.Printf("Error in optimization report: %v\n", err)
 	} else {
@@ -141,19 +157,19 @@ func testPortfolioOptimizationOOS() {
 	}
 
 	// Update to 2025 data for out-of-sample evaluation
-	err = portfolio.UpdateDates("2025-01-01", "2026-01-01")
+	err = p.UpdateDates("2025-01-01", "2026-01-01")
 	if err != nil {
 		fmt.Printf("Error in UpdateDates: %v\n", err)
 		return
 	}
 
-	_, err = portfolio.PerformanceStats()
+	_, err = p.PerformanceStats()
 	if err != nil {
 		fmt.Printf("Error in PerformanceStats: %v\n", err)
 		return
 	}
 
-	report, err = portfolio.Report("performance")
+	report, err = p.Report("performance")
 	if err != nil {
 		fmt.Printf("Error in performance report: %v\n", err)
 	} else {
@@ -163,10 +179,9 @@ func testPortfolioOptimizationOOS() {
 
 // ── 5. Portfolio — Optimization with Weight & Categorical Constraints ─────────
 
-func testPortfolioOptimizationConstraints() {
+func portfolioOptimizationConstraints() {
 	fmt.Println("=== 5. Portfolio — Optimization with Weight & Categorical Constraints ===")
 
-	// Per-asset bounds: [lower, upper] in the same order as ticker_symbols
 	assetConstraints, _ := json.Marshal([][]float64{
 		{0.05, 0.40}, // AAPL
 		{0.05, 0.40}, // MSFT
@@ -176,25 +191,23 @@ func testPortfolioOptimizationConstraints() {
 		{0.05, 0.25}, // BTC-USD
 	})
 
-	// Categorical constraints serialized as JSON.
-	// weight_per_category entries are [label, min, max] arrays.
 	categoricalConstraints, _ := json.Marshal([]map[string]interface{}{
 		{
 			"name":                "Sector",
 			"category_per_symbol": []string{"Tech", "Tech", "Tech", "Finance", "Energy", "Crypto"},
 			"weight_per_category": [][]interface{}{
-				{"Tech", 0.30, 0.60},    // Tech sector: 30–60%
-				{"Finance", 0.05, 0.30}, // Finance sector: 5–30%
-				{"Energy", 0.05, 0.20},  // Energy sector: 5–20%
-				{"Crypto", 0.05, 0.25},  // Crypto sector: 5–25%
+				{"Tech", 0.30, 0.60},
+				{"Finance", 0.05, 0.30},
+				{"Energy", 0.05, 0.20},
+				{"Crypto", 0.05, 0.25},
 			},
 		},
 		{
 			"name":                "Asset Class",
 			"category_per_symbol": []string{"Equity", "Equity", "Equity", "Equity", "Equity", "Crypto"},
 			"weight_per_category": [][]interface{}{
-				{"Equity", 0.70, 0.95}, // Equities: 70–95%
-				{"Crypto", 0.05, 0.30}, // Crypto: 5–30%
+				{"Equity", 0.70, 0.95},
+				{"Crypto", 0.05, 0.30},
 			},
 		},
 	})
@@ -227,7 +240,7 @@ func testPortfolioOptimizationConstraints() {
 
 // ── 6. Portfolio — Explicit Allocation with Rebalancing and DCA ─────────────
 
-func testPortfolioAllocationRebalancingDCA() {
+func portfolioAllocationRebalancingDCA() {
 	fmt.Println("=== 6. Portfolio — Explicit Allocation with Rebalancing and DCA ===")
 
 	weights, _ := json.Marshal([]float64{25000.0, 25000.0, 25000.0, 25000.0})
@@ -245,7 +258,7 @@ func testPortfolioAllocationRebalancingDCA() {
 		},
 	})
 
-	portfolio, err := finalytics.NewPortfolioBuilder().
+	p, err := finalytics.NewPortfolioBuilder().
 		TickerSymbols([]string{"AAPL", "MSFT", "NVDA", "BTC-USD"}).
 		BenchmarkSymbol("^GSPC").
 		StartDate("2023-01-01").
@@ -261,9 +274,9 @@ func testPortfolioAllocationRebalancingDCA() {
 		fmt.Printf("Error creating Portfolio: %v\n", err)
 		return
 	}
-	defer portfolio.Free()
+	defer p.Free()
 
-	report, err := portfolio.Report("performance")
+	report, err := p.Report("performance")
 	if err != nil {
 		fmt.Printf("Error in performance report: %v\n", err)
 	} else {
@@ -273,10 +286,12 @@ func testPortfolioAllocationRebalancingDCA() {
 
 // ── 7. Custom Data (KLINE) — Load CSV data and use with Ticker, Tickers, Portfolio ──
 
-func testCustomData() {
+func customData() {
 	fmt.Println("=== 7. Custom Data (KLINE) ===")
 
 	// Load data from CSV files
+	// Paths are relative to the go/ directory (the working directory when
+	// running via example.sh: cd go && go run ../examples/example.go)
 	files := map[string]string{
 		"aapl":   "../examples/datasets/aapl.csv",
 		"msft":   "../examples/datasets/msft.csv",
@@ -302,7 +317,7 @@ func testCustomData() {
 	// Single Ticker from custom data
 	fmt.Println("--- Custom Ticker ---")
 	aaplDF := dataFrames["aapl"]
-	ticker, err := finalytics.NewTickerBuilder().
+	t, err := finalytics.NewTickerBuilder().
 		Symbol("AAPL").
 		BenchmarkSymbol("^GSPC").
 		ConfidenceLevel(0.95).
@@ -314,9 +329,9 @@ func testCustomData() {
 		fmt.Printf("Error creating Ticker: %v\n", err)
 		return
 	}
-	defer ticker.Free()
+	defer t.Free()
 
-	report, err := ticker.Report("performance")
+	report, err := t.Report("performance")
 	if err != nil {
 		fmt.Printf("Error in Ticker report: %v\n", err)
 	} else {
@@ -332,7 +347,7 @@ func testCustomData() {
 		dataFrames["msft"],
 		dataFrames["btcusd"],
 	}
-	tickers, err := finalytics.NewTickersBuilder().
+	ts, err := finalytics.NewTickersBuilder().
 		Symbols([]string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}).
 		BenchmarkSymbol("^GSPC").
 		ConfidenceLevel(0.95).
@@ -344,9 +359,9 @@ func testCustomData() {
 		fmt.Printf("Error creating Tickers: %v\n", err)
 		return
 	}
-	defer tickers.Free()
+	defer ts.Free()
 
-	report, err = tickers.Report("performance")
+	report, err = ts.Report("performance")
 	if err != nil {
 		fmt.Printf("Error in Tickers report: %v\n", err)
 	} else {
@@ -355,7 +370,7 @@ func testCustomData() {
 
 	// Portfolio optimization from custom data
 	fmt.Println("--- Custom Portfolio ---")
-	portfolio, err := finalytics.NewPortfolioBuilder().
+	p, err := finalytics.NewPortfolioBuilder().
 		TickerSymbols([]string{"NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"}).
 		BenchmarkSymbol("^GSPC").
 		ConfidenceLevel(0.95).
@@ -368,9 +383,9 @@ func testCustomData() {
 		fmt.Printf("Error creating Portfolio: %v\n", err)
 		return
 	}
-	defer portfolio.Free()
+	defer p.Free()
 
-	report, err = portfolio.Report("optimization")
+	report, err = p.Report("optimization")
 	if err != nil {
 		fmt.Printf("Error in Portfolio report: %v\n", err)
 	} else {

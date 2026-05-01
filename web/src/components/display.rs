@@ -56,6 +56,14 @@ pub fn PortfolioDisplay(
                     button {
                         class: "nav-link",
                         onclick: move |_| {
+                            eval(r#"window.scrollToElement('portfolio_value_chart');"#);
+                        },
+                        i { class: "fas fa-chart-line", style: "font-size: 16px;" }
+                        span { "Portfolio Value" }
+                    }
+                    button {
+                        class: "nav-link",
+                        onclick: move |_| {
                             eval(r#"window.scrollToElement('performance_stats_table');"#);
                         },
                         i { class: "fas fa-table", style: "font-size: 16px;" }
@@ -110,6 +118,13 @@ pub fn PortfolioDisplay(
                             id: "performance_chart",
                             class: "display-chart-container",
                             ChartContainer { html: charts.performance_chart.clone(), id: "performance_chart" }
+                        }
+
+                        // Portfolio Value Chart
+                        div {
+                            id: "portfolio_value_chart",
+                            class: "display-chart-container",
+                            ChartContainer { html: charts.portfolio_value_chart.clone(), id: "portfolio_value_chart" }
                         }
 
                         // Performance Stats Table

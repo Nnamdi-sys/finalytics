@@ -1,33 +1,36 @@
-import { Ticker, TickerBuilder } from "./ticker.js";
-import { Tickers, TickersBuilder } from "./tickers.js";
-import { Portfolio, PortfolioBuilder } from "./portfolio.js";
-import { Screener, ScreenerBuilder } from "./screener.js";
-import { Chart } from "./utils.js";
-import Polars from "nodejs-polars";
-import fs from "fs";
-import { fileURLToPath } from "url";
+// Finalytics — JavaScript Examples
+//
+// Installation
+// ────────────
+//   npm install finalytics
+//
+//   # Download the required native binary:
+//   curl -O https://raw.githubusercontent.com/Nnamdi-sys/finalytics/refs/heads/main/js/download_binaries.sh
+//   bash download_binaries.sh
+//
+// Full docs: https://www.npmjs.com/package/finalytics
+//
+// Run this example (from the repo root)
+// ───────────────────────────────────────
+//   bash examples/example.sh js
 
-// Export all classes for use in other modules
-export {
+import {
   TickerBuilder,
   TickersBuilder,
   PortfolioBuilder,
   ScreenerBuilder,
-  Ticker,
-  Tickers,
-  Portfolio,
-  Screener,
-  Chart,
-};
+} from "finalytics";
+import Polars from "nodejs-polars";
+import fs from "fs";
 
 // ── 1. Screener — Large-Cap NASDAQ Technology Stocks with ROE >= 15% ────────
 
-async function testScreener() {
+async function screener() {
   console.log("=== 1. Screener ===");
 
-  let screener;
+  let s;
   try {
-    screener = await new ScreenerBuilder()
+    s = await new ScreenerBuilder()
       .quoteType("EQUITY")
       .addFilter({ operator: "eq", operands: ["exchange", "NMS"] })
       .addFilter({ operator: "eq", operands: ["sector", "Technology"] })
@@ -50,31 +53,31 @@ async function testScreener() {
   }
 
   try {
-    const symbols = await screener.symbols();
+    const symbols = await s.symbols();
     console.log("Symbols:", symbols);
 
-    const overview = await screener.overview();
+    const overview = await s.overview();
     console.log("Overview:", overview.toString());
 
-    const metrics = await screener.metrics();
+    const metrics = await s.metrics();
     console.log("Metrics:", metrics.toString());
 
-    await screener.display();
+    await s.display();
   } catch (err) {
     console.error("Error in Screener methods:", err.message);
   } finally {
-    screener.free();
+    s.free();
   }
 }
 
-// ── 2. Ticker — Single security analysis with all report types ──────────────
+// ── 2. Ticker — Single security analysis with all report types ───────────────
 
-async function testTicker() {
+async function ticker() {
   console.log("=== 2. Ticker ===");
 
-  let ticker;
+  let t;
   try {
-    ticker = await new TickerBuilder()
+    t = await new TickerBuilder()
       .symbol("AAPL")
       .startDate("2023-01-01")
       .endDate("2024-12-31")
@@ -90,7 +93,7 @@ async function testTicker() {
 
   for (const reportType of ["performance", "financials", "options", "news"]) {
     try {
-      const report = await ticker.report(reportType);
+      const report = await t.report(reportType);
       console.log(`Ticker ${reportType} report: Opening in browser...`);
       await report.show();
     } catch (err) {
@@ -98,17 +101,17 @@ async function testTicker() {
     }
   }
 
-  ticker.free();
+  t.free();
 }
 
-// ── 3. Tickers — Multiple securities analysis ───────────────────────────────
+// ── 3. Tickers — Multiple securities analysis ────────────────────────────────
 
-async function testTickers() {
+async function tickers() {
   console.log("=== 3. Tickers ===");
 
-  let tickers;
+  let ts;
   try {
-    tickers = await new TickersBuilder()
+    ts = await new TickersBuilder()
       .symbols(["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"])
       .startDate("2023-01-01")
       .endDate("2024-12-31")
@@ -123,27 +126,27 @@ async function testTickers() {
   }
 
   try {
-    const report = await tickers.report("performance");
+    const report = await ts.report("performance");
     console.log("Tickers performance report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in Tickers report:", err.message);
   }
 
-  tickers.free();
+  ts.free();
 }
 
 // ── 4. Portfolio — Optimization with Out-of-Sample Evaluation ───────────────
 
-async function testPortfolioOptimizationOOS() {
+async function portfolioOptimizationOOS() {
   console.log(
     "=== 4. Portfolio — Optimization with Out-of-Sample Evaluation ===",
   );
 
-  let portfolio;
+  let p;
   try {
-    // Optimize on 2023 -2024 data (in-sample)
-    portfolio = await new PortfolioBuilder()
+    // Optimize on 2023-2024 data (in-sample)
+    p = await new PortfolioBuilder()
       .tickerSymbols(["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"])
       .benchmarkSymbol("^GSPC")
       .startDate("2023-01-01")
@@ -159,32 +162,31 @@ async function testPortfolioOptimizationOOS() {
   }
 
   try {
-    let report = await portfolio.report("optimization");
+    let report = await p.report("optimization");
     console.log("Optimization report: Opening in browser...");
     await report.show();
 
     // Update to 2025 data for out-of-sample evaluation
-    await portfolio.updateDates("2025-01-01", "2026-01-01");
-    await portfolio.performanceStats();
+    await p.updateDates("2025-01-01", "2026-01-01");
+    await p.performanceStats();
 
-    report = await portfolio.report("performance");
+    report = await p.report("performance");
     console.log("Out-of-sample performance report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in Portfolio OOS evaluation:", err.message);
   }
 
-  portfolio.free();
+  p.free();
 }
 
 // ── 5. Portfolio — Optimization with Weight & Categorical Constraints ─────────
 
-async function testPortfolioOptimizationConstraints() {
+async function portfolioOptimizationConstraints() {
   console.log(
     "=== 5. Portfolio — Optimization with Weight & Categorical Constraints ===",
   );
 
-  // Per-asset bounds: [lower, upper] in the same order as tickerSymbols
   const assetConstraints = JSON.stringify([
     [0.05, 0.4], // AAPL
     [0.05, 0.4], // MSFT
@@ -194,8 +196,6 @@ async function testPortfolioOptimizationConstraints() {
     [0.05, 0.25], // BTC-USD
   ]);
 
-  // Categorical constraints: each entry has name, category_per_symbol, weight_per_category.
-  // weight_per_category entries are [label, min, max] arrays.
   const categoricalConstraints = JSON.stringify([
     {
       name: "Sector",
@@ -208,10 +208,10 @@ async function testPortfolioOptimizationConstraints() {
         "Crypto",
       ],
       weight_per_category: [
-        ["Tech", 0.3, 0.6], // Tech sector: 30–60%
-        ["Finance", 0.05, 0.3], // Finance sector: 5–30%
-        ["Energy", 0.05, 0.2], // Energy sector: 5–20%
-        ["Crypto", 0.05, 0.25], // Crypto sector: 5–25%
+        ["Tech", 0.3, 0.6],
+        ["Finance", 0.05, 0.3],
+        ["Energy", 0.05, 0.2],
+        ["Crypto", 0.05, 0.25],
       ],
     },
     {
@@ -225,8 +225,8 @@ async function testPortfolioOptimizationConstraints() {
         "Crypto",
       ],
       weight_per_category: [
-        ["Equity", 0.7, 0.95], // Equities: 70–95%
-        ["Crypto", 0.05, 0.3], // Crypto: 5–30%
+        ["Equity", 0.7, 0.95],
+        ["Crypto", 0.05, 0.3],
       ],
     },
   ]);
@@ -263,14 +263,14 @@ async function testPortfolioOptimizationConstraints() {
 
 // ── 6. Portfolio — Explicit Allocation with Rebalancing and DCA ─────────────
 
-async function testPortfolioAllocationRebalancingDCA() {
+async function portfolioAllocationRebalancingDCA() {
   console.log(
     "=== 6. Portfolio — Explicit Allocation with Rebalancing and DCA ===",
   );
 
-  let portfolio;
+  let p;
   try {
-    portfolio = await new PortfolioBuilder()
+    p = await new PortfolioBuilder()
       .tickerSymbols(["AAPL", "MSFT", "NVDA", "BTC-USD"])
       .benchmarkSymbol("^GSPC")
       .startDate("2023-01-01")
@@ -300,29 +300,29 @@ async function testPortfolioAllocationRebalancingDCA() {
   }
 
   try {
-    const report = await portfolio.report("performance");
+    const report = await p.report("performance");
     console.log("Performance report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in Portfolio report:", err.message);
   }
 
-  portfolio.free();
+  p.free();
 }
 
 // ── 7. Custom Data (KLINE) — Load CSV data and use with Ticker, Tickers, Portfolio ──
 
-async function testCustomData() {
+async function customData() {
   console.log("=== 7. Custom Data (KLINE) ===");
 
   // Load data from CSV files
   const files = {
-    aapl: "../examples/datasets/aapl.csv",
-    msft: "../examples/datasets/msft.csv",
-    nvda: "../examples/datasets/nvda.csv",
-    goog: "../examples/datasets/goog.csv",
-    btcusd: "../examples/datasets/btcusd.csv",
-    gspc: "../examples/datasets/gspc.csv",
+    aapl: "examples/datasets/aapl.csv",
+    msft: "examples/datasets/msft.csv",
+    nvda: "examples/datasets/nvda.csv",
+    goog: "examples/datasets/goog.csv",
+    btcusd: "examples/datasets/btcusd.csv",
+    gspc: "examples/datasets/gspc.csv",
   };
 
   const dataFrames = {};
@@ -338,9 +338,9 @@ async function testCustomData() {
 
   // Single Ticker from custom data
   console.log("--- Custom Ticker ---");
-  let ticker;
+  let t;
   try {
-    ticker = await new TickerBuilder()
+    t = await new TickerBuilder()
       .symbol("AAPL")
       .benchmarkSymbol("^GSPC")
       .confidenceLevel(0.95)
@@ -349,13 +349,13 @@ async function testCustomData() {
       .benchmarkData(dataFrames["gspc"])
       .build();
 
-    const report = await ticker.report("performance");
+    const report = await t.report("performance");
     console.log("Custom Ticker performance report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in custom Ticker:", err.message);
   } finally {
-    if (ticker) ticker.free();
+    if (t) t.free();
   }
 
   // Multiple Tickers from custom data
@@ -368,9 +368,9 @@ async function testCustomData() {
     dataFrames["btcusd"],
   ];
 
-  let tickers;
+  let ts;
   try {
-    tickers = await new TickersBuilder()
+    ts = await new TickersBuilder()
       .symbols(["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"])
       .benchmarkSymbol("^GSPC")
       .confidenceLevel(0.95)
@@ -379,20 +379,20 @@ async function testCustomData() {
       .benchmarkData(dataFrames["gspc"])
       .build();
 
-    const report = await tickers.report("performance");
+    const report = await ts.report("performance");
     console.log("Custom Tickers performance report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in custom Tickers:", err.message);
   } finally {
-    if (tickers) tickers.free();
+    if (ts) ts.free();
   }
 
   // Portfolio optimization from custom data
   console.log("--- Custom Portfolio ---");
-  let portfolio;
+  let p;
   try {
-    portfolio = await new PortfolioBuilder()
+    p = await new PortfolioBuilder()
       .tickerSymbols(["NVDA", "GOOG", "AAPL", "MSFT", "BTC-USD"])
       .benchmarkSymbol("^GSPC")
       .confidenceLevel(0.95)
@@ -402,25 +402,25 @@ async function testCustomData() {
       .benchmarkData(dataFrames["gspc"])
       .build();
 
-    const report = await portfolio.report("optimization");
+    const report = await p.report("optimization");
     console.log("Custom Portfolio optimization report: Opening in browser...");
     await report.show();
   } catch (err) {
     console.error("Error in custom Portfolio:", err.message);
   } finally {
-    if (portfolio) portfolio.free();
+    if (p) p.free();
   }
 }
 
-// Run all tests
+// Run all examples
 async function main() {
-  await testScreener();
-  await testTicker();
-  await testTickers();
-  await testPortfolioOptimizationOOS();
-  await testPortfolioOptimizationConstraints();
-  await testPortfolioAllocationRebalancingDCA();
-  await testCustomData();
+  await screener();
+  await ticker();
+  await tickers();
+  await portfolioOptimizationOOS();
+  await portfolioOptimizationConstraints();
+  await portfolioAllocationRebalancingDCA();
+  await customData();
 }
 
 main().catch(console.error);

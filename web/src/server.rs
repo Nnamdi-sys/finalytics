@@ -60,6 +60,7 @@ pub async fn search_symbols(query: String) -> Result<Vec<(String, String)>, Serv
 pub struct PortfolioTabs {
     pub optimization_chart: Option<String>,
     pub performance_chart: String,
+    pub portfolio_value_chart: String,
     pub performance_stats_table: String,
     pub returns_table: String,
     pub returns_chart: String,
@@ -88,7 +89,9 @@ pub async fn get_portfolio_charts(
         let rt = tokio::runtime::Handle::current();
 
         rt.block_on(async {
-            let portfolio = Portfolio::builder()
+            let objective_function = ObjectiveFunction::from_str(&objective_function).unwrap();
+
+            let mut builder = Portfolio::builder()
                 .ticker_symbols(symbols.iter().map(|x| x.as_str()).collect())
                 .benchmark_symbol(&benchmark_symbol)
                 .start_date(&start_date)
@@ -96,22 +99,33 @@ pub async fn get_portfolio_charts(
                 .interval(Interval::from_str(&interval).unwrap())
                 .confidence_level(confidence_level)
                 .risk_free_rate(risk_free_rate)
-                .objective_function(ObjectiveFunction::from_str(&objective_function).unwrap())
-                .constraints(Some(constraints.clone()))
-                .weights(weights.clone())
+                .objective_function(objective_function)
+                .constraints(Some(constraints));
+            if let Some(w) = weights.clone() {
+                builder = builder.weights(w);
+            }
+            let mut portfolio = builder
                 .build()
                 .await
                 .map_err(|e| format!("PortfolioBuilder error: {e}"))?;
 
-            let optimization_chart = if constraints.asset_weights.is_some() || weights.is_none() {
+            // If weights are provided, evaluate directly (no optimization).
+            // Otherwise, optimize (which also computes in-sample performance stats).
+            let optimization_chart = if weights.is_some() {
+                portfolio
+                    .performance_stats()
+                    .map_err(|e| format!("Performance Stats error: {e}"))?;
+                None
+            } else {
+                portfolio
+                    .optimize()
+                    .map_err(|e| format!("Optimization error: {e}"))?;
                 Some(
                     portfolio
                         .optimization_chart(None, None)
                         .map_err(|e| format!("Optimization Chart error: {e}"))?
                         .to_html(),
                 )
-            } else {
-                None
             };
 
             let performance_chart = portfolio
@@ -119,18 +133,23 @@ pub async fn get_portfolio_charts(
                 .map_err(|e| format!("Performance Chart error: {e}"))?
                 .to_html();
 
+            let portfolio_value_chart = portfolio
+                .portfolio_value_chart(None, None)
+                .map_err(|e| format!("Portfolio Value Chart error: {e}"))?
+                .to_html();
+
             let performance_stats_table = portfolio
                 .performance_stats_table()
-                .await
                 .map_err(|e| format!("Performance Stats Table error: {e}"))?
                 .to_html()
-                .unwrap();
+                .map_err(|e| format!("Performance Stats Table HTML error: {e}"))?;
 
             let returns_table = portfolio
                 .returns_table()
                 .map_err(|e| format!("Returns Table error: {e}"))?
                 .to_html()
-                .unwrap();
+                .map_err(|e| format!("Returns Table HTML error: {e}"))?;
+            dbg!(&returns_table);
 
             let returns_chart = portfolio
                 .returns_chart(None, None)
@@ -145,6 +164,7 @@ pub async fn get_portfolio_charts(
             Ok(PortfolioTabs {
                 optimization_chart,
                 performance_chart,
+                portfolio_value_chart,
                 performance_stats_table,
                 returns_table,
                 returns_chart,
@@ -534,7 +554,7 @@ pub async fn get_screener_performance(
                 .await
                 .unwrap()
                 .to_html()
-                .unwrap();
+                .unwrap_or_default();
             stats
         })
     })
@@ -558,7 +578,8 @@ pub async fn get_screener_portfolio(
 
         rt.block_on(async {
             let symbols: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
-            let portfolio = Portfolio::builder()
+            let objective_function = ObjectiveFunction::from_str(&objective_function).unwrap();
+            let mut portfolio = Portfolio::builder()
                 .ticker_symbols(symbols)
                 .start_date(&start_date)
                 .end_date(&end_date)
@@ -566,10 +587,11 @@ pub async fn get_screener_portfolio(
                 .benchmark_symbol(&benchmark_symbol)
                 .confidence_level(0.95)
                 .risk_free_rate(risk_free_rate)
-                .objective_function(ObjectiveFunction::from_str(&objective_function).unwrap())
+                .objective_function(objective_function)
                 .build()
                 .await
                 .unwrap();
+            portfolio.optimize().unwrap();
             portfolio.optimization_chart(None, None).unwrap().to_html()
         })
     })

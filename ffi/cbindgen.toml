@@ -55,4 +55,6 @@ include = [
     "finalytics_screener_metrics",
     "finalytics_screener_display",
     "finalytics_free_string",
+    "finalytics_last_error",
+    "finalytics_clear_last_error",
 ]

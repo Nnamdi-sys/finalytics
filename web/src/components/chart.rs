@@ -24,13 +24,15 @@ pub fn ChartContainer(html: String, id: String) -> Element {
     use_effect(move || {
         let resize_script = format!(
             r#"
+            // Wrap in async IIFE so top-level `await` in the Plotly 3.x init
+            // script resolves fully before any resize/relayout runs.
+            (async function() {{
             {script}
 
             // After Plotly renders, optimize legend and sizing for the viewport
-            (function() {{
-                var chartId = "{id_clone}";
-                var el = document.getElementById(chartId);
-                if (!el) return;
+            var chartId = "{id_clone}";
+            var el = document.getElementById(chartId);
+            if (!el) return;
 
                 // Helper: safely resize the Plotly chart to fit its container
                 function resizePlotly() {{
@@ -128,16 +130,17 @@ pub fn ChartContainer(html: String, id: String) -> Element {
                     }}, 250);
                 }});
 
-                // Initial optimization after Plotly finishes rendering
-                setTimeout(function() {{
-                    resizePlotly();
-                    optimizeLegend();
-                }}, 400);
-                setTimeout(function() {{
-                    resizePlotly();
-                    optimizeLegend();
-                }}, 1000);
-            }})();
+            // Run immediately — await above means newPlot is fully done
+            resizePlotly();
+            optimizeLegend();
+
+            // Extra pass after a short delay for any layout settling
+            setTimeout(function() {{
+                resizePlotly();
+                optimizeLegend();
+            }}, 300);
+
+            }})(); // end async IIFE
             "#,
         );
         document::eval(&resize_script);
@@ -157,7 +160,7 @@ pub fn ChartContainer(html: String, id: String) -> Element {
                 src: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"
             }
             script {
-                src: "https://cdn.plot.ly/plotly-2.12.1.min.js"
+                src: "https://cdn.plot.ly/plotly-3.0.1.min.js"
             }
             div {
                 id: "{id}",

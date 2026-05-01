@@ -1,10 +1,13 @@
-use std::error::Error;
-use polars::prelude::*;
+use crate::analytics::performance::TickerPerformanceStats;
+use crate::data::yahoo::config::TickerSummaryStats;
+use crate::prelude::{
+    Column as OhlcvColumn, StatementFrequency, StatementType, TickerData, TickerPerformance,
+    Tickers,
+};
 use futures::future::join_all;
 use indicatif::{ProgressBar, ProgressStyle};
-use crate::data::yahoo::config::TickerSummaryStats;
-use crate::analytics::performance::TickerPerformanceStats;
-use crate::prelude::{StatementFrequency, StatementType, TickerData, TickerPerformance, Tickers};
+use polars::prelude::*;
+use std::error::Error;
 
 macro_rules! fetch_all {
     ($tickers:expr, $method:ident, $idx:expr $(, $param:expr)*) => {{
@@ -64,17 +67,24 @@ macro_rules! fetch_all {
     }};
 }
 
-
 pub trait TickersData {
-    fn get_chart(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn get_news(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency, formatted: Option<bool>) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn get_ticker_stats(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn get_options(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn returns(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
-    fn performance_stats(&self) -> impl std::future::Future<Output =  Result<DataFrame, Box<dyn Error>>>;
+    fn get_chart(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_news(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_financials(
+        &self,
+        statement_type: StatementType,
+        frequency: StatementFrequency,
+        formatted: Option<bool>,
+    ) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_ticker_stats(
+        &self,
+    ) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn get_options(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn returns(&self) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
+    fn performance_stats(
+        &self,
+    ) -> impl std::future::Future<Output = Result<DataFrame, Box<dyn Error>>>;
 }
-
 
 impl TickersData for Tickers {
     /// Fetch the OHLCV Data for all tickers in the Tickers Struct
@@ -88,10 +98,21 @@ impl TickersData for Tickers {
     }
 
     /// Fetch the Financials for all tickers in the Tickers Struct
-    async fn get_financials(&self, statement_type: StatementType, frequency: StatementFrequency, formatted: Option<bool>) -> Result<DataFrame, Box<dyn Error>> {
-        fetch_all!(self.tickers.clone(), get_financials, 1, statement_type, frequency, formatted)
+    async fn get_financials(
+        &self,
+        statement_type: StatementType,
+        frequency: StatementFrequency,
+        formatted: Option<bool>,
+    ) -> Result<DataFrame, Box<dyn Error>> {
+        fetch_all!(
+            self.tickers.clone(),
+            get_financials,
+            1,
+            statement_type,
+            frequency,
+            formatted
+        )
     }
-
 
     /// Fetch the Ticker Summary Stats Data for all tickers in the Tickers' Struct
     async fn get_ticker_stats(&self) -> Result<DataFrame, Box<dyn Error>> {
@@ -107,12 +128,13 @@ impl TickersData for Tickers {
         for ticker in self.tickers.clone().into_iter() {
             let fut = tokio::task::spawn(async move {
                 match ticker.get_ticker_stats().await {
-                    Ok(stats) => {
-                        Ok((ticker.ticker.clone(), stats))
-                    }
+                    Ok(stats) => Ok((ticker.ticker.clone(), stats)),
                     Err(e) => {
                         eprintln!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e);
-                        Err(format!("Error Fetching Ticker Stats for {}: {}", &ticker.ticker, e))
+                        Err(format!(
+                            "Error Fetching Ticker Stats for {}: {}",
+                            &ticker.ticker, e
+                        ))
                     }
                 }
             });
@@ -136,7 +158,6 @@ impl TickersData for Tickers {
         let mut formatted_dfs = Vec::new();
 
         for (ticker, stats) in all_stats {
-
             let mut fmt_df = stats.to_dataframe()?;
             fmt_df.rename("Value", ticker.as_str().into())?;
             formatted_dfs.push(fmt_df);
@@ -151,11 +172,18 @@ impl TickersData for Tickers {
         };
 
         let mut stats = combine(formatted_dfs)?;
-        let columns = stats.column("Metric")?.str()?.into_no_null_iter()
-            .map(|x| x.to_string()).collect::<Vec<String>>();
+        let columns = stats
+            .column("Metric")?
+            .str()?
+            .into_no_null_iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
         stats = stats.drop("Metric")?;
-        let column_names = stats.get_column_names().iter()
-            .map(|&name| name.to_string()).collect::<Vec<String>>();
+        let column_names = stats
+            .get_column_names()
+            .iter()
+            .map(|&name| name.to_string())
+            .collect::<Vec<String>>();
         let symbols = Series::new("Symbol".into(), column_names);
         let mut stats_df = stats.transpose(None, None)?;
         stats_df.set_column_names(&columns)?;
@@ -202,7 +230,8 @@ impl TickersData for Tickers {
                 match ticker.get_options().await {
                     Ok(options) => {
                         let mut df = options.chain;
-                        let symbol_series = Series::new("symbol".into(), vec![ticker.ticker.clone(); df.height()]);
+                        let symbol_series =
+                            Series::new("symbol".into(), vec![ticker.ticker.clone(); df.height()]);
                         if df.width() > 3 {
                             let _ = df.insert_column(3, symbol_series);
                             Ok(df)
@@ -213,7 +242,10 @@ impl TickersData for Tickers {
                     }
                     Err(e) => {
                         eprintln!("Error Fetching Options Data for {}: {}", &ticker.ticker, e);
-                        Err(format!("Error Fetching Options Data for {}: {}", &ticker.ticker, e))
+                        Err(format!(
+                            "Error Fetching Options Data for {}: {}",
+                            &ticker.ticker, e
+                        ))
                     }
                 }
             });
@@ -239,7 +271,11 @@ impl TickersData for Tickers {
         Ok(joint_df)
     }
 
-    /// Compute the Returns for all tickers in the Tickers Struct
+    /// Compute the Returns for all tickers in the Tickers Struct.
+    ///
+    /// Aligns all assets at the price level (inner join on timestamp) and then
+    /// computes percentage returns from the aligned prices. This ensures every
+    /// asset has a return for every common trading date without fabricating data.
     async fn returns(&self) -> Result<DataFrame, Box<dyn Error>> {
         let mut futures = Vec::new();
         let total_tickers = self.tickers.len();
@@ -250,22 +286,30 @@ impl TickersData for Tickers {
                 .progress_chars("#>-"),
         );
 
+        // Fetch prices for each ticker concurrently
         for ticker in self.tickers.clone().into_iter() {
             let fut = tokio::task::spawn(async move {
-                match ticker.performance_stats().await {
-                    Ok(stats) => {
-                        let date_series = Column::new("timestamp".into(), stats.dates_array);
-                        let returns_series = Column::new(ticker.ticker.as_str().into(), stats.security_returns);
-                        if let Ok(df) = DataFrame::new(vec![date_series, returns_series]) {
-                            Ok(df)
-                        } else {
-                            eprintln!("No Returns Data for {}", &ticker.ticker);
-                            Err(format!("No Returns Data for {}", &ticker.ticker))
+                match ticker.get_chart().await {
+                    Ok(chart) => {
+                        let df = DataFrame::new(vec![
+                            chart.column("timestamp").unwrap().clone(),
+                            chart
+                                .column(OhlcvColumn::AdjClose.as_str())
+                                .unwrap()
+                                .clone()
+                                .with_name(ticker.ticker.as_str().into()),
+                        ]);
+                        match df {
+                            Ok(df) => Ok((ticker.ticker.clone(), df)),
+                            Err(_) => {
+                                eprintln!("No Price Data for {}", &ticker.ticker);
+                                Err(format!("No Price Data for {}", &ticker.ticker))
+                            }
                         }
                     }
                     Err(e) => {
-                        eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
-                        Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
+                        eprintln!("No Price Data for {}: {}", &ticker.ticker, e);
+                        Err(format!("No Price Data for {}: {}", &ticker.ticker, e))
                     }
                 }
             });
@@ -274,24 +318,11 @@ impl TickersData for Tickers {
         }
 
         let results = join_all(futures).await;
-        let mut joint_df = DataFrame::default();
+        let mut price_frames: Vec<(String, DataFrame)> = Vec::new();
 
         for result in results {
             match result {
-                Ok(Ok(df)) => {
-                    if joint_df.width() == 0 {
-                        joint_df = df;
-                    } else {
-                        joint_df = joint_df
-                            .join(
-                                &df,
-                                ["timestamp"],
-                                ["timestamp"],
-                                JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
-                                None
-                            )?;
-                    }
-                }
+                Ok(Ok(item)) => price_frames.push(item),
                 Ok(Err(_)) => continue,
                 Err(e) => eprintln!("Error in task: {e}"),
             }
@@ -299,7 +330,67 @@ impl TickersData for Tickers {
 
         pb.finish_with_message("Done");
 
-        joint_df = joint_df.fill_null(FillNullStrategy::Zero)?;
+        if price_frames.is_empty() {
+            return Err("No price data available for any ticker".into());
+        }
+
+        // Full outer join all price frames on timestamp (keep all dates)
+        let mut joined = price_frames
+            .into_iter()
+            .map(|(_, df)| df)
+            .reduce(|acc, df| {
+                acc.join(
+                    &df,
+                    ["timestamp"],
+                    ["timestamp"],
+                    JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
+                    None,
+                )
+                .map_err(|e| format!("Failed to join price frames: {e}"))
+                .unwrap_or(acc)
+            })
+            .ok_or("No price data to join")?;
+
+        // Sort chronologically, then forward-fill and backward-fill prices
+        joined = joined.sort(
+            ["timestamp"],
+            SortMultipleOptions::new().with_order_descending(false),
+        )?;
+        joined = joined.fill_null(FillNullStrategy::Forward(None))?;
+        joined = joined.fill_null(FillNullStrategy::Backward(None))?;
+
+        // Compute returns from aligned prices
+        let ticker_symbols: Vec<String> = self.tickers.iter().map(|t| t.ticker.clone()).collect();
+        let mut returns_cols: Vec<polars::prelude::Column> = Vec::new();
+
+        // Build date strings (skip the first — no return for it)
+        let dates = joined
+            .column("timestamp")?
+            .datetime()?
+            .into_no_null_iter()
+            .map(|x| {
+                chrono::DateTime::from_timestamp_millis(x)
+                    .unwrap_or_default()
+                    .naive_local()
+                    .to_string()
+            })
+            .collect::<Vec<String>>();
+        let dates = &dates[1..];
+        returns_cols.push(polars::prelude::Column::new("timestamp".into(), dates));
+
+        for sym in &ticker_symbols {
+            let prices = joined.column(sym)?.f64()?.to_vec();
+            let rets: Vec<f64> = prices
+                .windows(2)
+                .map(|w| match (w[0], w[1]) {
+                    (Some(prev), Some(curr)) if prev.abs() > 1e-12 => (curr - prev) / prev,
+                    _ => 0.0,
+                })
+                .collect();
+            returns_cols.push(polars::prelude::Column::new(sym.as_str().into(), &rets));
+        }
+
+        let joint_df = DataFrame::new(returns_cols)?;
 
         Ok(joint_df)
     }
@@ -318,9 +409,7 @@ impl TickersData for Tickers {
         for ticker in self.tickers.clone().into_iter() {
             let fut = tokio::task::spawn(async move {
                 match ticker.performance_stats().await {
-                    Ok(stats) => {
-                        Ok(stats)
-                    }
+                    Ok(stats) => Ok(stats),
                     Err(e) => {
                         eprintln!("No Returns Data for {}: {}", &ticker.ticker, e);
                         Err(format!("No Returns Data for {}: {}", &ticker.ticker, e))
@@ -354,13 +443,13 @@ impl TickersData for Tickers {
             numeric_fields[2].push(stat.performance_stats.cumulative_return);
             numeric_fields[3].push(stat.performance_stats.annualized_return);
             numeric_fields[4].push(stat.performance_stats.annualized_volatility);
-            numeric_fields[5].push(stat.performance_stats.alpha);
-            numeric_fields[6].push(stat.performance_stats.beta);
+            numeric_fields[5].push(stat.performance_stats.alpha.unwrap_or(f64::NAN));
+            numeric_fields[6].push(stat.performance_stats.beta.unwrap_or(f64::NAN));
             numeric_fields[7].push(stat.performance_stats.sharpe_ratio);
             numeric_fields[8].push(stat.performance_stats.sortino_ratio);
-            numeric_fields[9].push(stat.performance_stats.active_return);
-            numeric_fields[10].push(stat.performance_stats.active_risk);
-            numeric_fields[11].push(stat.performance_stats.information_ratio);
+            numeric_fields[9].push(stat.performance_stats.active_return.unwrap_or(f64::NAN));
+            numeric_fields[10].push(stat.performance_stats.active_risk.unwrap_or(f64::NAN));
+            numeric_fields[11].push(stat.performance_stats.information_ratio.unwrap_or(f64::NAN));
             numeric_fields[12].push(stat.performance_stats.calmar_ratio);
             numeric_fields[13].push(stat.performance_stats.maximum_drawdown);
             numeric_fields[14].push(stat.performance_stats.value_at_risk);
@@ -369,22 +458,118 @@ impl TickersData for Tickers {
 
         let df = DataFrame::new(vec![
             Column::new("Symbol".into(), ticker_symbols),
-            Column::new("Daily Return".into(), numeric_fields[0].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Daily Volatility".into(), numeric_fields[1].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Cumulative Return".into(), numeric_fields[2].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Annualized Return".into(), numeric_fields[3].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Annualized Volatility".into(), numeric_fields[4].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Alpha".into(), numeric_fields[5].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Beta".into(), numeric_fields[6].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Sharpe Ratio".into(), numeric_fields[7].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Sortino Ratio".into(), numeric_fields[8].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Active Return".into(), numeric_fields[9].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Active Risk".into(), numeric_fields[10].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Information Ratio".into(), numeric_fields[11].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Calmar Ratio".into(), numeric_fields[12].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Maximum Drawdown".into(), numeric_fields[13].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Value at Risk".into(), numeric_fields[14].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
-            Column::new("Expected Shortfall".into(), numeric_fields[15].iter().map(|x| x.to_string()).collect::<Vec<String>>()),
+            Column::new(
+                "Daily Return".into(),
+                numeric_fields[0]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Daily Volatility".into(),
+                numeric_fields[1]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Cumulative Return".into(),
+                numeric_fields[2]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Annualized Return".into(),
+                numeric_fields[3]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Annualized Volatility".into(),
+                numeric_fields[4]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Alpha".into(),
+                numeric_fields[5]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Beta".into(),
+                numeric_fields[6]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Sharpe Ratio".into(),
+                numeric_fields[7]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Sortino Ratio".into(),
+                numeric_fields[8]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Active Return".into(),
+                numeric_fields[9]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Active Risk".into(),
+                numeric_fields[10]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Information Ratio".into(),
+                numeric_fields[11]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Calmar Ratio".into(),
+                numeric_fields[12]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Maximum Drawdown".into(),
+                numeric_fields[13]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Value at Risk".into(),
+                numeric_fields[14]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
+            Column::new(
+                "Expected Shortfall".into(),
+                numeric_fields[15]
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+            ),
         ])?;
 
         pb.finish_with_message("Done");

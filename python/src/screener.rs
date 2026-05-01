@@ -1,11 +1,20 @@
-use std::str::FromStr;
+use crate::ffi::error_chain_string;
+use finalytics::data::yahoo::screeners::builder::ScreenerBuilder;
+use finalytics::prelude::{
+    CryptoScreener, EquityScreener, EtfScreener, FutureScreener, IndexScreener, MutualFundScreener,
+    QuoteType, Screener, ScreenerFilter, ScreenerMetric,
+};
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3_polars::PyDataFrame;
+use std::str::FromStr;
 use tokio::task;
-use finalytics::data::yahoo::screeners::builder::ScreenerBuilder;
-use finalytics::prelude::{CryptoScreener, EquityScreener, EtfScreener, FutureScreener, IndexScreener,
-                          MutualFundScreener, QuoteType, Screener, ScreenerFilter, ScreenerMetric};
 
+/// Helper to create a tokio runtime, mapped to a Python RuntimeError.
+fn rt() -> PyResult<tokio::runtime::Runtime> {
+    tokio::runtime::Runtime::new()
+        .map_err(|e| PyRuntimeError::new_err(format!("Failed to create async runtime: {e}")))
+}
 
 /// Create a new Screener object
 ///
@@ -40,7 +49,7 @@ use finalytics::prelude::{CryptoScreener, EquityScreener, EtfScreener, FutureScr
 /// print(screener.overview())
 /// print(screener.metrics())
 /// ```
-/// 
+///
 /// # Note
 /// The `filters` parameter should be a list of JSON strings, each representing a filter condition. The format for each filter is:
 ///  ```json
@@ -48,9 +57,9 @@ use finalytics::prelude::{CryptoScreener, EquityScreener, EtfScreener, FutureScr
 ///      "operator": "<op>",
 ///      "operands": ["<metric>", <value>[, <value2>]]
 ///  }
-/// 
-/// where `<op>` can be "eq", "gte", "lte", "gt", "lt", or "btwn". 
-/// 
+///
+/// where `<op>` can be "eq", "gte", "lte", "gt", "lt", or "btwn".
+///
 /// The `<metric>` should be a valid screener metric.
 /// A full list of screener metrics for each category can be found at:
 /// https://github.com/Nnamdi-sys/finalytics/tree/main/rust/src/data/yahoo/screeners/screeners.json
@@ -58,44 +67,88 @@ use finalytics::prelude::{CryptoScreener, EquityScreener, EtfScreener, FutureScr
 #[pyclass]
 #[pyo3(name = "Screener")]
 pub struct PyScreener {
-    screener: Screener
+    screener: Screener,
 }
 
 #[pymethods]
 impl PyScreener {
     #[new]
     #[pyo3(signature = (quote_type, filters, sort_field=None, sort_descending=true, offset=0, size=250))]
-    pub fn new(quote_type: &str, filters: Vec<String>, sort_field: Option<String>, 
-               sort_descending: bool, offset: usize, size: usize) -> Self {
-        let quote_type = QuoteType::from_str(quote_type).unwrap();
-        let filters = filters.into_iter()
+    pub fn new(
+        quote_type: &str,
+        filters: Vec<String>,
+        sort_field: Option<String>,
+        sort_descending: bool,
+        offset: usize,
+        size: usize,
+    ) -> PyResult<Self> {
+        let quote_type = QuoteType::from_str(quote_type).map_err(|_| {
+            PyRuntimeError::new_err(format!(
+                "Invalid quote type: '{quote_type}'. Choose from: EQUITY, MUTUALFUND, ETF, INDEX, FUTURE, CRYPTO"
+            ))
+        })?;
+        let filters = filters
+            .into_iter()
             .map(ScreenerFilter::Custom)
             .collect::<Vec<_>>();
-        let sort_field = sort_field.map(|f| {
-            match quote_type {
-                QuoteType::Equity => ScreenerMetric::Equity(EquityScreener::from_str(&f).unwrap()),
-                QuoteType::MutualFund => ScreenerMetric::MutualFund(MutualFundScreener::from_str(&f).unwrap()),
-                QuoteType::Etf => ScreenerMetric::Etf(EtfScreener::from_str(&f).unwrap()),
-                QuoteType::Index => ScreenerMetric::Index(IndexScreener::from_str(&f).unwrap()),
-                QuoteType::Future => ScreenerMetric::Future(FutureScreener::from_str(&f).unwrap()),
-                QuoteType::Crypto => ScreenerMetric::Crypto(CryptoScreener::from_str(&f).unwrap()),
+        let sort_field = match sort_field {
+            Some(f) => {
+                let metric = match quote_type {
+                    QuoteType::Equity => {
+                        ScreenerMetric::Equity(EquityScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!("Invalid equity sort field: '{f}'"))
+                        })?)
+                    }
+                    QuoteType::MutualFund => ScreenerMetric::MutualFund(
+                        MutualFundScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!(
+                                "Invalid mutual fund sort field: '{f}'"
+                            ))
+                        })?,
+                    ),
+                    QuoteType::Etf => {
+                        ScreenerMetric::Etf(EtfScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!("Invalid ETF sort field: '{f}'"))
+                        })?)
+                    }
+                    QuoteType::Index => {
+                        ScreenerMetric::Index(IndexScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!("Invalid index sort field: '{f}'"))
+                        })?)
+                    }
+                    QuoteType::Future => {
+                        ScreenerMetric::Future(FutureScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!("Invalid future sort field: '{f}'"))
+                        })?)
+                    }
+                    QuoteType::Crypto => {
+                        ScreenerMetric::Crypto(CryptoScreener::from_str(&f).map_err(|_| {
+                            PyRuntimeError::new_err(format!("Invalid crypto sort field: '{f}'"))
+                        })?)
+                    }
+                };
+                Some(metric)
             }
-        });
+            None => None,
+        };
         let screener_builder = ScreenerBuilder {
             quote_type: Some(quote_type),
             filters,
             sort_field,
             sort_descending,
             offset,
-            size,   
+            size,
         };
-        
+
         task::block_in_place(move || {
-            let screener = tokio::runtime::Runtime::new().unwrap().block_on(
-                screener_builder.build()).unwrap();
-            PyScreener {
-                screener
-            }
+            let rt = rt()?;
+            let screener = rt.block_on(screener_builder.build()).map_err(|e| {
+                PyRuntimeError::new_err(format!(
+                    "Failed to build screener: {}",
+                    error_chain_string(&*e)
+                ))
+            })?;
+            Ok(PyScreener { screener })
         })
     }
 
@@ -123,9 +176,17 @@ impl PyScreener {
     /// # Returns
     ///
     /// `DataFrame` - A Polars DataFrame with detailed metrics
-    pub fn metrics(&self) -> PyDataFrame {
-        let metrics = tokio::runtime::Runtime::new().unwrap().block_on(self.screener.metrics()).unwrap().data;
-        PyDataFrame(metrics)
+    pub fn metrics(&self) -> PyResult<PyDataFrame> {
+        task::block_in_place(move || {
+            let rt = rt()?;
+            let metrics = rt.block_on(self.screener.metrics()).map_err(|e| {
+                PyRuntimeError::new_err(format!(
+                    "Failed to fetch screener metrics: {}",
+                    error_chain_string(&*e)
+                ))
+            })?;
+            Ok(PyDataFrame(metrics.data))
+        })
     }
 
     /// Display the overview and metrics DataFrames as DataTables in the web browser or Jupyter Notebook
@@ -134,35 +195,60 @@ impl PyScreener {
     ///
     /// * `display` - Optional str - Display mode ("notebook" to display in Jupyter, else uses default web browser)
     #[pyo3(signature = (display=None))]
-    pub fn display(&self, display: Option<String>) {
+    pub fn display(&self, display: Option<String>) -> PyResult<()> {
         task::block_in_place(move || {
             let overview = self.screener.overview();
-            let metrics = tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(self.screener.metrics())
-                .unwrap();
+            let rt = rt()?;
+            let metrics = rt.block_on(self.screener.metrics()).map_err(|e| {
+                PyRuntimeError::new_err(format!(
+                    "Failed to fetch screener metrics: {}",
+                    error_chain_string(&*e)
+                ))
+            })?;
 
             if display.as_deref() == Some("notebook") {
-                Python::with_gil(|py| {
-                    let ipython_display = py.import("IPython.display").unwrap();
-                    let html_class = ipython_display.getattr("HTML").unwrap();
-                    let display_fn = ipython_display.getattr("display").unwrap();
+                Python::with_gil(|py| -> PyResult<()> {
+                    let ipython_display = py.import("IPython.display")?;
+                    let html_class = ipython_display.getattr("HTML")?;
+                    let display_fn = ipython_display.getattr("display")?;
 
                     // Display overview HTML
-                    let overview_html = overview.to_html().unwrap();
-                    let overview_html_obj = html_class.call1((overview_html,)).unwrap();
-                    display_fn.call1((overview_html_obj,)).unwrap();
+                    let overview_html = overview.to_html().map_err(|e| {
+                        PyRuntimeError::new_err(format!(
+                            "Failed to render overview HTML: {}",
+                            error_chain_string(&*e)
+                        ))
+                    })?;
+                    let overview_html_obj = html_class.call1((overview_html,))?;
+                    display_fn.call1((overview_html_obj,))?;
 
                     // Display metrics HTML
-                    let metrics_html = metrics.to_html().unwrap();
-                    let metrics_html_obj = html_class.call1((metrics_html,)).unwrap();
-                    display_fn.call1((metrics_html_obj,)).unwrap();
-                });
+                    let metrics_html = metrics.to_html().map_err(|e| {
+                        PyRuntimeError::new_err(format!(
+                            "Failed to render metrics HTML: {}",
+                            error_chain_string(&*e)
+                        ))
+                    })?;
+                    let metrics_html_obj = html_class.call1((metrics_html,))?;
+                    display_fn.call1((metrics_html_obj,))?;
+
+                    Ok(())
+                })?;
             } else {
-                overview.show().unwrap();
-                metrics.show().unwrap();
+                overview.show().map_err(|e| {
+                    PyRuntimeError::new_err(format!(
+                        "Failed to display overview: {}",
+                        error_chain_string(&*e)
+                    ))
+                })?;
+                metrics.show().map_err(|e| {
+                    PyRuntimeError::new_err(format!(
+                        "Failed to display metrics: {}",
+                        error_chain_string(&*e)
+                    ))
+                })?;
             }
-        });
+            Ok(())
+        })
     }
 }
-

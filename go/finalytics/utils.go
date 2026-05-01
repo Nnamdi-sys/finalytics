@@ -1,16 +1,16 @@
 package finalytics
 
 /*
-// #cgo CFLAGS: -I${SRCDIR}
-// #cgo LDFLAGS: -L${SRCDIR} -lfinalytics_ffi
-#cgo darwin,amd64 CFLAGS: -I${SRCDIR}
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/lib/macos -lfinalytics_ffi_x86_64 -Wl,-rpath,${SRCDIR}/lib/macos
-#cgo darwin,arm64 CFLAGS: -I${SRCDIR}
-#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/lib/macos -lfinalytics_ffi_aarch64 -Wl,-rpath,${SRCDIR}/lib/macos
-#cgo linux,amd64 CFLAGS: -I${SRCDIR}
-#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/lib/linux -lfinalytics_ffi
-#cgo windows,amd64 CFLAGS: -I${SRCDIR}
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/lib/windows -lfinalytics_ffi
+#cgo dev CFLAGS: -I${SRCDIR}
+#cgo dev LDFLAGS: -L${SRCDIR} -lfinalytics_ffi
+#cgo !dev,darwin,amd64 CFLAGS: -I${SRCDIR}
+#cgo !dev,darwin,amd64 LDFLAGS: -L${SRCDIR}/lib/macos -lfinalytics_ffi_x86_64 -Wl,-rpath,${SRCDIR}/lib/macos
+#cgo !dev,darwin,arm64 CFLAGS: -I${SRCDIR}
+#cgo !dev,darwin,arm64 LDFLAGS: -L${SRCDIR}/lib/macos -lfinalytics_ffi_aarch64 -Wl,-rpath,${SRCDIR}/lib/macos
+#cgo !dev,linux,amd64 CFLAGS: -I${SRCDIR}
+#cgo !dev,linux,amd64 LDFLAGS: -L${SRCDIR}/lib/linux -lfinalytics_ffi
+#cgo !dev,windows,amd64 CFLAGS: -I${SRCDIR}
+#cgo !dev,windows,amd64 LDFLAGS: -L${SRCDIR}/lib/windows -lfinalytics_ffi
 #include <finalytics.h>
 #include <stdlib.h>
 */
@@ -38,6 +38,22 @@ func StringSliceToJSON(slice []string) (string, error) {
 		return "", err
 	}
 	return string(jsonBytes), nil
+}
+
+// getLastError retrieves the last error message from the finalytics C library.
+// It calls finalytics_last_error() and frees the returned C string.
+// Returns an error with the message, or a generic fallback if the message is empty.
+func getLastError(fallback string) error {
+	cErr := C.finalytics_last_error()
+	if cErr == nil {
+		return errors.New(fallback)
+	}
+	defer C.finalytics_free_string(cErr)
+	msg := C.GoString(cErr)
+	if msg == "" {
+		return errors.New(fallback)
+	}
+	return errors.New(msg)
 }
 
 // parseJSONResult parses a C string containing JSON data and frees the string.

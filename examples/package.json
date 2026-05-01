@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "dependencies": {
+    "finalytics": "file:../js",
+    "nodejs-polars": "0.21.1"
+  }
+}

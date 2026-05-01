@@ -1,15 +1,14 @@
-use once_cell::sync::Lazy;
-use reqwest::{Client, StatusCode, Url};
-use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
-use serde_json::Value;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use cached::proc_macro::cached;
+use once_cell::sync::Lazy;
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
+use reqwest::{Client, StatusCode, Url};
+use serde_json::Value;
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration};
 
-static SESSION_MANAGER: Lazy<RwLock<SessionManager>> = Lazy::new(|| {
-    RwLock::new(SessionManager::new().expect("Failed to create session manager"))
-});
+static SESSION_MANAGER: Lazy<RwLock<SessionManager>> =
+    Lazy::new(|| RwLock::new(SessionManager::new().expect("Failed to create session manager")));
 
 const MAX_RETRIES: usize = 5;
 const RETRY_DELAY_MS: u64 = 500;
@@ -23,7 +22,10 @@ impl SessionManager {
     pub fn new() -> Result<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"));
-        headers.insert("Accept", HeaderValue::from_static("application/json, text/plain, */*"));
+        headers.insert(
+            "Accept",
+            HeaderValue::from_static("application/json, text/plain, */*"),
+        );
 
         let client = Client::builder()
             .default_headers(headers)
@@ -47,7 +49,8 @@ impl SessionManager {
 
         // Retry loop for crumb
         for attempt in 1..=MAX_RETRIES {
-            let crumb_result = self.client
+            let crumb_result = self
+                .client
                 .get("https://query2.finance.yahoo.com/v1/test/getcrumb")
                 .header("Accept", "text/plain")
                 .send()
@@ -65,25 +68,34 @@ impl SessionManager {
                         return Ok(());
                     } else if response.status() == StatusCode::UNAUTHORIZED {
                         if attempt == MAX_RETRIES {
-                            return Err(anyhow::anyhow!("Failed to fetch crumb: unauthorized after {} attempts", attempt));
+                            return Err(anyhow::anyhow!(
+                                "Failed to fetch crumb: unauthorized after {} attempts",
+                                attempt
+                            ));
                         }
                         sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
                         continue;
                     } else {
-                        return Err(anyhow::anyhow!("Failed to fetch crumb with unexpected status: {}", response.status()));
+                        return Err(anyhow::anyhow!(
+                            "Failed to fetch crumb with unexpected status: {}",
+                            response.status()
+                        ));
                     }
                 }
                 Err(e) => {
                     if attempt == MAX_RETRIES {
-                        return Err(e).context(format!("Failed to fetch crumb after {attempt} attempts"));
+                        return Err(e)
+                            .context(format!("Failed to fetch crumb after {attempt} attempts"));
                     }
                     sleep(Duration::from_millis(RETRY_DELAY_MS)).await;
                     continue;
                 }
             }
         }
-        
-        Err(anyhow::anyhow!("Crumb fetch retry loop exhausted unexpectedly"))
+
+        Err(anyhow::anyhow!(
+            "Crumb fetch retry loop exhausted unexpectedly"
+        ))
     }
 
     pub async fn get_url_with_crumb(&mut self, url: &str) -> Result<Url> {
@@ -103,13 +115,16 @@ impl SessionManager {
         loop {
             let full_url = self.get_url_with_crumb(url).await?;
 
-            let response = self.client.get(full_url.clone())
+            let response = self
+                .client
+                .get(full_url.clone())
                 .send()
                 .await
                 .context("Failed to send request")?;
 
             if response.status() == StatusCode::OK {
-                let json = response.json::<Value>()
+                let json = response
+                    .json::<Value>()
                     .await
                     .context("Failed to parse JSON response")?;
                 return Ok(json);
@@ -120,7 +135,11 @@ impl SessionManager {
                 tried_refresh = true;
                 continue;
             } else {
-                return Err(anyhow::anyhow!("Request failed with status: {}", response.status()));
+                return Err(anyhow::anyhow!(
+                    "GET request failed with status {} for URL: {}",
+                    response.status(),
+                    full_url
+                ));
             }
         }
     }
@@ -131,7 +150,8 @@ impl SessionManager {
         loop {
             let full_url = self.get_url_with_crumb(url).await?;
 
-            let response = self.client
+            let response = self
+                .client
                 .post(full_url.clone())
                 .json(payload)
                 .send()
@@ -156,9 +176,10 @@ impl SessionManager {
                 continue;
             } else {
                 return Err(anyhow::anyhow!(
-                "POST request failed with status: {}",
-                response.status()
-            ));
+                    "POST request failed with status {} for URL: {}",
+                    response.status(),
+                    full_url
+                ));
             }
         }
     }

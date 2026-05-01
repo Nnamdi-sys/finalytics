@@ -1,14 +1,15 @@
+use crate::analytics::performance::prepare_portfolio_data;
+use crate::prelude::{
+    Constraints, Interval, ObjectiveFunction, Portfolio, Ticker, Transaction, KLINE,
+};
 use std::error::Error;
-use crate::analytics::performance::PortfolioPerformanceStats;
-use crate::prelude::{Constraints, Interval, ObjectiveFunction, Portfolio, Ticker, KLINE};
-
 
 pub struct TickersBuilder {
     tickers: Vec<String>,
     start_date: String,
     end_date: String,
     interval: Interval,
-    benchmark_symbol: String,
+    benchmark_symbol: Option<String>,
     confidence_level: f64,
     risk_free_rate: f64,
     tickers_data: Option<Vec<KLINE>>,
@@ -28,7 +29,7 @@ impl TickersBuilder {
             start_date: String::new(),
             end_date: String::new(),
             interval: Interval::OneDay,
-            benchmark_symbol: String::from("^GSPC"),
+            benchmark_symbol: None,
             confidence_level: 0.95,
             risk_free_rate: 0.0,
             tickers_data: None,
@@ -57,7 +58,7 @@ impl TickersBuilder {
     }
 
     pub fn benchmark_symbol(mut self, benchmark_symbol: &str) -> TickersBuilder {
-        self.benchmark_symbol = benchmark_symbol.to_string();
+        self.benchmark_symbol = Some(benchmark_symbol.to_string());
         self
     }
 
@@ -82,68 +83,92 @@ impl TickersBuilder {
     }
 
     pub fn build(self) -> Tickers {
-        let benchmark_ticker = if let Some(benchmark_data) = self.benchmark_data.clone() {
-            Ticker::builder()
-                .ticker_data(Some(benchmark_data.clone()))
-                .confidence_level(self.confidence_level)
-                .risk_free_rate(self.risk_free_rate)
-                .build()
-        } else {
-            Ticker::builder()
-                .ticker(&self.benchmark_symbol)
-                .start_date(&self.start_date)
-                .end_date(&self.end_date)
-                .interval(self.interval)
-                .confidence_level(self.confidence_level)
-                .risk_free_rate(self.risk_free_rate)
-                .build()
-        };
+        // Build the benchmark ticker only if benchmark info is available
+        let benchmark_ticker: Option<Ticker> =
+            if let Some(benchmark_data) = self.benchmark_data.clone() {
+                Some(
+                    Ticker::builder()
+                        .ticker_data(Some(benchmark_data.clone()))
+                        .confidence_level(self.confidence_level)
+                        .risk_free_rate(self.risk_free_rate)
+                        .build(),
+                )
+            } else if let Some(ref sym) = self.benchmark_symbol {
+                Some(
+                    Ticker::builder()
+                        .ticker(sym)
+                        .start_date(&self.start_date)
+                        .end_date(&self.end_date)
+                        .interval(self.interval)
+                        .confidence_level(self.confidence_level)
+                        .risk_free_rate(self.risk_free_rate)
+                        .build(),
+                )
+            } else {
+                None
+            };
 
+        let benchmark_data_for_tickers = benchmark_ticker
+            .as_ref()
+            .and_then(|bt| bt.ticker_data.clone());
 
         let tickers = if let Some(tickers_data) = self.tickers_data.clone() {
-            tickers_data.clone().into_iter().map(|x|
-                Ticker::builder()
-                    .ticker_data(Some(x.clone()))
-                    .benchmark_data(benchmark_ticker.ticker_data.clone())
-                    .confidence_level(self.confidence_level)
-                    .risk_free_rate(self.risk_free_rate)
-                    .build()
-            ).collect::<Vec<Ticker>>()
+            tickers_data
+                .clone()
+                .into_iter()
+                .map(|x| {
+                    let mut builder = Ticker::builder()
+                        .ticker_data(Some(x.clone()))
+                        .confidence_level(self.confidence_level)
+                        .risk_free_rate(self.risk_free_rate);
+                    if let Some(ref bd) = benchmark_data_for_tickers {
+                        builder = builder.benchmark_data(Some(bd.clone()));
+                    }
+                    builder.build()
+                })
+                .collect::<Vec<Ticker>>()
         } else {
-            self.tickers.clone().into_iter().map(|x|
-                Ticker::builder().ticker(&x)
-                    .start_date(&self.start_date)
-                    .end_date(&self.end_date)
-                    .interval(self.interval)
-                    .benchmark_symbol(&self.benchmark_symbol)
-                    .confidence_level(self.confidence_level)
-                    .risk_free_rate(self.risk_free_rate)
-                    .build()
-            ).collect::<Vec<Ticker>>()
+            self.tickers
+                .clone()
+                .into_iter()
+                .map(|x| {
+                    let mut builder = Ticker::builder()
+                        .ticker(&x)
+                        .start_date(&self.start_date)
+                        .end_date(&self.end_date)
+                        .interval(self.interval)
+                        .confidence_level(self.confidence_level)
+                        .risk_free_rate(self.risk_free_rate);
+                    if let Some(ref sym) = self.benchmark_symbol {
+                        builder = builder.benchmark_symbol(sym);
+                    }
+                    builder.build()
+                })
+                .collect::<Vec<Ticker>>()
         };
+
+        let benchmark_symbol = benchmark_ticker.as_ref().map(|bt| bt.ticker.clone());
 
         Tickers {
             tickers: tickers.clone(),
             start_date: tickers[0].start_date.clone(),
             end_date: tickers[0].end_date.clone(),
             interval: tickers[0].interval,
-            benchmark_symbol: benchmark_ticker.ticker.clone(),
+            benchmark_symbol,
             confidence_level: self.confidence_level,
             risk_free_rate: self.risk_free_rate,
             tickers_data: self.tickers_data,
             benchmark_data: self.benchmark_data,
-            benchmark_ticker
+            benchmark_ticker,
         }
     }
-
 }
-
 
 impl Tickers {
     pub fn builder() -> TickersBuilder {
         TickersBuilder::new()
     }
-    
+
     /// Fetch a single Ticker Struct from the Tickers Struct
     ///
     /// ### Arguments
@@ -156,32 +181,72 @@ impl Tickers {
         let ticker = self.tickers.iter().find(|x| x.ticker == symbol);
         match ticker {
             Some(t) => Ok(t.clone()),
-            None => Err("Ticker not found".into())
+            None => Err("Ticker not found".into()),
         }
     }
 
-    /// Optimize a Portfolio of multiple tickers within the Tickers Struct
+    /// Optimize a Portfolio of multiple tickers within the Tickers Struct.
+    ///
+    /// Builds a Portfolio with the given objective function and constraints,
+    /// then runs optimization to find optimal weights.
     ///
     /// ### Arguments
     /// - `objective_function` - The Objective Function to optimize the Portfolio
     /// - `constraints` - The Portfolio Constraints
-    /// - `weights` - The Portfolio Weights (If weights are provided, they will be used instead of the optimization algorithm)
     ///
     /// ### Returns
     ///
-    /// - A `Portfolio` Struct
-    pub async fn optimize(&self,
-                          objective_function: Option<ObjectiveFunction>,
-                          constraints: Option<Constraints>,
-                          weights: Option<Vec<f64>>) -> Result<Portfolio, Box<dyn Error>> {
-        let objective_function = objective_function.unwrap_or(ObjectiveFunction::MaxSharpe);
-        let performance_stats = PortfolioPerformanceStats::performance_stats(
-            self.clone(), self.benchmark_ticker.clone(), &self.start_date, &self.end_date,
-            self.confidence_level, self.risk_free_rate, objective_function, constraints, weights).await?;
-        Ok(Portfolio {
-            tickers: self.clone(),
-            performance_stats,
-        })
+    /// - A `Portfolio` Struct with optimization result computed
+    pub async fn optimize(
+        &self,
+        objective_function: Option<ObjectiveFunction>,
+        constraints: Option<Constraints>,
+    ) -> Result<Portfolio, Box<dyn Error>> {
+        let data = prepare_portfolio_data(self, self.benchmark_ticker.as_ref()).await?;
+        let mut portfolio = Portfolio::new_raw(
+            self.clone(),
+            data,
+            objective_function.unwrap_or(ObjectiveFunction::MaxSharpe),
+            constraints,
+            None,
+            None,
+        );
+
+        portfolio.optimize()?;
+
+        Ok(portfolio)
+    }
+
+    /// Compute portfolio performance statistics from explicit weights.
+    ///
+    /// Builds a Portfolio and computes performance analysis using the
+    /// provided weights (dollar amounts) and optional per-asset transactions.
+    ///
+    /// ### Arguments
+    /// - `weights` - Dollar amounts per asset (same order as tickers)
+    /// - `transactions` - Optional per-asset transactions (additions/withdrawals)
+    ///
+    /// ### Returns
+    ///
+    /// - A `Portfolio` Struct with performance stats computed
+    pub async fn portfolio_performance_stats(
+        &self,
+        weights: Vec<f64>,
+        transactions: Option<Vec<Transaction>>,
+    ) -> Result<Portfolio, Box<dyn Error>> {
+        let data = prepare_portfolio_data(self, self.benchmark_ticker.as_ref()).await?;
+        let mut portfolio = Portfolio::new_raw(
+            self.clone(),
+            data,
+            ObjectiveFunction::MaxSharpe,
+            None,
+            Some(weights),
+            transactions,
+        );
+
+        portfolio.performance_stats()?;
+
+        Ok(portfolio)
     }
 }
 
@@ -219,17 +284,22 @@ impl Tickers {
 ///   // Generate a Single Ticker Report
 ///    let ticker = tickers.clone().get_ticker("NVDA").await?;
 ///    ticker.report(Some(ReportType::Performance)).await?.show()?;
-///    ticker.report(Some(ReportType::Financials)).await?.show()?;
-///    ticker.report(Some(ReportType::Options)).await?.show()?;
-///    ticker.report(Some(ReportType::News)).await?.show()?;
 ///
 ///    // Generate a Multiple Ticker Report
 ///    tickers.report(Some(ReportType::Performance)).await?.show()?;
 ///
-///    // Perform a Portfolio Optimization
-///    let portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None, None).await?;
+///    // Perform a Portfolio Optimization (in-sample performance stats computed automatically)
+///    let mut portfolio = tickers.optimize(Some(ObjectiveFunction::MaxSharpe), None).await?;
+///    portfolio.report(Some(ReportType::Optimization)).await?.show()?;
 ///
-///    // Generate a Portfolio Report
+///    // Optionally: update dates for out-of-sample evaluation, then recompute performance stats
+///    portfolio.update_dates("2024-01-01", "2024-12-31").await?;
+///    portfolio.performance_stats()?;
+///    portfolio.report(Some(ReportType::Performance)).await?.show()?;
+///
+///    // Or evaluate an explicit allocation directly (no optimization needed)
+///    let allocation = vec![25_000.0, 25_000.0, 25_000.0, 25_000.0];
+///    let portfolio = tickers.portfolio_performance_stats(allocation, None).await?;
 ///    portfolio.report(Some(ReportType::Performance)).await?.show()?;
 ///
 ///    Ok(())
@@ -242,10 +312,10 @@ pub struct Tickers {
     pub start_date: String,
     pub end_date: String,
     pub interval: Interval,
-    pub benchmark_symbol: String,
+    pub benchmark_symbol: Option<String>,
     pub confidence_level: f64,
     pub risk_free_rate: f64,
     pub tickers_data: Option<Vec<KLINE>>,
     pub benchmark_data: Option<KLINE>,
-    pub benchmark_ticker: Ticker,
+    pub benchmark_ticker: Option<Ticker>,
 }

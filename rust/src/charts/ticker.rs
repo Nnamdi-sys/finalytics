@@ -1,18 +1,23 @@
-use std::error::Error;
-use polars::prelude::*;
 use chrono::{DateTime, NaiveDateTime};
 use plotly::common::{AxisSide, Fill, Line, LineShape, Mode, Title};
+use plotly::layout::{
+    Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder,
+    SelectorButton, SelectorStep, StepMode,
+};
 use plotly::{Bar, Candlestick, Histogram, Layout, Plot, Scatter, Surface};
-use plotly::layout::{Axis, GridPattern, LayoutGrid, LayoutScene, RangeSelector, RangeSlider, RowOrder, SelectorButton, SelectorStep, StepMode};
+use polars::prelude::*;
+use std::error::Error;
 
-use crate::models::ticker::Ticker;
-use crate::data::ticker::TickerData;
-use crate::prelude::{DataTable, DataTableDisplay, DataTableFormat, StatementFrequency, StatementType};
-use crate::prelude::TechnicalIndicators;
 use crate::analytics::performance::TickerPerformance;
+use crate::analytics::statistics::{cumulative_returns_list, maximum_drawdown, PerformanceStats};
 use crate::analytics::stochastics::VolatilitySurface;
-use crate::analytics::statistics::{cumulative_returns_list, maximum_drawdown};
 use crate::charts::set_layout;
+use crate::data::ticker::TickerData;
+use crate::models::ticker::Ticker;
+use crate::prelude::TechnicalIndicators;
+use crate::prelude::{
+    DataTable, DataTableDisplay, DataTableFormat, StatementFrequency, StatementType,
+};
 
 pub struct FinancialsTables {
     pub income_statement: DataTable,
@@ -34,15 +39,43 @@ pub struct OptionsTables {
 
 pub trait TickerCharts {
     fn ohlcv_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
-    fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn summary_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
-    fn performance_stats_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
-    fn financials_tables(&self, frequency: StatementFrequency, formatted: Option<bool>) -> impl std::future::Future<Output = Result<FinancialsTables, Box<dyn Error>>>;
-    fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<OptionsCharts, Box<dyn Error>>>;
-    fn options_tables(&self) -> impl std::future::Future<Output = Result<OptionsTables, Box<dyn Error>>>;
-    fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
-    fn news_sentiment_table(&self) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn candlestick_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn performance_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn summary_stats_table(
+        &self,
+    ) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn performance_stats_table(
+        &self,
+    ) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
+    fn financials_tables(
+        &self,
+        frequency: StatementFrequency,
+        formatted: Option<bool>,
+    ) -> impl std::future::Future<Output = Result<FinancialsTables, Box<dyn Error>>>;
+    fn options_charts(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> impl std::future::Future<Output = Result<OptionsCharts, Box<dyn Error>>>;
+    fn options_tables(
+        &self,
+    ) -> impl std::future::Future<Output = Result<OptionsTables, Box<dyn Error>>>;
+    fn news_sentiment_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> impl std::future::Future<Output = Result<Plot, Box<dyn Error>>>;
+    fn news_sentiment_table(
+        &self,
+    ) -> impl std::future::Future<Output = Result<DataTable, Box<dyn Error>>>;
 }
 
 impl TickerCharts for Ticker {
@@ -67,32 +100,85 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn candlestick_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+    async fn candlestick_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> Result<Plot, Box<dyn Error>> {
         let data = self.get_chart().await?;
-        let x = data.column("timestamp")?.datetime()?.physical().to_vec().iter().map(|x|
-            DateTime::from_timestamp_millis( x.unwrap()).unwrap().naive_local()).collect::<Vec<NaiveDateTime>>();
+        let x = data
+            .column("timestamp")?
+            .datetime()?
+            .physical()
+            .to_vec()
+            .iter()
+            .map(|x| {
+                DateTime::from_timestamp_millis(x.unwrap_or_default())
+                    .unwrap_or_default()
+                    .naive_local()
+            })
+            .collect::<Vec<NaiveDateTime>>();
         let x = x.iter().map(|x| x.to_string()).collect::<Vec<String>>();
-        let open = data.column("open")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let high = data.column("high")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let low = data.column("low")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let close = data.column("close")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let volume = data.column("volume")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let open = data
+            .column("open")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+        let high = data
+            .column("high")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+        let low = data
+            .column("low")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+        let close = data
+            .column("close")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+        let volume = data
+            .column("volume")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
         let rsi_df = self.rsi(14, None).await?;
-        let rsi_values = rsi_df.column("rsi-14")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let rsi_values = rsi_df
+            .column("rsi-14")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
         let ma_50_df = self.sma(50, None).await?;
-        let ma_50_values = ma_50_df.column("sma-50")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let ma_50_values = ma_50_df
+            .column("sma-50")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
         let ma_200_df = self.sma(200, None).await?;
-        let ma_200_values = ma_200_df.column("sma-200")?.f64()?.to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
-        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close)
-            .name("Prices");
+        let ma_200_values = ma_200_df
+            .column("sma-200")?
+            .f64()?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
+        let candlestick_trace = Candlestick::new(x.clone(), open, high, low, close).name("Prices");
         let volume_trace = Bar::new(x.clone(), volume)
             .name("Volume")
             //.marker(Marker::new().color(NamedColor::Blue))
@@ -114,13 +200,16 @@ impl TickerCharts for Ticker {
             .line(Line::new().shape(LineShape::Spline));
 
         let layout = Layout::new()
-            .title(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>", self.ticker))
+            .title(&*format!(
+                "<span style=\"font-weight:bold; color:darkgreen;\">{} Candlestick Chart</span>",
+                self.ticker
+            ))
             .grid(
                 LayoutGrid::new()
                     .rows(3)
                     .columns(1)
                     .pattern(GridPattern::Coupled)
-                    .row_order(RowOrder::TopToBottom)
+                    .row_order(RowOrder::TopToBottom),
             )
             .x_axis(
                 Axis::new()
@@ -161,18 +250,9 @@ impl TickerCharts for Ticker {
                             .step(SelectorStep::All),
                     ])),
             )
-            .y_axis(
-                Axis::new()
-                    .domain(&[0.4, 1.0])
-            )
-            .y_axis2(
-                Axis::new()
-                    .domain(&[0.2, 0.4])
-            )
-            .y_axis3(
-                Axis::new()
-                    .domain(&[0.0, 0.2])
-            );
+            .y_axis(Axis::new().domain(&[0.4, 1.0]))
+            .y_axis2(Axis::new().domain(&[0.2, 0.4]))
+            .y_axis3(Axis::new().domain(&[0.0, 0.2]));
 
         let mut plot = Plot::new();
         plot.add_trace(Box::new(candlestick_trace));
@@ -180,11 +260,10 @@ impl TickerCharts for Ticker {
         plot.add_trace(ma50_trace);
         plot.add_trace(ma200_trace);
         plot.add_trace(rsi_trace);
-        
+
         let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
-
     }
 
     /// Generates a performance chart for the ticker
@@ -197,28 +276,47 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `Plot` Plotly Chart struct
-    async fn performance_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+    async fn performance_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> Result<Plot, Box<dyn Error>> {
         let performance_stats = self.performance_stats().await?;
         let dates = performance_stats.dates_array;
-        let returns = performance_stats.security_returns.clone().f64().unwrap().to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let returns = performance_stats
+            .security_returns
+            .clone()
+            .f64()
+            .map_err(|e| -> Box<dyn Error> { format!("security_returns not Float64: {e}").into() })?
+            .to_vec()
+            .iter()
+            .map(|x| x.unwrap_or_default())
+            .collect::<Vec<f64>>();
 
-        let benchmark_returns = performance_stats.benchmark_returns.f64().unwrap().to_vec()
-            .iter().map(|x| x.unwrap()).collect::<Vec<f64>>();
+        let benchmark_returns = performance_stats.benchmark_returns.as_ref().map(|br| {
+            br.f64()
+                .unwrap_or_else(|_| panic!("benchmark_returns is not Float64"))
+                .to_vec()
+                .iter()
+                .map(|x| x.unwrap_or_default())
+                .collect::<Vec<f64>>()
+        });
 
-        let cum_returns= cumulative_returns_list(returns.clone());
+        let cum_returns = cumulative_returns_list(returns.clone());
 
-        let benchmark_cum_returns= cumulative_returns_list(benchmark_returns.clone());
+        let benchmark_cum_returns = benchmark_returns
+            .as_ref()
+            .map(|br| cumulative_returns_list(br.clone()));
 
-        let (drawdowns, _) = maximum_drawdown(&performance_stats.security_returns);
-        let drawdowns = drawdowns.iter().map(|x| x/100.0).collect::<Vec<f64>>();
+        let (drawdowns, _) = maximum_drawdown(&performance_stats.security_returns)?;
+        let drawdowns = drawdowns;
 
-        let returns_trace = Scatter::new(dates.clone(), returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
+        let returns_trace = Scatter::new(dates.clone(), returns.clone())
             .name(format!("{} Returns", self.ticker))
             .mode(Mode::Markers)
             .fill(Fill::ToZeroY);
 
-        let returns_dist_trace = Histogram::new(returns.clone().iter().map(|x| x/100.0).collect::<Vec<f64>>())
+        let returns_dist_trace = Histogram::new(returns.clone())
             .name(format!("{} Returns Distribution", self.ticker))
             .x_axis("x2")
             .y_axis("y2");
@@ -230,12 +328,20 @@ impl TickerCharts for Ticker {
             .x_axis("x3")
             .y_axis("y3");
 
-        let benchmark_cum_returns_trace = Scatter::new(dates.clone(), benchmark_cum_returns.clone())
-            .name(format!("{} Cumulative Returns", performance_stats.benchmark_symbol))
-            .mode(Mode::Lines)
-            .fill(Fill::ToZeroY)
-            .x_axis("x3")
-            .y_axis("y3");
+        let benchmark_cum_returns_trace = benchmark_cum_returns.as_ref().map(|bcr| {
+            Scatter::new(dates.clone(), bcr.clone())
+                .name(format!(
+                    "{} Cumulative Returns",
+                    performance_stats
+                        .benchmark_symbol
+                        .as_deref()
+                        .unwrap_or("Benchmark")
+                ))
+                .mode(Mode::Lines)
+                .fill(Fill::ToZeroY)
+                .x_axis("x3")
+                .y_axis("y3")
+        });
 
         let drawdown_trace = Scatter::new(dates.clone(), drawdowns.clone())
             .name(format!("{} Drawdown", self.ticker))
@@ -248,42 +354,36 @@ impl TickerCharts for Ticker {
         plot.add_trace(returns_trace);
         plot.add_trace(returns_dist_trace);
         plot.add_trace(cum_returns_trace);
-        plot.add_trace(benchmark_cum_returns_trace);
+        if let Some(trace) = benchmark_cum_returns_trace {
+            plot.add_trace(trace);
+        }
         plot.add_trace(drawdown_trace);
 
         // Set layout for the plot
         let layout = Layout::new()
-            .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Chart</span>",
-                                         self.ticker)))
+            .title(Title::from(&*format!(
+                "<span style=\"font-weight:bold; color:darkgreen;\">{} Performance Chart</span>",
+                self.ticker
+            )))
             .grid(
                 LayoutGrid::new()
                     .rows(4)
                     .columns(1)
                     .pattern(GridPattern::Independent)
-                    .row_order(RowOrder::TopToBottom)
+                    .row_order(RowOrder::TopToBottom),
             )
-            .y_axis(
-                Axis::new()
-                    .title(Title::from("Returns"))
-                    .tick_format(".0%")
-            )
-            .y_axis2(
-                Axis::new()
-                    .title(Title::from("Returns Distribution"))
-            )
-            .x_axis2(
-                Axis::new()
-                    .tick_format(".0%")
-            )
+            .y_axis(Axis::new().title(Title::from("Returns")).tick_format(".0%"))
+            .y_axis2(Axis::new().title(Title::from("Returns Distribution")))
+            .x_axis2(Axis::new().tick_format(".0%"))
             .y_axis3(
                 Axis::new()
                     .title(Title::from("Cumulative Returns"))
-                    .tick_format(".0%")
+                    .tick_format(".0%"),
             )
             .y_axis4(
                 Axis::new()
                     .title(Title::from("Drawdown"))
-                    .tick_format(".0%")
+                    .tick_format(".0%"),
             );
 
         let plot = set_layout(plot, layout, height, width);
@@ -330,30 +430,19 @@ impl TickerCharts for Ticker {
             "Expected Shortfall".to_string(),
         ];
 
-        let values = vec![
-            format!("{:.2}%",stats.performance_stats.daily_return),
-            format!("{:.2}%",stats.performance_stats.daily_volatility),
-            format!("{:.2}%",stats.performance_stats.cumulative_return),
-            format!("{:.2}%",stats.performance_stats.annualized_return),
-            format!("{:.2}%",stats.performance_stats.annualized_volatility),
-            format!("{:.2}",stats.performance_stats.alpha),
-            format!("{:.2}",stats.performance_stats.beta),
-            format!("{:.2}",stats.performance_stats.sharpe_ratio),
-            format!("{:.2}",stats.performance_stats.sortino_ratio),
-            format!("{:.2}%",stats.performance_stats.active_return),
-            format!("{:.2}%",stats.performance_stats.active_risk),
-            format!("{:.2}",stats.performance_stats.information_ratio),
-            format!("{:.2}",stats.performance_stats.calmar_ratio),
-            format!("{:.2}%",stats.performance_stats.maximum_drawdown),
-            format!("{:.2}%",stats.performance_stats.value_at_risk),
-            format!("{:.2}%",stats.performance_stats.expected_shortfall),
-        ];
+        // Build columns: Metric + one column per applicable period
+        let mut columns: Vec<polars::prelude::Column> = Vec::new();
+        columns.push(polars::prelude::Column::new("Metric".into(), fields));
 
-        let df = DataFrame::new(vec![
-            Column::new("Metric".into(), fields),
-            Column::new("Value".into(), values),
-        ])?;
+        for (period, pstats) in &stats.periodic_stats {
+            let values = format_performance_stats_column(pstats);
+            columns.push(polars::prelude::Column::new(
+                period.to_string().as_str().into(),
+                values,
+            ));
+        }
 
+        let df = DataFrame::new(columns)?;
         let table = df.to_datatable("performance_stats", false, DataTableFormat::Number);
 
         Ok(table)
@@ -367,33 +456,45 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `FinancialsTables` - Financials Tables struct
-    async fn financials_tables(&self, frequency: StatementFrequency, formatted: Option<bool>) -> Result<FinancialsTables, Box<dyn Error>> {
-        let data = self.get_financials(StatementType::IncomeStatement, frequency, formatted).await?;
+    async fn financials_tables(
+        &self,
+        frequency: StatementFrequency,
+        formatted: Option<bool>,
+    ) -> Result<FinancialsTables, Box<dyn Error>> {
+        let data = self
+            .get_financials(StatementType::IncomeStatement, frequency, formatted)
+            .await?;
         let income_statement = data.to_datatable(
             &format!("{frequency}IncomeStatement"),
-            false, 
-            DataTableFormat::Currency
+            false,
+            DataTableFormat::Currency,
         );
 
-        let data = self.get_financials(StatementType::BalanceSheet, frequency, formatted).await?;
+        let data = self
+            .get_financials(StatementType::BalanceSheet, frequency, formatted)
+            .await?;
         let balance_sheet = data.to_datatable(
             &format!("{frequency}BalanceSheet"),
-            false, 
-            DataTableFormat::Currency
+            false,
+            DataTableFormat::Currency,
         );
 
-        let data = self.get_financials(StatementType::CashFlowStatement, frequency, formatted).await?;
+        let data = self
+            .get_financials(StatementType::CashFlowStatement, frequency, formatted)
+            .await?;
         let cashflow_statement = data.to_datatable(
             &format!("{frequency}CashFlowStatement"),
-            false, 
-            DataTableFormat::Currency
+            false,
+            DataTableFormat::Currency,
         );
 
-        let data = self.get_financials(StatementType::FinancialRatios, frequency, formatted).await?;
+        let data = self
+            .get_financials(StatementType::FinancialRatios, frequency, formatted)
+            .await?;
         let financial_ratios = data.to_datatable(
             &format!("{frequency}FinancialRatios"),
-            false, 
-            DataTableFormat::Number
+            false,
+            DataTableFormat::Number,
         );
 
         Ok(FinancialsTables {
@@ -414,7 +515,11 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `OptionsCharts` - Options Charts struct
-    async fn options_charts(&self, height: Option<usize>, width: Option<usize>) -> Result<OptionsCharts, Box<dyn Error>> {
+    async fn options_charts(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> Result<OptionsCharts, Box<dyn Error>> {
         let vol_surface = self.volatility_surface().await?;
         let symbol = vol_surface.symbol;
         let ivols = vol_surface.ivols;
@@ -422,7 +527,9 @@ impl TickerCharts for Ticker {
         let ttms = vol_surface.ttms;
 
         // Volatility Surface
-        let trace = Surface::new(ivols.clone()).x(strikes.clone()).y(ttms.clone());
+        let trace = Surface::new(ivols.clone())
+            .x(strikes.clone())
+            .y(ttms.clone());
         let mut surface_plot = Plot::new();
         surface_plot.add_trace(trace);
 
@@ -468,11 +575,10 @@ impl TickerCharts for Ticker {
         }
         let smile_plot = set_layout(smile_plot, layout, height, width);
 
-
         // Volatility Term Structure
         let rows = ivols[0].len();
         let cols = ivols.len();
-        let mut strike_vols: Vec<Vec<f64>>= vec![vec![Default::default(); cols]; rows];
+        let mut strike_vols: Vec<Vec<f64>> = vec![vec![Default::default(); cols]; rows];
 
         for (j, col) in ivols.iter().enumerate() {
             for (i, &val) in col.iter().enumerate() {
@@ -480,7 +586,6 @@ impl TickerCharts for Ticker {
             }
         }
         let mut traces = Vec::new();
-
 
         for (index, strike) in strikes.iter().enumerate() {
             let ivols = strike_vols[index].clone();
@@ -503,7 +608,6 @@ impl TickerCharts for Ticker {
         }
         let term_plot = set_layout(term_plot, layout, height, width);
 
-
         Ok(OptionsCharts {
             volatility_surface: surface_plot,
             volatility_smile: smile_plot,
@@ -523,7 +627,8 @@ impl TickerCharts for Ticker {
 
         // Volatility Surface
         let data = self.volatility_surface().await?.ivols_df;
-        let volatility_surface = data.to_datatable("volatility_surface", true, DataTableFormat::Number);
+        let volatility_surface =
+            data.to_datatable("volatility_surface", true, DataTableFormat::Number);
 
         Ok(OptionsTables {
             options_chain,
@@ -541,27 +646,63 @@ impl TickerCharts for Ticker {
     /// # Returns
     ///
     /// * `Plot` - Plotly Chart struct
-    async fn news_sentiment_chart(&self, height: Option<usize>, width: Option<usize>) -> Result<Plot, Box<dyn Error>> {
+    async fn news_sentiment_chart(
+        &self,
+        height: Option<usize>,
+        width: Option<usize>,
+    ) -> Result<Plot, Box<dyn Error>> {
         let data = self.get_news().await?;
-        let data = data.lazy()
-            .with_column(col("Published Date").dt().date().alias("Published Date"));
-        let grouped = data.clone().lazy().group_by_stable([col("Published Date")])
-            .agg([
-                col("Sentiment Score").mean().alias("Average Sentiment Score"),
-                col("Sentiment Score").count().alias("Number of Articles"),
-            ]).collect()?;
-        let grouped = grouped.sort(["Published Date"], SortMultipleOptions::new().with_order_descending(false))?
+        let data = data
             .lazy()
-            .with_column(col("Published Date").cast(DataType::Datetime(TimeUnit::Milliseconds, None)).alias("Published Date"))
+            .with_column(col("Published Date").dt().date().alias("Published Date"));
+        let grouped = data
+            .clone()
+            .lazy()
+            .group_by_stable([col("Published Date")])
+            .agg([
+                col("Sentiment Score")
+                    .mean()
+                    .alias("Average Sentiment Score"),
+                col("Sentiment Score").count().alias("Number of Articles"),
+            ])
+            .collect()?;
+        let grouped = grouped
+            .sort(
+                ["Published Date"],
+                SortMultipleOptions::new().with_order_descending(false),
+            )?
+            .lazy()
+            .with_column(
+                col("Published Date")
+                    .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
+                    .alias("Published Date"),
+            )
             .collect()?;
 
-
         // Convert to Vec for plotting
-        let dates = grouped.column("Published Date")?.datetime()?
-            .physical().into_no_null_iter().map(|x| DateTime::from_timestamp_millis(x).unwrap()
-            .naive_local().date().to_string()).collect::<Vec<_>>();
-        let scores = grouped.column("Average Sentiment Score")?.f64()?.into_no_null_iter().collect::<Vec<_>>();
-        let counts = grouped.column("Number of Articles")?.u32()?.into_no_null_iter().collect::<Vec<_>>();
+        let dates = grouped
+            .column("Published Date")?
+            .datetime()?
+            .physical()
+            .into_no_null_iter()
+            .map(|x| {
+                DateTime::from_timestamp_millis(x)
+                    .unwrap_or_default()
+                    .naive_local()
+                    .date()
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        let scores = grouped
+            .column("Average Sentiment Score")?
+            .f64()?
+            .into_no_null_iter()
+            .collect::<Vec<_>>();
+        let counts = grouped
+            .column("Number of Articles")?
+            .u32()?
+            .into_no_null_iter()
+            .collect::<Vec<_>>();
 
         // Create Plotly traces
         let bar_trace = Bar::new(dates.clone(), counts)
@@ -580,31 +721,39 @@ impl TickerCharts for Ticker {
 
         // Set the layout
         let layout = Layout::new()
-            .title(Title::from(&*format!("<span style=\"font-weight:bold; color:darkgreen;\">{} News Sentiment Chart</span>", &self.ticker)))
+            .title(Title::from(&*format!(
+                "<span style=\"font-weight:bold; color:darkgreen;\">{} News Sentiment Chart</span>",
+                &self.ticker
+            )))
             //.bar_mode(BarMode::Group)
-            .x_axis(Axis::new()
-                .title("Published Date")
-                .color("purple")
-                .show_grid(false))
-            .y_axis(Axis::new()
-                .title("Number of Articles")
-                .color("purple")
-                .show_grid(false))
-            .y_axis2(Axis::new()
-                .title("Average Sentiment Score")
-                .color("purple")
-                .show_grid(false)
-                .overlaying("y")
-                .side(AxisSide::Right)
+            .x_axis(
+                Axis::new()
+                    .title("Published Date")
+                    .color("purple")
+                    .show_grid(false),
+            )
+            .y_axis(
+                Axis::new()
+                    .title("Number of Articles")
+                    .color("purple")
+                    .show_grid(false),
+            )
+            .y_axis2(
+                Axis::new()
+                    .title("Average Sentiment Score")
+                    .color("purple")
+                    .show_grid(false)
+                    .overlaying("y")
+                    .side(AxisSide::Right),
             );
 
         let plot = set_layout(plot, layout, height, width);
 
         Ok(plot)
     }
-    
+
     /// Generates a News Sentiment Table for the Ticker
-    /// 
+    ///
     /// # Returns
     /// * `DataTable` - Table Chart struct
     async fn news_sentiment_table(&self) -> Result<DataTable, Box<dyn Error>> {
@@ -614,4 +763,36 @@ impl TickerCharts for Ticker {
         let news_table = news.to_datatable("News", true, DataTableFormat::Number);
         Ok(news_table)
     }
+}
+
+/// Format a `PerformanceStats` into a Vec of display strings (one per metric row).
+fn format_performance_stats_column(stats: &PerformanceStats) -> Vec<String> {
+    vec![
+        format!("{:.2}%", stats.daily_return * 100.0),
+        format!("{:.2}%", stats.daily_volatility * 100.0),
+        format!("{:.2}%", stats.cumulative_return * 100.0),
+        format!("{:.2}%", stats.annualized_return * 100.0),
+        format!("{:.2}%", stats.annualized_volatility * 100.0),
+        stats
+            .alpha
+            .map_or("N/A".to_string(), |v| format!("{:.2}", v)),
+        stats
+            .beta
+            .map_or("N/A".to_string(), |v| format!("{:.2}", v)),
+        format!("{:.2}", stats.sharpe_ratio),
+        format!("{:.2}", stats.sortino_ratio),
+        stats
+            .active_return
+            .map_or("N/A".to_string(), |v| format!("{:.2}%", v * 100.0)),
+        stats
+            .active_risk
+            .map_or("N/A".to_string(), |v| format!("{:.2}%", v * 100.0)),
+        stats
+            .information_ratio
+            .map_or("N/A".to_string(), |v| format!("{:.2}", v)),
+        format!("{:.2}", stats.calmar_ratio),
+        format!("{:.2}%", stats.maximum_drawdown * 100.0),
+        format!("{:.2}%", stats.value_at_risk * 100.0),
+        format!("{:.2}%", stats.expected_shortfall * 100.0),
+    ]
 }

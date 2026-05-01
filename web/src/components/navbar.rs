@@ -48,8 +48,6 @@ pub fn NavBar(active_page: Signal<Page>, is_mobile_menu_open: Signal<bool>) -> E
                 // Ticker dropdown
                 div {
                     class: "nav-dropdown",
-                    onmouseenter: move |_| is_ticker_dropdown_open.set(true),
-                    onmouseleave: move |_| is_ticker_dropdown_open.set(false),
 
                     button {
                         class: if is_ticker_active { "nav-link nav-link--active" } else { "nav-link" },
@@ -66,6 +64,18 @@ pub fn NavBar(active_page: Signal<Page>, is_mobile_menu_open: Signal<bool>) -> E
                     }
 
                     if *is_ticker_dropdown_open.read() {
+                        // Full-screen backdrop — clicking outside closes the dropdown
+                        div {
+                            style: r#"
+                                position: fixed;
+                                top: 0;
+                                left: 0;
+                                width: 100vw;
+                                height: 100vh;
+                                z-index: 1099;
+                            "#,
+                            onclick: move |_| is_ticker_dropdown_open.set(false),
+                        }
                         div {
                             class: "nav-dropdown-menu",
                             button {

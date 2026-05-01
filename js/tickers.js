@@ -1,9 +1,9 @@
-import ffi from '@2060.io/ffi-napi';
-import ref from 'ref-napi';
-import Polars from 'nodejs-polars';
-import { Ticker } from './ticker.js'
-import { Portfolio } from './portfolio.js';
-import { Chart, dfToJSON, getNativeLibPath } from './utils.js';
+import ffi from "@2060.io/ffi-napi";
+import ref from "ref-napi";
+import Polars from "nodejs-polars";
+import { Ticker } from "./ticker.js";
+import { Portfolio } from "./portfolio.js";
+import { Chart, dfToJSON, getNativeLibPath, getLastError } from "./utils.js";
 
 // Define C types
 const TickersHandle = ref.types.void; // Opaque pointer
@@ -13,27 +13,61 @@ const CharPtrPtr = ref.refType(CharPtr);
 
 // Load the finalytics library
 const lib = ffi.Library(getNativeLibPath(), {
-  finalytics_tickers_new: [TickersHandlePtr, [
-    CharPtr, CharPtr, CharPtr, CharPtr, CharPtr,
-    'double', 'double', CharPtr, CharPtr
-  ]],
-  finalytics_tickers_free: ['void', [TickersHandlePtr]],
-  finalytics_free_string: ['void', [CharPtr]],
-  finalytics_tickers_get_summary_stats: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_get_price_history: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_get_options_chain: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_get_news: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_get_income_statement: ['int', [TickersHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_tickers_get_balance_sheet: ['int', [TickersHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_tickers_get_cashflow_statement: ['int', [TickersHandlePtr, CharPtr, 'int', CharPtrPtr]],
-  finalytics_tickers_get_financial_ratios: ['int', [TickersHandlePtr, CharPtr, CharPtrPtr]],
-  finalytics_tickers_returns: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_performance_stats: ['int', [TickersHandlePtr, CharPtrPtr]],
-  finalytics_tickers_returns_chart: ['int', [TickersHandlePtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_tickers_returns_matrix: ['int', [TickersHandlePtr, 'uint', 'uint', CharPtrPtr]],
-  finalytics_tickers_report: ['int', [TickersHandlePtr, CharPtr, CharPtrPtr]],
-  finalytics_tickers_get_ticker: [TickersHandlePtr, [TickersHandlePtr, CharPtr]],
-  finalytics_tickers_optimize: [TickersHandlePtr, [TickersHandlePtr, CharPtr, CharPtr, CharPtr, CharPtr]],
+  finalytics_tickers_new: [
+    TickersHandlePtr,
+    [
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      CharPtr,
+      "double",
+      "double",
+      CharPtr,
+      CharPtr,
+    ],
+  ],
+  finalytics_tickers_free: ["void", [TickersHandlePtr]],
+  finalytics_free_string: ["void", [CharPtr]],
+  finalytics_tickers_get_summary_stats: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_get_price_history: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_get_options_chain: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_get_news: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_get_income_statement: [
+    "int",
+    [TickersHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_tickers_get_balance_sheet: [
+    "int",
+    [TickersHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_tickers_get_cashflow_statement: [
+    "int",
+    [TickersHandlePtr, CharPtr, "int", CharPtrPtr],
+  ],
+  finalytics_tickers_get_financial_ratios: [
+    "int",
+    [TickersHandlePtr, CharPtr, CharPtrPtr],
+  ],
+  finalytics_tickers_returns: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_performance_stats: ["int", [TickersHandlePtr, CharPtrPtr]],
+  finalytics_tickers_returns_chart: [
+    "int",
+    [TickersHandlePtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_tickers_returns_matrix: [
+    "int",
+    [TickersHandlePtr, "uint", "uint", CharPtrPtr],
+  ],
+  finalytics_tickers_report: ["int", [TickersHandlePtr, CharPtr, CharPtrPtr]],
+  finalytics_tickers_get_ticker: [
+    TickersHandlePtr,
+    [TickersHandlePtr, CharPtr],
+  ],
+  finalytics_tickers_optimize: [
+    TickersHandlePtr,
+    [TickersHandlePtr, CharPtr, CharPtr, CharPtr, CharPtr],
+  ],
 });
 
 /**
@@ -62,9 +96,12 @@ class Tickers {
   async getSummaryStats() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_summary_stats(this.handle, outputPtr);
+      const result = lib.finalytics_tickers_get_summary_stats(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get summary stats: error code ${result}`));
+        return reject(getLastError("Failed to get summary stats"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -85,9 +122,12 @@ class Tickers {
   async getPriceHistory() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_price_history(this.handle, outputPtr);
+      const result = lib.finalytics_tickers_get_price_history(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get price history: error code ${result}`));
+        return reject(getLastError("Failed to get price history"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -108,9 +148,12 @@ class Tickers {
   async getOptionsChain() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_options_chain(this.handle, outputPtr);
+      const result = lib.finalytics_tickers_get_options_chain(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get options chain: error code ${result}`));
+        return reject(getLastError("Failed to get options chain"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -133,7 +176,7 @@ class Tickers {
       const outputPtr = ref.alloc(CharPtrPtr);
       const result = lib.finalytics_tickers_get_news(this.handle, outputPtr);
       if (result !== 0) {
-        return reject(new Error(`Failed to get news: error code ${result}`));
+        return reject(getLastError("Failed to get news"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -156,9 +199,14 @@ class Tickers {
   async getIncomeStatement(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_income_statement(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_tickers_get_income_statement(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get income statement: error code ${result}`));
+        return reject(getLastError("Failed to get income statement"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -181,9 +229,14 @@ class Tickers {
   async getBalanceSheet(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_balance_sheet(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_tickers_get_balance_sheet(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get balance sheet: error code ${result}`));
+        return reject(getLastError("Failed to get balance sheet"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -206,9 +259,14 @@ class Tickers {
   async getCashflowStatement(frequency, formatted) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_cashflow_statement(this.handle, frequency, formatted ? 1 : 0, outputPtr);
+      const result = lib.finalytics_tickers_get_cashflow_statement(
+        this.handle,
+        frequency,
+        formatted ? 1 : 0,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get cash flow statement: error code ${result}`));
+        return reject(getLastError("Failed to get cash flow statement"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -230,9 +288,13 @@ class Tickers {
   async getFinancialRatios(frequency) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_get_financial_ratios(this.handle, frequency, outputPtr);
+      const result = lib.finalytics_tickers_get_financial_ratios(
+        this.handle,
+        frequency,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get financial ratios: error code ${result}`));
+        return reject(getLastError("Failed to get financial ratios"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -255,7 +317,7 @@ class Tickers {
       const outputPtr = ref.alloc(CharPtrPtr);
       const result = lib.finalytics_tickers_returns(this.handle, outputPtr);
       if (result !== 0) {
-        return reject(new Error(`Failed to get returns: error code ${result}`));
+        return reject(getLastError("Failed to get returns"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -283,9 +345,12 @@ class Tickers {
   async performanceStats() {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_performance_stats(this.handle, outputPtr);
+      const result = lib.finalytics_tickers_performance_stats(
+        this.handle,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get performance stats: error code ${result}`));
+        return reject(getLastError("Failed to get performance stats"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -314,9 +379,14 @@ class Tickers {
   async returnsChart(height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_returns_chart(this.handle, height, width, outputPtr);
+      const result = lib.finalytics_tickers_returns_chart(
+        this.handle,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get returns chart: error code ${result}`));
+        return reject(getLastError("Failed to get returns chart"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -346,9 +416,14 @@ class Tickers {
   async returnsMatrix(height = 0, width = 0) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_returns_matrix(this.handle, height, width, outputPtr);
+      const result = lib.finalytics_tickers_returns_matrix(
+        this.handle,
+        height,
+        width,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get returns matrix: error code ${result}`));
+        return reject(getLastError("Failed to get returns matrix"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -377,9 +452,13 @@ class Tickers {
   async report(reportType) {
     return new Promise((resolve, reject) => {
       const outputPtr = ref.alloc(CharPtrPtr);
-      const result = lib.finalytics_tickers_report(this.handle, reportType, outputPtr);
+      const result = lib.finalytics_tickers_report(
+        this.handle,
+        reportType,
+        outputPtr,
+      );
       if (result !== 0) {
-        return reject(new Error(`Failed to get report: error code ${result}`));
+        return reject(getLastError("Failed to get report"));
       }
       const output = ref.readCString(outputPtr.deref(), 0);
       lib.finalytics_free_string(outputPtr.deref());
@@ -403,7 +482,7 @@ class Tickers {
     return new Promise((resolve, reject) => {
       const handle = lib.finalytics_tickers_get_ticker(this.handle, symbol);
       if (!handle || handle.isNull()) {
-        return reject(new Error('Failed to get Ticker'));
+        return reject(getLastError("Failed to get Ticker"));
       }
       resolve(new Ticker(handle));
     });
@@ -431,11 +510,22 @@ class Tickers {
    * portfolio.free();
    * tickers.free();
    */
-  async optimize(objectiveFunction, assetConstraints, categoricalConstraints, weights) {
+  async optimize(
+    objectiveFunction,
+    assetConstraints,
+    categoricalConstraints,
+    weights,
+  ) {
     return new Promise((resolve, reject) => {
-      const handle = lib.finalytics_tickers_optimize(this.handle, objectiveFunction, assetConstraints, categoricalConstraints, weights);
+      const handle = lib.finalytics_tickers_optimize(
+        this.handle,
+        objectiveFunction,
+        assetConstraints,
+        categoricalConstraints,
+        weights,
+      );
       if (!handle || handle.isNull()) {
-        return reject(new Error('Failed to optimize portfolio'));
+        return reject(getLastError("Failed to optimize portfolio"));
       }
       resolve(new Portfolio(handle));
     });
@@ -472,10 +562,10 @@ class TickersBuilder {
    */
   constructor() {
     this.symbolsValue = [];
-    this.startDateValue = '';
-    this.endDateValue = '';
-    this.intervalValue = '1d';
-    this.benchmarkSymbolValue = '';
+    this.startDateValue = "";
+    this.endDateValue = "";
+    this.intervalValue = "1d";
+    this.benchmarkSymbolValue = "";
     this.confidenceLevelValue = 0.95;
     this.riskFreeRateValue = 0.02;
     this.tickersDataValue = null;
@@ -487,63 +577,90 @@ class TickersBuilder {
    * @param {string[]} value - Array of ticker symbols (e.g., ['AAPL', 'MSFT']).
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  symbols(value) { this.symbolsValue = value; return this; }
+  symbols(value) {
+    this.symbolsValue = value;
+    return this;
+  }
 
   /**
    * Sets the start date for the data period.
    * @param {string} value - The start date in YYYY-MM-DD format.
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  startDate(value) { this.startDateValue = value; return this; }
+  startDate(value) {
+    this.startDateValue = value;
+    return this;
+  }
 
   /**
    * Sets the end date for the data period.
    * @param {string} value - The end date in YYYY-MM-DD format.
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  endDate(value) { this.endDateValue = value; return this; }
+  endDate(value) {
+    this.endDateValue = value;
+    return this;
+  }
 
   /**
    * Sets the data interval.
    * @param {string} value - The data interval (e.g., '2m', '5m', '15m', '30m', '1h', '1d', '1wk', '1mo', '3mo').
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  interval(value) { this.intervalValue = value; return this; }
+  interval(value) {
+    this.intervalValue = value;
+    return this;
+  }
 
   /**
    * Sets the benchmark symbol.
    * @param {string} value - The benchmark symbol (e.g., '^GSPC').
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  benchmarkSymbol(value) { this.benchmarkSymbolValue = value; return this; }
+  benchmarkSymbol(value) {
+    this.benchmarkSymbolValue = value;
+    return this;
+  }
 
   /**
    * Sets the confidence level for VaR and ES calculations.
    * @param {number} value - The confidence level (e.g., 0.95 for 95% confidence).
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  confidenceLevel(value) { this.confidenceLevelValue = value; return this; }
+  confidenceLevel(value) {
+    this.confidenceLevelValue = value;
+    return this;
+  }
 
   /**
    * Sets the risk-free rate for calculations.
    * @param {number} value - The risk-free rate (e.g., 0.02 for 2%).
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  riskFreeRate(value) { this.riskFreeRateValue = value; return this; }
+  riskFreeRate(value) {
+    this.riskFreeRateValue = value;
+    return this;
+  }
 
   /**
    * Sets custom ticker data.
    * @param {Polars.DataFrame[]|null} value - Array of Polars DataFrames containing custom ticker data (null if not used).
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  tickersData(value) { this.tickersDataValue = value; return this; }
+  tickersData(value) {
+    this.tickersDataValue = value;
+    return this;
+  }
 
   /**
    * Sets custom benchmark data.
    * @param {Polars.DataFrame|null} value - A Polars DataFrame containing custom benchmark data (null if not used).
    * @returns {TickersBuilder} The builder instance for method chaining.
    */
-  benchmarkData(value) { this.benchmarkDataValue = value; return this; }
+  benchmarkData(value) {
+    this.benchmarkDataValue = value;
+    return this;
+  }
 
   /**
    * Constructs the Tickers instance with the configured parameters.
@@ -562,12 +679,15 @@ class TickersBuilder {
    * tickers.free();
    */
   async build() {
-    if (!this.symbolsValue.length) throw new Error('Symbols is required and cannot be empty');
+    if (!this.symbolsValue.length)
+      throw new Error("Symbols is required and cannot be empty");
     const symbolsJson = JSON.stringify(this.symbolsValue);
     const tickersDataJson = this.tickersDataValue
-      ? JSON.stringify(this.tickersDataValue.map(df => dfToJSON(df)))
-      : '';
-    const benchmarkDataJson = this.benchmarkDataValue ? dfToJSON(this.benchmarkDataValue) : '';
+      ? JSON.stringify(this.tickersDataValue.map((df) => dfToJSON(df)))
+      : "";
+    const benchmarkDataJson = this.benchmarkDataValue
+      ? dfToJSON(this.benchmarkDataValue)
+      : "";
     return new Promise((resolve, reject) => {
       const handle = lib.finalytics_tickers_new(
         symbolsJson,
@@ -578,10 +698,10 @@ class TickersBuilder {
         this.confidenceLevelValue,
         this.riskFreeRateValue,
         tickersDataJson || null,
-        benchmarkDataJson || null
+        benchmarkDataJson || null,
       );
       if (!handle || handle.isNull()) {
-        return reject(new Error('Failed to create Tickers'));
+        return reject(getLastError("Failed to create Tickers"));
       }
       resolve(new Tickers(handle));
     });

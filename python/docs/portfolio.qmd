@@ -25,25 +25,49 @@ Create a new Portfolio object.
 - `confidence_level` (float): The confidence level for risk calculations.
 - `risk_free_rate` (float): The risk-free rate for calculations.
 - `objective_function` (Optional[str]): The objective function for optimization:
-  - `max_sharpe`: Maximize return per unit of risk.
+  - `max_sharpe`: Maximize return per unit of risk (Sharpe ratio).
+  - `max_sortino`: Maximize return per unit of downside risk (Sortino ratio).
   - `min_vol`: Minimize overall volatility.
   - `max_return`: Maximize expected return.
   - `min_var`: Minimize Value-at-Risk (VaR).
   - `min_cvar`: Minimize Conditional Value-at-Risk (CVaR).
   - `min_drawdown`: Minimize maximum portfolio drawdown.
+  - `risk_parity`: Risk Parity (equal risk contribution from each asset).
+  - `max_diversification`: Maximize Diversification ratio.
+  - `hierarchical_risk_parity`: Hierarchical Risk Parity (clustering-based allocation).
 - `asset_constraints` (Optional[List[Tuple[float, float]]]): List of tuples with the lower and upper bounds for the ticker weights.
 - `categorical_constraints` (Optional[List[Tuple[str, List[str], List[Tuple[str, float, float]]]]]): Category-based constraints.
   Each tuple has the form:
   - `category_name` (str): Name of the constraint group (e.g., `"AssetClass"`).
   - `category_per_symbol` (List[str]): Assigns each ticker to a category, in the same order as `ticker_symbols`.
   - `weight_per_category` (List[Tuple[str, float, float]]): Tuples of `(category_label, min_weight, max_weight)` specifying bounds for each category.
-- `weights` (Optional[List[float]]): Weights for the assets in the portfolio. If provided, it will override the optimization process.
+- `weights` (Optional[List[float]]): Dollar amounts for each asset in the portfolio. If provided, skips optimization and evaluates the explicit allocation directly. Fractional weights are derived as `allocation[i] / sum(allocation)`.
+- `transactions` (Optional[List[dict]]): Ad-hoc per-asset transactions (additions/withdrawals). Each transaction is a dict with keys:
+  - `date` (str): Date string (e.g., `"2024-01-15"`)
+  - `ticker` (str): Ticker symbol
+  - `amount` (float): Dollar amount (positive = addition, negative = withdrawal)
+- `rebalance_strategy` (Optional[dict]): Rebalancing strategy for the portfolio simulation. Possible formats:
+  - `{"type": "calendar", "frequency": "monthly"}` — rebalance on a fixed calendar schedule
+  - `{"type": "threshold", "threshold": 0.05}` — rebalance when any weight drifts more than 5% from target
+  - `{"type": "calendar_or_threshold", "frequency": "quarterly", "threshold": 0.05}` — rebalance on the earlier of the calendar trigger or threshold breach
+  - Frequency values: `"monthly"`, `"quarterly"`, `"semi_annually"`, `"annually"`
+- `scheduled_cash_flows` (Optional[List[dict]]): Recurring cash flow schedules. Each schedule is a dict with keys:
+  - `amount` (float): Dollar amount per occurrence (positive = addition, negative = withdrawal)
+  - `frequency` (str): `"monthly"`, `"quarterly"`, `"semi_annually"`, `"annually"`
+  - `start_date` (Optional[str]): Start date or `None` (defaults to first portfolio date)
+  - `end_date` (Optional[str]): End date or `None` (defaults to last portfolio date)
+  - `allocation` (str or dict): How cash is distributed across assets:
+    - `"pro_rata"` — distribute according to target weights
+    - `"rebalance"` — direct cash to underweight assets (additions) or withdraw from overweight (withdrawals)
+    - `{"custom": [0.4, 0.3, 0.2, 0.1]}` — distribute according to a custom weight vector
+- `tickers_data` (Optional[List[DataFrame]]): Custom Polars DataFrames for each ticker (columns: timestamp, open, high, low, close, volume, adjclose).
+- `benchmark_data` (Optional[DataFrame]): Custom Polars DataFrame for the benchmark.
 
 **Returns:**
 
 - `Portfolio`: A Portfolio object.
 
-**Example:**
+**Example: Optimization**
 
 ```{python}
 from finalytics import Portfolio
@@ -67,6 +91,33 @@ portfolio = Portfolio(
     ]
 )
 ```
+
+**Example: Explicit Allocation with Rebalancing and DCA**
+
+```{python}
+from finalytics import Portfolio
+
+portfolio_dca = Portfolio(
+    ticker_symbols=["AAPL", "MSFT", "NVDA", "BTC-USD"],
+    benchmark_symbol="^GSPC",
+    start_date="2023-01-01",
+    end_date="2024-12-31",
+    interval="1d",
+    confidence_level=0.95,
+    risk_free_rate=0.02,
+    weights=[25000.0, 25000.0, 25000.0, 25000.0],
+    rebalance_strategy={"type": "calendar", "frequency": "quarterly"},
+    scheduled_cash_flows=[
+        {
+            "amount": 2000.0,
+            "frequency": "monthly",
+            "start_date": None,
+            "end_date": None,
+            "allocation": "pro_rata"
+        }
+    ]
+)
+```
 </details>
 
 
@@ -77,7 +128,17 @@ Get the optimization results for the portfolio.
 
 **Returns:**
 
-- `dict`: Dictionary containing the portfolio optimization results.
+- `dict`: Dictionary containing the portfolio optimization results, including:
+  - `ticker_symbols`, `benchmark_symbol`, `start_date`, `end_date`, `interval`
+  - `confidence_level`, `risk_free_rate`
+  - `portfolio_returns` (DataFrame), `benchmark_returns` (Series)
+  - `objective_function`, `optimization_method`, `optimal_weights`
+  - `category_weights`, `efficient_frontier`, `risk_contributions`
+  - `weights`, `starting_weights`, `ending_weights`
+  - `starting_values`, `ending_values`
+  - `optimal_portfolio_returns` (Series)
+  - Performance metrics: `Daily Return`, `Daily Volatility`, `Cumulative Return`, `Annualized Return`, `Annualized Volatility`, `Alpha`, `Beta`, `Sharpe Ratio`, `Sortino Ratio`, `Active Return`, `Active Risk`, `Information Ratio`, `Calmar Ratio`, `Maximum Drawdown`, `Value at Risk`, `Expected Shortfall`
+  - `Money Weighted Return` (annualized %, if applicable)
 
 **Example:**
 
@@ -155,7 +216,7 @@ performance_chart.show()
 <details>
 <summary>`asset_returns_chart`</summary>
 
-Display the individual asset returns chart for the portfolio.
+Display the individual asset returns chart for the portfolio (percentage returns).
 
 **Parameters:**
 
@@ -171,6 +232,29 @@ Display the individual asset returns chart for the portfolio.
 ```{python}
 asset_returns_chart = portfolio.asset_returns_chart()
 asset_returns_chart.show()
+```
+</details>
+
+
+<details>
+<summary>`portfolio_value_chart`</summary>
+
+Display the portfolio total value over time chart.
+
+**Parameters:**
+
+- `height` (Optional[int]): Optional height of the plot in pixels, defaults to None.
+- `width` (Optional[int]): Optional width of the plot in pixels, defaults to None.
+
+**Returns:**
+
+- `Plot`: Plot object containing the portfolio value chart.
+
+**Example:**
+
+```{python}
+value_chart = portfolio.portfolio_value_chart()
+value_chart.show()
 ```
 </details>
 
@@ -199,18 +283,81 @@ returns_matrix.show()
 
 
 <details>
+<summary>`transaction_history_table`</summary>
+
+Get the transaction history table for the portfolio.
+
+Returns a table of all transaction events during the simulation, including
+rebalances, cash flows, and combined events. Each row includes:
+portfolio value before/after, per-asset values, trade amounts, turnover,
+cumulative TWR and MWR.
+
+**Returns:**
+
+- `DataFrame`: Polars DataFrame containing the transaction history.
+
+**Example:**
+
+```{python}
+history = portfolio_dca.transaction_history_table()
+print(history)
+```
+</details>
+
+
+<details>
+<summary>`update_dates`</summary>
+
+Update the portfolio's date range and re-fetch data for out-of-sample evaluation.
+
+This method is for portfolios built from Yahoo Finance data (not custom data).
+It rebuilds all underlying ticker and benchmark data for the new date range.
+The optimization result (weights) is preserved so they can be evaluated
+out-of-sample on the new period.
+
+After calling this method, call `performance_stats()` to evaluate the
+optimized weights on the new data (it recomputes automatically).
+
+**Parameters:**
+
+- `start_date` (str): New start date (e.g., `"2024-01-01"`)
+- `end_date` (str): New end date (e.g., `"2024-12-31"`)
+
+**Example:**
+
+```python
+# Optimize on 2022 data
+portfolio = Portfolio(
+    ticker_symbols=["AAPL", "MSFT"],
+    start_date="2022-01-01",
+    end_date="2023-01-01",
+    objective_function="max_sharpe"
+)
+
+# Update to 2023 data for out-of-sample evaluation
+portfolio.update_dates("2023-01-01", "2024-01-01")
+print(portfolio.performance_stats())
+```
+</details>
+
+
+<details>
 <summary>`report`</summary>
 
 Generate a report for the portfolio.
 
 **Parameters:**
 
-- `report_type` (Optional[str]): The type of report to generate. Options are "performance".
-- display (Optional[str]): The display mode for the report. set to "notebook" for Jupyter Notebook display, defaults to "browser".
+- `report_type` (Optional[str]): The type of report to generate. Options are:
+  - `"performance"` — Performance analysis report
+  - `"optimization"` — Optimization results report
+- `display` (Optional[str]): The display mode for the report. Set to `"notebook"` for Jupyter Notebook display, defaults to opening in the default web browser.
 
 **Example:**
 
 ```python
 portfolio.report("performance")
+portfolio.report("optimization")
+portfolio.report("performance", display="notebook")  # Jupyter Notebook
 ```
 </details>
