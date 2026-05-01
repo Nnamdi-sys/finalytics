@@ -1,10 +1,12 @@
 #!/bin/bash
 # post_commit.sh — Run after committing to GitHub.
 #
-# Does three things in order:
-#   1. Builds and publishes the C-FFI GitHub release  (ffi/release_ffi.sh)
-#   2. Creates and pushes the Python package git tag  (python/vX.Y.Z)
-#   3. Creates and pushes the Go module git tag       (go/vX.Y.Z)
+# Steps:
+#   1. Publishes the Rust crate to crates.io        (cargo publish)
+#   2. Publishes the JS package to npm              (npm publish)
+#   3. Builds and publishes the C-FFI GitHub release (ffi/release_ffi.sh)
+#   4. Creates and pushes the Python package git tag (python/vX.Y.Z)
+#   5. Creates and pushes the Go module git tag      (go/vX.Y.Z)
 #
 # Usage (from repo root):
 #   bash post_commit.sh
@@ -60,6 +62,8 @@ GO_TAG="go/${GO_VERSION}"
 
 echo ""
 echo "About to perform the following:"
+echo "  • cargo publish  (version from rust/Cargo.toml)"
+echo "  • npm publish    (version from js/package.json)"
 echo "  • Run ffi/release_ffi.sh with FFI version : $FFI_VERSION"
 echo "  • Create and push git tag                 : $PYTHON_TAG"
 echo "  • Create and push git tag                 : $GO_TAG"
@@ -71,14 +75,30 @@ if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
   exit 0
 fi
 
-# ── 1. FFI Release ────────────────────────────────────────────────────────────
+# ── 1. Cargo Publish ─────────────────────────────────────────────────────────
+
+banner "🦀  Cargo Publish — crates.io"
+
+cd "$REPO_ROOT/rust"
+cargo publish
+echo "✅  Rust crate published to crates.io"
+
+# ── 2. NPM Publish ────────────────────────────────────────────────────────────
+
+banner "🟨  NPM Publish — npmjs.com"
+
+cd "$REPO_ROOT/js"
+npm publish
+echo "✅  JS package published to npm"
+
+# ── 3. FFI Release ────────────────────────────────────────────────────────────
 
 banner "🔧  FFI Release — ffi/release_ffi.sh $FFI_VERSION"
 
 cd "$REPO_ROOT/ffi"
 bash release_ffi.sh "$FFI_VERSION"
 
-# ── 2. Python Git Tag ─────────────────────────────────────────────────────────
+# ── 4. Python Git Tag ─────────────────────────────────────────────────────────
 
 banner "🐍  Python Git Tag — $PYTHON_TAG"
 
@@ -87,7 +107,7 @@ git tag "$PYTHON_TAG"
 git push origin "$PYTHON_TAG"
 echo "✅  Pushed tag: $PYTHON_TAG"
 
-# ── 3. Go Git Tag ─────────────────────────────────────────────────────────────
+# ── 5. Go Git Tag ─────────────────────────────────────────────────────────────
 
 banner "🐹  Go Git Tag — $GO_TAG"
 
@@ -99,6 +119,8 @@ echo "✅  Pushed tag: $GO_TAG"
 
 echo ""
 echo "🎉  All done!"
+echo "    Rust crate  : published to crates.io"
+echo "    JS package  : published to npm"
 echo "    FFI release : $FFI_VERSION"
 echo "    Python tag  : $PYTHON_TAG"
 echo "    Go tag      : $GO_TAG"
